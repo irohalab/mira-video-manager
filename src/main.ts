@@ -32,7 +32,7 @@ import { BaseProfile } from './processors/profiles/BaseProfile';
 import { FileManageService } from './services/FileManageService';
 import { JobExecutor } from './JobExecutor';
 import { JobScheduler } from './JobScheduler';
-import { MainRunner } from '../MainRunner';
+import { MainRunner } from './MainRunner';
 
 const container = new Container();
 

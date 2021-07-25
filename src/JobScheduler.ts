@@ -27,7 +27,7 @@ import { JobMessage } from './domains/JobMessage';
 import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
-import { MainRunner } from '../MainRunner';
+import { MainRunner } from './MainRunner';
 
 @injectable()
 export class JobScheduler implements MainRunner {
