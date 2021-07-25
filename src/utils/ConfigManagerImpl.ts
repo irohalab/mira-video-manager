@@ -104,6 +104,27 @@ export class ConfigManagerImpl implements ConfigManager {
         }
     }
 
+    enabledHttps(): boolean {
+        return process.env.ENABLED_HTTPS === 'true';
+    }
+
+    serverHost(): string {
+        return process.env.SERVER_HOST || 'localhost';
+    }
+
+    serverPort(): number {
+        const portStr = process.env.SERVER_PORT;
+        return portStr ? parseInt(portStr, 10) : 8080;
+    }
+
+    getFileUrl(filename: string, jobMessageId: string): string {
+        const serverBaseUrl = process.env.SERVER_BASE_URL;
+        if (serverBaseUrl) {
+            return `${serverBaseUrl}/${jobMessageId}/${filename}`;
+        }
+        return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/output/${jobMessageId}/${filename}`;
+    }
+
     private async writeNewProfile(profilePath): Promise<string> {
         const myId = uuidv4();
         await writeFile(profilePath, JSON.stringify({id: myId}));

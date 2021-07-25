@@ -14,18 +14,13 @@
  * limitations under the License.
  */
 
-export abstract class BaseProfile {
-    protected constructor(protected videoFilePath: string, protected actionIndex: number) {
-    }
+import { MQMessage } from './MQMessage';
+import { RemoteFile } from './RemoteFile';
 
-    /**
-     * Generate ffmpeg command line argument, returned value will be used in spawn function
-     * Return value doesn't include output filename.
-     */
-    public abstract getCommandArgs(): string[];
-
-    /**
-     * Get the output filename for the profile.
-     */
-    public abstract getOutputFilename(): string;
+export class ProcessFinishedMessage implements MQMessage {
+    public id: string;
+    public processedFile: RemoteFile;
+    public jobExecutorId: string;
+    public bangumiId: string;
+    public videoId: string;
 }

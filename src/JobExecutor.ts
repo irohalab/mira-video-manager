@@ -27,6 +27,10 @@ import { Job } from './entity/Job';
 import { Action } from './domains/Action';
 import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { JobState } from './domains/JobState';
+import { ProcessFinishedMessage } from './domains/ProcessFinishedMessage';
+import { v4 as uuidv4} from 'uuid';
+import { RemoteFile } from './domains/RemoteFile';
+import { basename } from "path";
 
 @injectable()
 export class JobExecutor {
@@ -76,7 +80,7 @@ export class JobExecutor {
             } else if (job.status === JobStatus.Pause) {
                 throw new Error('Illegal Status');
             }
-            this.processJob(job).then(() => console.log('job processed'));
+            this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
             return true;
         }
         throw new Error('no job found in database');
@@ -97,6 +101,12 @@ export class JobExecutor {
         const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
         job.status = JobStatus.Running;
         await jobRepo.save(job);
+        this.processJob(job)
+            .then(() => {
+                console.log('job processed');
+            }, (error) => {
+                console.error(error);
+            });
     }
 
     private async processJob(job: Job): Promise<void> {
@@ -130,8 +140,29 @@ export class JobExecutor {
             state.log = `start processing action[${i}]`;
             outputPath = await this.currentVideoProcessor.process(action);
             state.endTime = new Date();
+            job.stateHistory.push(state);
             job.progress = i;
             await jobRepo.save(job);
+            await this.currentVideoProcessor.dispose();
+        }
+        // Finished
+        job.status = JobStatus.Finished;
+        await jobRepo.save(job);
+        await this.notifyFinished(job, outputPath);
+    }
+
+    private async notifyFinished(job: Job, outputFilePath: string): Promise<void> {
+        const msg = new ProcessFinishedMessage();
+        msg.id = uuidv4();
+        msg.processedFile = new RemoteFile();
+        msg.processedFile.filename = basename(outputFilePath);
+        msg.processedFile.fileLocalPath = outputFilePath;
+        msg.processedFile.fileUri = this._configManager.getFileUrl(msg.processedFile.filename, job.jobMessageId);
+        msg.jobExecutorId = this.id;
+        msg.bangumiId = job.jobMessage.bangumiId;
+        msg.videoId = job.jobMessage.videoId;
+        if (await this._rabbitmqService.publish(VIDEO_MANAGER_QUEUE, '', msg)) {
+            // TODO: do something
         }
     }
 }

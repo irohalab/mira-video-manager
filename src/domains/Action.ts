@@ -22,4 +22,8 @@ export class Action {
      * output path from the previous action
      */
     public lastOutput: string;
+    /**
+     * the index of actions
+     */
+    public index: number;
 }

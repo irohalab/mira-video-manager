@@ -28,13 +28,13 @@ export class FileManageService {
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
     }
 
-    public getLocalPath(filename: string): string {
-        return join(this._configManager.videoFileTempDir(), filename);
+    public getLocalPath(filename: string, messageId: string): string {
+        return join(this._configManager.videoFileTempDir(), messageId, filename);
     }
 
-    public async checkExists(filename: string): Promise<boolean> {
+    public async checkExists(filename: string, messageId: string): Promise<boolean> {
         try {
-            const fileStats = await stat(this.getLocalPath(filename));
+            const fileStats = await stat(this.getLocalPath(filename, messageId));
             return fileStats.isFile();
         } catch (err) {
             if (err.code === 'ENOENT') {
@@ -44,10 +44,10 @@ export class FileManageService {
         }
     }
 
-    public async downloadFile(remoteFile: RemoteFile, appId: string): Promise<string> {
+    public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
         const idHostMap = this._configManager.appIdHostMap();
         const host = idHostMap[appId];
-        const destPath = this.getLocalPath(remoteFile.filename);
+        const destPath = this.getLocalPath(remoteFile.filename, messageId);
         if (host) {
             const hostURLObj = new URL(host);
             if (hostURLObj.hostname === 'localhost') {
@@ -70,10 +70,10 @@ export class FileManageService {
         return destPath;
     }
 
-    public async cleanUpFiles(): Promise<void> {
-        const videoFileTempDir = this._configManager.videoFileTempDir();
+    public async cleanUpFiles(jobMessageId: string): Promise<void> {
+        const tempDir = join(this._configManager.videoFileTempDir(), jobMessageId);
         try {
-            const files = await readdir(videoFileTempDir);
+            const files = await readdir(tempDir);
             for (const file of files) {
                 await unlink(file);
             }

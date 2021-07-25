@@ -20,8 +20,8 @@ import { NotImplementException } from "../../exceptions/NotImplementException";
 export class SoundOnlyProfile extends BaseProfile {
     public static profileName = 'sound_only'
 
-    constructor(videoFilePath: string, private _preferredTrack: string) {
-        super(videoFilePath);
+    constructor(videoFilePath: string, private _preferredTrack: string, actionIndex: number) {
+        super(videoFilePath, actionIndex);
     }
 
     getCommandArgs(): string[] {

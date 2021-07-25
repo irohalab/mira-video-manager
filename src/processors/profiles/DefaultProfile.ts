@@ -15,20 +15,20 @@
  */
 
 import { BaseProfile } from "./BaseProfile";
-import { NotImplementException } from "../../exceptions/NotImplementException";
+import { basename, dirname, join } from "path";
 
 export class DefaultProfile extends BaseProfile {
-    constructor(videoFilePath: string) {
-        super(videoFilePath);
+    constructor(videoFilePath: string, actionIndex: number) {
+        super(videoFilePath, actionIndex);
     }
 
     public static profileName = 'default';
 
-    getCommandArgs(): string[] {
-        throw new NotImplementException();
+    public getCommandArgs(): string[] {
+        return ['-i', this.videoFilePath, this.getOutputFilename()];
     }
 
-    getOutputFilename(): string {
-        return '';
+    public getOutputFilename(): string {
+        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + this.actionIndex + '.mp4');
     }
 }

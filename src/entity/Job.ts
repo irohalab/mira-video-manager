@@ -44,4 +44,13 @@ export class Job {
 
     @Column()
     public jobExecutorId: string;
+
+    @Column()
+    public createTime: Date;
+
+    @Column()
+    public startTime: Date;
+
+    @Column()
+    public finishedTime: Date;
 }

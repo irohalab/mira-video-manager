@@ -41,16 +41,16 @@ export class LocalConvertProcessor implements VideoProcessor {
     }
 
     public async prepare(jobMessage: JobMessage, action: ConvertAction): Promise<void> {
-        const videoFilePath: string = this._fileManageService.getLocalPath(jobMessage.videoFile.filename);
+        const videoFilePath: string = this._fileManageService.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
         action.inputList = [videoFilePath];
         try {
-            if (!await this._fileManageService.checkExists(jobMessage.videoFile.filename)) {
-                await this._fileManageService.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId);
+            if (!await this._fileManageService.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
+                await this._fileManageService.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
             }
             for (const remoteFile of jobMessage.otherFiles) {
-                action.inputList.push(this._fileManageService.getLocalPath(remoteFile.filename));
-                if (!await this._fileManageService.checkExists(remoteFile.filename)) {
-                    await this._fileManageService.downloadFile(remoteFile, jobMessage.downloadAppId);
+                action.inputList.push(this._fileManageService.getLocalPath(remoteFile.filename, jobMessage.id));
+                if (!await this._fileManageService.checkExists(remoteFile.filename, jobMessage.id)) {
+                    await this._fileManageService.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
                 }
             }
         } catch (err) {
@@ -62,6 +62,16 @@ export class LocalConvertProcessor implements VideoProcessor {
         const currentAction = action as ConvertAction;
         let videoFilePath = null;
         let subtitleFilePath = null;
+
+        if (action.lastOutput) {
+            const lastOutputExtname = extname(action.lastOutput).toLowerCase();
+            if (lastOutputExtname && VIDEO_FILE_EXT.indexOf(lastOutputExtname) !== -1) {
+                videoFilePath = action.lastOutput;
+            } else if (lastOutputExtname && SUBTITLE_EXT.indexOf(lastOutputExtname) !== -1) {
+                subtitleFilePath = action.lastOutput;
+            }
+        }
+
         for (const inputPath of currentAction.inputList) {
             if (videoFilePath && subtitleFilePath) {
                 break;

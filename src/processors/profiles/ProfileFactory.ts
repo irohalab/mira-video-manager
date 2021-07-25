@@ -21,15 +21,15 @@ import { interfaces } from "inversify";
 import { BaseProfile } from "./BaseProfile";
 
 export function ProfileFactory(context: interfaces.Context): ProfileFactoryInitiator {
-    return (profileName: string, videoFilePath: string, profileExtraData?: any) => {
+    return (profileName: string, videoFilePath: string, actionIndex: number, profileExtraData?: any) => {
         switch (profileName) {
             case SoundOnlyProfile.profileName:
-                return new SoundOnlyProfile(videoFilePath, profileExtraData);
+                return new SoundOnlyProfile(videoFilePath, profileExtraData, actionIndex);
             case VideoOnlyProfile.profileName:
-                return new VideoOnlyProfile(videoFilePath);
+                return new VideoOnlyProfile(videoFilePath, actionIndex);
             case DefaultProfile.profileName:
             default:
-                return new DefaultProfile(videoFilePath);
+                return new DefaultProfile(videoFilePath, actionIndex);
         }
     };
 }

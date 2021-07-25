@@ -87,10 +87,6 @@ export class JobScheduler implements MainRunner {
         return await conditionParser.evaluate();
     }
 
-    private async retrieveFiles(remoteFiles: RemoteFile[]): Promise<void> {
-        // TODO: download
-    }
-
     private async dispatchJob(appliedRule: VideoProcessRule, msg: DownloadMQMessage): Promise<void> {
         const jobMessage = new JobMessage();
         jobMessage.id = uuidv4();

@@ -18,8 +18,8 @@ import { BaseProfile } from "./BaseProfile";
 import { NotImplementException } from "../../exceptions/NotImplementException";
 
 export class VideoOnlyProfile extends BaseProfile {
-    constructor(videoFilePath: string) {
-        super(videoFilePath);
+    constructor(videoFilePath: string, actionIndex: number) {
+        super(videoFilePath, actionIndex);
     }
 
     public static profileName = 'video_only'

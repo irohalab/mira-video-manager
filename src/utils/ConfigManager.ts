@@ -44,4 +44,13 @@ export interface ConfigManager {
      * Get the app id, the id is used to identify the job message current process by the app
      */
     jobExecutorId(): Promise<string>;
+
+    enabledHttps(): boolean;
+    serverHost(): string;
+    serverPort(): number;
+
+    /**
+     * Generate the file url for downloading output from job executor.
+     */
+    getFileUrl(filename: string, jobMessageId: string): string;
 }
