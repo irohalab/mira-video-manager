@@ -5,3 +5,4 @@ build/
 tmp/
 temp/
 yarn-error.log
+test.json
