@@ -14,12 +14,18 @@
  * limitations under the License.
  */
 
-import { JobRepository } from '../repository/JobRepository';
-import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
-import { MessageRepository } from '../repository/MessageRepository';
 
-export interface DatabaseService {
-    getJobRepository(): JobRepository;
-    getVideoProcessRuleRepository(): VideoProcessRuleRepository;
-    getMessageRepository(): MessageRepository;
+import { MessageRepository } from '../repository/MessageRepository';
+import { Message } from '../entity/Message';
+
+export class FakeMessageRepository extends MessageRepository {
+    mockQueue: Message[] = [];
+    async enqueueMessage(message: Message): Promise<void> {
+        this.mockQueue.push(message);
+    }
+
+    async dequeueMessage(): Promise<Message | null> {
+        const msg = this.mockQueue.shift();
+        return msg || null;
+    }
 }

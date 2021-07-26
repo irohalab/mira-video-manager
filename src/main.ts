@@ -23,7 +23,6 @@ import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
 import { TYPES } from './TYPES';
 import { ConfigManager } from './utils/ConfigManager';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
-import { DatabaseService } from './services/DatabaseService';
 import { RabbitMQService } from './services/RabbitMQService';
 import { ProcessorFactory, ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { VideoProcessor } from './processors/VideoProcessor';
@@ -33,12 +32,14 @@ import { FileManageService } from './services/FileManageService';
 import { JobExecutor } from './JobExecutor';
 import { JobScheduler } from './JobScheduler';
 import { MainRunner } from './MainRunner';
+import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
+import { DatabaseService } from './services/DatabaseService';
 
 const container = new Container();
 
 container.bind<LocalConvertProcessor>(TYPES.LocalConvertProcessor).to(LocalConvertProcessor);
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
-container.bind<DatabaseService>(DatabaseService).toSelf().inSingletonScope();
+container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 

@@ -20,7 +20,8 @@ export const TYPES = {
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
     ConfigManager: Symbol.for('ConfigManager'),
-    MainRunner: Symbol.for('MainRunner')
+    MainRunner: Symbol.for('MainRunner'),
+    DatabaseService: Symbol.for('DatabaseService')
 };
 
 export const JOB_EXCHANGE = 'video_job';

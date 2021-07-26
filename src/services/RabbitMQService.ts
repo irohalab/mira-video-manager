@@ -16,11 +16,12 @@
 
 import { ConfigManager } from "../utils/ConfigManager";
 import { ConfirmChannel, connect, Connection } from 'amqplib';
-import { injectable } from 'inversify';
+import { inject, injectable } from 'inversify';
 import { Buffer } from 'buffer';
 import { MQMessage } from '../domains/MQMessage';
 import { DatabaseService } from './DatabaseService';
 import { Message } from '../entity/Message';
+import { TYPES } from '../TYPES';
 
 const CHECK_INTERVAL = 5000;
 
@@ -31,7 +32,8 @@ export class RabbitMQService {
     private _queues = new Map<string, string>();
     private _connected: boolean;
 
-    constructor(private _configManager: ConfigManager, private _databaseService: DatabaseService) {
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
     }
 
     private async connectAsync(): Promise<void> {
@@ -53,7 +55,7 @@ export class RabbitMQService {
     }
 
     public async initPublisher(exchangeName: string, exchangeType: string): Promise<void> {
-        if (!this._connection && this._connected) {
+        if (!this._connection || !this._connected) {
             await this.connectAsync();
         }
         const channel = await this._connection.createConfirmChannel();
@@ -70,7 +72,7 @@ export class RabbitMQService {
      * @param prefetch, see Fair dispatch in the tutorial (https://www.rabbitmq.com/tutorials/tutorial-two-javascript.html)
      */
     public async initConsumer(exchangeName: string, exchangeType: string, queueName: string, bindingKey: string = '', prefetch = false): Promise<void> {
-        if (!this._connection && this._connected) {
+        if (!this._connection || !this._connected) {
             await this.connectAsync();
         }
         const channel = await this._connection.createConfirmChannel();

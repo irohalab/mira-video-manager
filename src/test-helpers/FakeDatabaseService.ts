@@ -14,12 +14,25 @@
  * limitations under the License.
  */
 
-import { JobRepository } from '../repository/JobRepository';
-import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
-import { MessageRepository } from '../repository/MessageRepository';
 
-export interface DatabaseService {
-    getJobRepository(): JobRepository;
-    getVideoProcessRuleRepository(): VideoProcessRuleRepository;
-    getMessageRepository(): MessageRepository;
+import { injectable } from 'inversify';
+import { DatabaseService } from '../services/DatabaseService';
+import { JobRepository } from '../repository/JobRepository';
+import { NotImplementException } from '../exceptions/NotImplementException';
+import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
+import { FakeMessageRepository } from './FakeMessageRepository';
+
+@injectable()
+export class FakeDatabaseService implements DatabaseService {
+    getJobRepository(): JobRepository {
+        throw new NotImplementException();
+    }
+
+    getMessageRepository(): FakeMessageRepository {
+        return undefined;
+    }
+
+    getVideoProcessRuleRepository(): VideoProcessRuleRepository {
+        throw new NotImplementException();
+    }
 }

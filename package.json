@@ -36,7 +36,8 @@
          "ts"
       ],
       "files": [
-         "src/utils/*.spec.ts"
+         "src/utils/*.spec.ts",
+         "src/services/*.spec.ts"
       ],
       "require": [
          "ts-node/register"

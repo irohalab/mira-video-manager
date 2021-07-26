@@ -39,7 +39,7 @@ export class JobExecutor {
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 private _rabbitmqService: RabbitMQService,
-                private _databaseService: DatabaseService,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
     }
 
