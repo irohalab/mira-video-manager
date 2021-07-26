@@ -23,4 +23,5 @@ export class ProcessFinishedMessage implements MQMessage {
     public jobExecutorId: string;
     public bangumiId: string;
     public videoId: string;
+    public version: string;
 }

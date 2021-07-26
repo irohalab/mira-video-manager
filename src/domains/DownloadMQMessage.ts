@@ -31,6 +31,7 @@ export class DownloadMQMessage implements MQMessage {
     public downloadManagerId: string; // can used to determine whether to use uri or local path to retrieve the video file.
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[]; // other files in the same download task.
+    public version: string;
 
     public getAllRemoteFiles(): RemoteFile[] {
         const remoteFiles = this.otherFiles ? [].concat(this.otherFiles) : [];

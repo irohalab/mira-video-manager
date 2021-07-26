@@ -16,4 +16,8 @@
 
 export interface MQMessage {
     id: string;
+    /**
+     * Distinguish message version.
+     */
+    version: string;
 }

@@ -26,4 +26,5 @@ export class JobMessage implements MQMessage {
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[];
     public downloadAppId: string;
+    public version: string;
 }
