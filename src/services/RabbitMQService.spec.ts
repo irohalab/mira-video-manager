@@ -25,18 +25,21 @@ import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
 import { DownloadMQMessage } from '../domains/DownloadMQMessage';
 import { v4 as uuid4 } from 'uuid';
 import { MQMessage } from '../domains/MQMessage';
+import { JobMessage } from '../domains/JobMessage';
 
-const TEST_EXCHANGE = 'test_exchange';
-const TEST_QUEUE = 'test_queue';
-
-test('publish and consume', async t => {
+let rabbitMQService: RabbitMQService;
+test.beforeEach( async (t) => {
     const container = new Container({ autoBindInjectable: true });
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
     container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
-    const rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
+    rabbitMQService = container.get<RabbitMQService>(RabbitMQService);
+});
+
+test('publish and consume', async (t) => {
+    const TEST_EXCHANGE = 'test_exchange';
+    const TEST_QUEUE = 'test_queue';
     await rabbitMQService.initPublisher(TEST_EXCHANGE, 'direct');
     await rabbitMQService.initConsumer(TEST_EXCHANGE, 'direct', TEST_QUEUE);
-
     const publishedMsg = new DownloadMQMessage();
     publishedMsg.id = uuid4();
     let receivedMsg: MQMessage;
@@ -54,3 +57,49 @@ test('publish and consume', async t => {
     await resultPromise;
     t.is(publishedMsg.id, receivedMsg.id, 'msg id should equal');
 });
+
+test('fair dispatch', async (t) => {
+    const FAIR_DISPATCH_EX = 'fair_dispatch_ex';
+    const FAIR_DISPATCH_QUEUE = 'fair_dispatch_queue';
+    await rabbitMQService.initPublisher(FAIR_DISPATCH_QUEUE, 'direct');
+    await rabbitMQService.initConsumer(FAIR_DISPATCH_EX, 'direct', FAIR_DISPATCH_QUEUE, '', true);
+
+    const jobMsg = new JobMessage();
+    jobMsg.id = uuid4();
+    const receivedMsgs: MQMessage[] = [];
+    let resolveFn: any;
+    const resultPromise = new Promise((resolve, reject) => {
+        resolveFn = resolve;
+    });
+    await rabbitMQService.consume(FAIR_DISPATCH_QUEUE, (msg) => {
+        console.log('reject msg: ', msg.id);
+        receivedMsgs[0] = null;
+        return Promise.resolve(false);
+    });
+
+    await rabbitMQService.consume(FAIR_DISPATCH_QUEUE, (msg) => {
+        console.log('received msg: ', msg.id);
+        receivedMsgs[1] = msg;
+        resolveFn();
+        return Promise.resolve(true);
+    });
+
+    await rabbitMQService.consume(FAIR_DISPATCH_QUEUE, (msg) => {
+        console.log('received msg: ', msg.id);
+        receivedMsgs[2] = msg;
+        resolveFn();
+        return Promise.resolve(true);
+    })
+
+    await rabbitMQService.publish(FAIR_DISPATCH_EX, '', jobMsg);
+    await resultPromise;
+    t.true(receivedMsgs[0] === null, 'first should be 0');
+    if (receivedMsgs[1]) {
+        t.falsy(receivedMsgs[2], 'second not null, third should not be assigned');
+        t.is(receivedMsgs[1].id, jobMsg.id, 'id should be equal');
+    } else {
+        t.truthy(receivedMsgs[2], 'third assign, second not');
+        t.is(receivedMsgs[2].id, jobMsg.id, 'id should be equal');
+    }
+});
+

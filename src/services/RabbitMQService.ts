@@ -96,6 +96,7 @@ export class RabbitMQService {
                 {},
                 (err, ok) => {
                     if (err !== null) {
+                        // TODO: currently not reachable, need to figure out how to test this piece of code.
                         console.warn('message nacked');
                         this.saveMessage(exchangeName, routingKey, message)
                             .then(() => {

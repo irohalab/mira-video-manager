@@ -19,9 +19,8 @@ import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
 import { RemoteFile } from '../domains/RemoteFile';
 import { URL } from 'url';
-import { copyFile, readdir, unlink, stat } from 'fs/promises';
-import { join } from 'path';
-
+import { copyFile, readdir, unlink, stat, mkdir } from 'fs/promises';
+import { join, dirname } from 'path';
 
 @injectable()
 export class FileManageService {
@@ -39,8 +38,9 @@ export class FileManageService {
         } catch (err) {
             if (err.code === 'ENOENT') {
                 return false
+            } else {
+                throw err;
             }
-            throw err;
         }
     }
 
@@ -48,6 +48,13 @@ export class FileManageService {
         const idHostMap = this._configManager.appIdHostMap();
         const host = idHostMap[appId];
         const destPath = this.getLocalPath(remoteFile.filename, messageId);
+        // create folder if not exists
+        try {
+            await mkdir(dirname(destPath), { recursive: true });
+        } catch (err) {
+            console.warn(err);
+        }
+
         if (host) {
             const hostURLObj = new URL(host);
             if (hostURLObj.hostname === 'localhost') {

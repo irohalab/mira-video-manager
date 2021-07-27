@@ -17,6 +17,7 @@
 import { ConfigManager } from '../utils/ConfigManager';
 import { Options } from 'amqplib';
 import { injectable } from 'inversify';
+import { resolve, join } from 'path';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -44,7 +45,9 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     appIdHostMap(): { [p: string]: string } {
-        return {};
+        return {
+            test_instance: 'http://localhost/'
+        };
     }
 
     enabledHttps(): boolean {
@@ -60,7 +63,7 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     jobProfileDirPath(): string {
-        return '';
+        return resolve(__dirname, '../../temp');
     }
 
     serverHost(): string {
@@ -72,7 +75,7 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     videoFileTempDir(): string {
-        return '';
+        return join(this.jobProfileDirPath(), 'video');
     }
 
 }
