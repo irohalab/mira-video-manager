@@ -1,5 +1,7 @@
 # Mira Video Manager
 
+system dependencies: ffmpeg, mediainfo
+
 ## Start
 `npm start`
 
