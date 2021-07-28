@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { NotImplementException } from '../exceptions/NotImplementException';
 import { spawn } from 'child_process';
 
-export async function getStreamInfo(input): Promise<any> {
+async function runCommandAndGetJson(cmdExc: string, cmdArgs: string[], input: string): Promise<any> {
     return new Promise((resolve, reject) => {
         try {
-            const child = spawn("ffprobe", ["-hide_banner", "-v", "error", "-show_streams", "-show_format", "-of", "json", input]);
+            const child = spawn(cmdExc, [...cmdArgs, input]);
             let output = '';
             let error = '';
             child.stdout.on('data', (data) => {
@@ -40,4 +39,22 @@ export async function getStreamInfo(input): Promise<any> {
             reject(exception);
         }
     });
+}
+
+export async function getStreamInfo(input: string): Promise<any> {
+    return await runCommandAndGetJson("ffprobe", ["-hide_banner", "-v", "error", "-show_streams", "-of", "json"], input);
+}
+
+export async function getContainerInfo(input): Promise<any> {
+    return await runCommandAndGetJson("mediainfo", ["--Output=JSON", "-f"], input);
+}
+
+export async function isPlayableContainer(input: string): Promise<boolean> {
+    const info = await getContainerInfo(input);
+    for (const track of info.media.track) {
+        if (track['@type'] === 'General') {
+            return track.Format === 'MPEG-4';
+        }
+    }
+    return false;
 }

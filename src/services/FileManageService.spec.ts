@@ -15,7 +15,7 @@
  */
 
 import test from 'ava';
-import 'reflect-metadata'; // needed here not sure why, but without this import, will got Reflect.hasOwnMetadata is not a function error
+import 'reflect-metadata';
 import { mkdir, rm, writeFile } from 'fs/promises';
 import { Container } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';

@@ -34,4 +34,4 @@ export function ProfileFactory(context: interfaces.Context): ProfileFactoryIniti
     };
 }
 
-export type ProfileFactoryInitiator = (profileName: string, videoFilePath: string, profileExtraData?: any) => BaseProfile;
+export type ProfileFactoryInitiator = (profileName: string, videoFilePath: string, actionIndex: number, profileExtraData?: any) => BaseProfile;

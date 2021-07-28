@@ -1,0 +1,23 @@
+[Script Info]
+Title: Test Video 02
+Original Script: John Doe
+Original Translation: J
+Original Editing: J
+Synch Point: 0
+ScriptType: v4.00+
+PlayResX: 1280
+PlayResY: 720
+Timer: 100.0000
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,方正准圆_GBK,48,&H00FFFFFF,&HF0000000,&H0034B800,&HC0248000,0,0,0,0,100,100,0,0,1,3.75,2.25,2,20,20,20,1
+Style: OPJP,DFMaruMoji-W3,34,&H00000000,&H000000FF,&H00FFFFFF,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,8,10,10,10,1
+Style: OPCN,DFShaoNvW5-GB,34,&H00000000,&H000000FF,&H00FFFFFF,&H00000000,0,0,0,0,100,100,0,0,1,3,0,2,10,10,10,1
+Style: Staff,黑体,30,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,0,8,20,20,20,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Comment: 0,0:00:00.00,0:00:00.00,*Default,,0,0,0,,//--------------------OPJP--------------------
+Dialogue: 0,0:01:02.22,0:01:04.01,OPJP,,0,0,0,,{\fad(238,238)}Ping-Pong  鳴らして
+Dialogue: 0,0:01:04.14,0:01:05.87,OPJP,,0,0,0,,{\fad(238,238)}Ping-Pong-Pong  体験しよっ

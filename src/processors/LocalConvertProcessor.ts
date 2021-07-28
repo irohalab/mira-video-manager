@@ -25,6 +25,7 @@ import { TYPES } from "../TYPES";
 import { JobMessage } from '../domains/JobMessage';
 import { spawn } from 'child_process';
 import { FileManageService } from '../services/FileManageService';
+import { StringDecoder } from 'string_decoder';
 
 const VIDEO_FILE_EXT: string[] = ['.mp4', '.mkv', '.avi', 'rmvb', '.rm', '.mov', '.wmv', '.ts'];
 const SUBTITLE_EXT: string[] = ['.ass', '.ssa', '.srt', '.sub', '.scc', '.vtt', '.smi', '.sbv'];
@@ -35,7 +36,7 @@ export class LocalConvertProcessor implements VideoProcessor {
     private _controller: AbortController;
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
 
-    constructor(private _configManager: ConfigManager,
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
                 private _fileManageService: FileManageService) {
     }
@@ -87,7 +88,7 @@ export class LocalConvertProcessor implements VideoProcessor {
         if (subtitleFilePath) {
             extra.subtitleFile = subtitleFilePath;
         }
-        const convertProfile = this._profileFactory(currentAction.profile, videoFilePath, extra);
+        const convertProfile = this._profileFactory(currentAction.profile, videoFilePath, action.index, extra);
         const outputFilename = convertProfile.getOutputFilename();
         await this.runCommand(convertProfile.getCommandArgs(), outputFilename);
         return outputFilename;
@@ -102,11 +103,14 @@ export class LocalConvertProcessor implements VideoProcessor {
     }
 
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
+        console.log('ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
-                const child = spawn('ffmpeg', [...cmdArgs, outputFilename], {
-                    signal: this._controller.signal
+                // abort when output filename collision
+                const child = spawn('ffmpeg', ['-n', ...cmdArgs, outputFilename], {
+                    signal: this._controller.signal,
+                    stdio: 'pipe'
                 });
                 child.stdout.on('data', (data) => {
                     this.handleLog(data, 'stdout');
@@ -127,9 +131,10 @@ export class LocalConvertProcessor implements VideoProcessor {
         });
     }
 
-    private handleLog(logChunk: string, ch: 'stdout' | 'stderr'): void {
+    private handleLog(logChunk: Buffer, ch: 'stdout' | 'stderr'): void {
         if (this._logHandler) {
-            this._logHandler(logChunk, ch);
+            const decoder = new StringDecoder('utf8');
+            this._logHandler(decoder.end(logChunk), ch);
         }
     }
 

@@ -25,10 +25,10 @@ export class DefaultProfile extends BaseProfile {
     public static profileName = 'default';
 
     public getCommandArgs(): string[] {
-        return ['-i', this.videoFilePath, this.getOutputFilename()];
+        return ['-i', this.videoFilePath, '-strict', '-2'];
     }
 
     public getOutputFilename(): string {
-        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + this.actionIndex + '.mp4');
+        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + '-' + this.actionIndex + '.mp4');
     }
 }

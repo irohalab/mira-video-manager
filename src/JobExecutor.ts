@@ -123,6 +123,7 @@ export class JobExecutor {
             state = new JobState();
             state.startTime = new Date();
             action = jobMessage.actions[i];
+            action.index = i;
             if (outputPath) {
                 action.lastOutput = outputPath;
             }
