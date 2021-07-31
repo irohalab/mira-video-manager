@@ -154,12 +154,12 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, {
+        return Object.assign({}, this._ormConfig, {
             host: process.env.DB_HOST || this._ormConfig.host,
             port: process.env.DB_PORT || this._ormConfig.port,
             username: process.env.DB_USER || this._ormConfig.username,
             password: process.env.DB_PASS || this._ormConfig.password,
             database: process.env.DB_NAME || this._ormConfig.database
-        }, this._ormConfig) as ConnectionOptions;
+        }) as ConnectionOptions;
     }
 }
