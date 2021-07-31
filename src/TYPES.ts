@@ -20,7 +20,7 @@ export const TYPES = {
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
     ConfigManager: Symbol.for('ConfigManager'),
-    MainRunner: Symbol.for('MainRunner'),
+    JobApplication: Symbol.for('JobApplication'),
     DatabaseService: Symbol.for('DatabaseService')
 };
 

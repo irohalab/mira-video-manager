@@ -31,9 +31,10 @@ import { ProcessFinishedMessage } from './domains/ProcessFinishedMessage';
 import { v4 as uuidv4} from 'uuid';
 import { RemoteFile } from './domains/RemoteFile';
 import { basename } from "path";
+import { JobApplication } from './JobApplication';
 
 @injectable()
-export class JobExecutor {
+export class JobExecutor implements JobApplication {
     public id: string;
     private currentVideoProcessor: VideoProcessor;
 

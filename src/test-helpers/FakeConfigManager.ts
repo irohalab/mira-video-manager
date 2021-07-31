@@ -18,6 +18,7 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Options } from 'amqplib';
 import { injectable } from 'inversify';
 import { resolve, join } from 'path';
+import { NotImplementException } from '../exceptions/NotImplementException';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -80,4 +81,7 @@ export class FakeConfigManager implements ConfigManager {
         return join(this.jobProfileDirPath(), 'video');
     }
 
+    databaseConnectionConfig(): import("typeorm").ConnectionOptions {
+        throw new NotImplementException();
+    }
 }

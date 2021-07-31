@@ -15,6 +15,7 @@
  */
 
 import { Options } from 'amqplib';
+import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
 
 export interface ConfigManager {
     amqpServerUrl(): string;
@@ -53,4 +54,9 @@ export interface ConfigManager {
      * Generate the file url for downloading output from job executor.
      */
     getFileUrl(filename: string, jobMessageId: string): string;
+
+    /**
+     * Generate postgres configuration
+     */
+    databaseConnectionConfig(): ConnectionOptions;
 }

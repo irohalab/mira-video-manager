@@ -5,7 +5,8 @@
    "main": "index.js",
    "scripts": {
       "test": "$(npm bin)/ava",
-      "start": "ts-node src/index.ts"
+      "start:jobapp": "ts-node src/main.ts",
+      "start:server": "ts-node src/WebServer.ts"
    },
    "keywords": [],
    "author": "",

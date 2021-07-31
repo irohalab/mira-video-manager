@@ -14,15 +14,31 @@
  * limitations under the License.
  */
 
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
 import { JobRepository } from "../repository/JobRepository";
-import { getCustomRepository } from "typeorm";
+import { Connection, createConnection, getCustomRepository } from "typeorm";
 import { VideoProcessRuleRepository } from "../repository/VideoProcessRuleRepository";
 import { MessageRepository } from '../repository/MessageRepository';
 import { DatabaseService } from './DatabaseService';
+import { ConfigManager } from '../utils/ConfigManager';
+import { TYPES } from '../TYPES';
 
 @injectable()
 export class DatabaseServiceImpl implements DatabaseService {
+    private _connection: Connection;
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+    }
+
+    public async start(): Promise<void> {
+        this._connection = await createConnection(this._configManager.databaseConnectionConfig());
+        return Promise.resolve(undefined);
+    }
+
+    public async stop(): Promise<void> {
+        await this._connection.close();
+        return Promise.resolve(undefined);
+    }
+
     public getJobRepository(): JobRepository {
         return getCustomRepository<JobRepository>(JobRepository);
     }

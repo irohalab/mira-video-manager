@@ -18,14 +18,23 @@ import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class Message {
+
     @PrimaryGeneratedColumn('uuid')
     public id: string;
+
     @Column()
     public exchange: string;
+
     @Column()
     public routingKey: string;
-    @Column()
+
+    @Column({
+        type: 'json'
+    })
     public content: any;
-    @Column()
+
+    @Column({
+        type: 'timestamp'
+    })
     public enqueuedTime: Date;
 }

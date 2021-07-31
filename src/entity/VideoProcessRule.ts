@@ -41,9 +41,14 @@ export class VideoProcessRule {
     })
     public condition: string;
 
-    @Column()
+    @Column({
+        type: 'jsonb',
+        nullable: false
+    })
     public actions: Action[];
 
-    @Column()
+    @Column({
+        type: 'integer'
+    })
     public priority: number;
 }

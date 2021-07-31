@@ -27,7 +27,9 @@ export class Job {
     @Column()
     public jobMessageId: string;
 
-    @Column()
+    @Column({
+        type: 'jsonb'
+    })
     public jobMessage: JobMessage;
 
     /**
@@ -36,21 +38,33 @@ export class Job {
     @Column()
     public progress: number;
 
-    @Column()
+    @Column({
+        type: 'jsonb'
+    })
     public stateHistory: JobState[];
 
-    @Column()
+    @Column({
+        type: 'enum',
+        enum: JobStatus,
+        default: JobStatus.Queueing
+    })
     public status: JobStatus
 
     @Column()
     public jobExecutorId: string;
 
-    @Column()
+    @Column({
+        type: 'timestamp'
+    })
     public createTime: Date;
 
-    @Column()
+    @Column({
+        type: 'timestamp'
+    })
     public startTime: Date;
 
-    @Column()
+    @Column({
+        type: 'timestamp'
+    })
     public finishedTime: Date;
 }

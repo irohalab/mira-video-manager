@@ -18,13 +18,35 @@ import { ConfigManager } from "./ConfigManager";
 import * as process from 'process';
 import { Options } from 'amqplib';
 import * as os from 'os';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { mkdir, stat, readFile, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
 import { v4 as uuidv4 } from 'uuid';
+import { readFileSync } from 'fs';
+import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
+
+type OrmConfig = {
+    type: string;
+    host: string;
+    port: number;
+    username: string;
+    password: string;
+    database: string;
+    synchronize: boolean;
+    logging: boolean;
+    entities: string[];
+    migrations: string[];
+    subscribers: string[];
+    cli: { [key: string]: string };
+};
 
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
+    private _ormConfig: OrmConfig;
+
+    constructor() {
+        this._ormConfig = JSON.parse(readFileSync(resolve(__dirname, '../../ormconfig.json'), { encoding: 'utf-8' }));
+    }
 
     public amqpServerUrl(): string {
         const config = this.amqpConfig();
@@ -129,5 +151,15 @@ export class ConfigManagerImpl implements ConfigManager {
         const myId = uuidv4();
         await writeFile(profilePath, JSON.stringify({id: myId}));
         return myId
+    }
+
+    public databaseConnectionConfig(): ConnectionOptions {
+        return Object.assign({}, {
+            host: process.env.DB_HOST || this._ormConfig.host,
+            port: process.env.DB_PORT || this._ormConfig.port,
+            username: process.env.DB_USER || this._ormConfig.username,
+            password: process.env.DB_PASS || this._ormConfig.password,
+            database: process.env.DB_NAME || this._ormConfig.database
+        }, this._ormConfig) as ConnectionOptions;
     }
 }

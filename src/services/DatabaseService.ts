@@ -19,6 +19,8 @@ import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleReposi
 import { MessageRepository } from '../repository/MessageRepository';
 
 export interface DatabaseService {
+    start(): Promise<void>;
+    stop(): Promise<void>;
     getJobRepository(): JobRepository;
     getVideoProcessRuleRepository(): VideoProcessRuleRepository;
     getMessageRepository(): MessageRepository;

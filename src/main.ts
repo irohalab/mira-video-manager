@@ -18,6 +18,7 @@
 // JobScheduler mode schedule and update job status, dispatch job to executor
 // JobExecutor mode grab job from queue, executing job, update executing state.
 
+import 'reflect-metadata';
 import { Container } from 'inversify';
 import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
 import { TYPES } from './TYPES';
@@ -31,7 +32,7 @@ import { BaseProfile } from './processors/profiles/BaseProfile';
 import { FileManageService } from './services/FileManageService';
 import { JobExecutor } from './JobExecutor';
 import { JobScheduler } from './JobScheduler';
-import { MainRunner } from './MainRunner';
+import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 
@@ -52,17 +53,21 @@ const JOB_SCHEDULER = 'JOB_SCHEDULER';
 const startAs = process.env.START_AS;
 
 if (startAs === JOB_EXECUTOR) {
-    container.bind<JobExecutor>(TYPES.MainRunner).to(JobExecutor);
+    container.bind<JobExecutor>(TYPES.JobApplication).to(JobExecutor);
 } else if (startAs === JOB_SCHEDULER) {
-    container.bind<JobScheduler>(TYPES.MainRunner).to(JobScheduler);
+    container.bind<JobScheduler>(TYPES.JobApplication).to(JobScheduler);
 } else {
     console.error('failed to start, START_AS environment variable is not valid');
     process.exit(-1);
 }
 
-const mainRunner = container.get<MainRunner>(TYPES.MainRunner);
+const jobApplication = container.get<JobApplication>(TYPES.JobApplication);
+const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
-mainRunner.start()
+databaseService.start()
+    .then(() => {
+        return jobApplication.start();
+    })
     .then(() => {
         console.log(startAs.toLowerCase() + ' started');
     }, (error) => {
@@ -71,7 +76,10 @@ mainRunner.start()
     });
 
 function beforeExitHandler() {
-    mainRunner.stop()
+    jobApplication.stop()
+        .then(() => {
+            return databaseService.stop();
+        })
         .then(() => {
             process.exit(0);
         }, (error) => {

@@ -27,10 +27,10 @@ import { JobMessage } from './domains/JobMessage';
 import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
-import { MainRunner } from './MainRunner';
+import { JobApplication } from './JobApplication';
 
 @injectable()
-export class JobScheduler implements MainRunner {
+export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
 
     constructor(private _configManager: ConfigManager,

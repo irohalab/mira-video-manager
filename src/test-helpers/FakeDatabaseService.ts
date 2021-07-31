@@ -35,4 +35,12 @@ export class FakeDatabaseService implements DatabaseService {
     getVideoProcessRuleRepository(): VideoProcessRuleRepository {
         throw new NotImplementException();
     }
+
+    start(): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
+    stop(): Promise<void> {
+        return Promise.resolve(undefined);
+    }
 }
