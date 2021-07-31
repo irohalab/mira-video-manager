@@ -122,7 +122,7 @@ export class ConfigManagerImpl implements ConfigManager {
         if (serverBaseUrl) {
             return `${serverBaseUrl}/${jobMessageId}/${filename}`;
         }
-        return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/output/${jobMessageId}/${filename}`;
+        return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/video/output/${jobMessageId}/${filename}`;
     }
 
     private async writeNewProfile(profilePath): Promise<string> {

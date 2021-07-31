@@ -21,6 +21,8 @@ import { resolve, join } from 'path';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
+    public profilePath: string;
+
     amqpConfig(): Options.Connect {
         const host = 'localhost';
         const port = 5672;
@@ -63,7 +65,7 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     jobProfileDirPath(): string {
-        return resolve(__dirname, '../../temp');
+        return this.profilePath ? this.profilePath : resolve(__dirname, '../../temp');
     }
 
     serverHost(): string {

@@ -34,6 +34,7 @@ import { FileManageService } from '../services/FileManageService';
 import { rm } from 'fs/promises';
 import { ActionType } from '../domains/ActionType';
 import { isPlayableContainer } from '../utils/VideoProber';
+import { projectRoot } from '../test-helpers/helpers';
 
 type Cxt = { container: Container };
 
@@ -47,6 +48,8 @@ test.beforeEach((t) => {
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
     container.bind<ProcessorFactoryInitiator>(TYPES.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
     container.bind<ProfileFactoryInitiator>(TYPES.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-convert-processor');
 });
 
 test.afterEach(async (t) => {

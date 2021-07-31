@@ -25,6 +25,7 @@ import { join } from 'path';
 import { FileManageService } from './FileManageService';
 import { v4 as uuid4 } from 'uuid';
 import { RemoteFile } from '../domains/RemoteFile';
+import { cleanDir, ensureTempDir, projectRoot } from '../test-helpers/helpers';
 
 const testVideoFilename = 'test-video-1.mp4';
 const testVideoFilePath = join(__dirname, '../../tests/', testVideoFilename);
@@ -34,29 +35,17 @@ test.before(async (t) => {
     const context = t.context as Cx;
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
-    container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
+    container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager).inSingletonScope();
     const configManager = context.container.get<ConfigManager>(TYPES.ConfigManager);
+    (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/file-manager');
     const videoTempPath = configManager.videoFileTempDir();
     context.videoTempPath = videoTempPath;
-
-    try {
-        await mkdir(videoTempPath, { recursive: true });
-    } catch (e) {
-        if (e.code !== 'ENOENT') {
-            console.warn(e);
-        }
-    }
+    await ensureTempDir(videoTempPath);
 });
 
 test.after(async (t) =>{
     const context = t.context as Cx;
-    try {
-        await rm(context.videoTempPath, { recursive: true });
-    } catch (e) {
-        if (e.code !== 'ENOENT') {
-            console.warn(e);
-        }
-    }
+    await cleanDir(context.videoTempPath);
 })
 
 test('checkExists', async (t) => {
