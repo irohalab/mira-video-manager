@@ -1,6 +1,6 @@
 {
    "name": "mira-video-manager",
-   "version": "1.0.0",
+   "version": "0.0.1",
    "description": "",
    "main": "index.js",
    "scripts": {
@@ -11,8 +11,8 @@
       "start:server:jobexecutor": "cross-env DEBUG=true START_AS=JOB_EXECUTOR ts-node src/WebServer.ts"
    },
    "keywords": [],
-   "author": "",
-   "license": "ISC",
+   "author": "Everett Summer",
+   "license": "Apache License 2.0",
    "dependencies": {
       "amqplib": "^0.7.1",
       "axios": "^0.21.1",
