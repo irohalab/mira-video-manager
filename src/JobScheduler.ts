@@ -15,26 +15,27 @@
  */
 
 import { ConfigManager } from "./utils/ConfigManager";
-import { injectable } from "inversify";
+import { inject, injectable } from "inversify";
 import { RabbitMQService } from './services/RabbitMQService';
-import { DOWNLOAD_MESSAGE_EXCHANGE, DOWNLOAD_MESSAGE_QUEUE, JOB_EXCHANGE } from './TYPES';
+import { DOWNLOAD_MESSAGE_EXCHANGE, DOWNLOAD_MESSAGE_QUEUE, JOB_EXCHANGE, TYPES } from './TYPES';
 import { DownloadMQMessage } from './domains/DownloadMQMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessRule } from './entity/VideoProcessRule';
-import { RemoteFile } from './domains/RemoteFile';
 import { ConditionParser } from './utils/ConditionParser';
 import { JobMessage } from './domains/JobMessage';
 import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
+import { RemoteFile } from './domains/RemoteFile';
+import { JobState } from './domains/JobState';
 
 @injectable()
 export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
 
-    constructor(private _configManager: ConfigManager,
-                private _databaseService: DatabaseService,
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 private _rabbitmqService: RabbitMQService) {
     }
 
@@ -81,8 +82,17 @@ export class JobScheduler implements JobApplication {
         }
     }
 
+    private getAllRemoteFiles(msg: DownloadMQMessage): RemoteFile[] {
+        const remoteFiles = msg.otherFiles ? [].concat(msg.otherFiles) : [];
+        remoteFiles.push(msg.videoFile);
+        return remoteFiles;
+    }
+
     private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
-        const files = msg.getAllRemoteFiles();
+        if (!condition) {
+            return true;
+        }
+        const files = this.getAllRemoteFiles(msg);
         const conditionParser = new ConditionParser(condition, files, msg.downloadManagerId);
         return await conditionParser.evaluate();
     }
@@ -96,14 +106,25 @@ export class JobScheduler implements JobApplication {
         jobMessage.videoFile = msg.videoFile;
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.downloadAppId = msg.downloadManagerId;
-
+        const job = this.newJob(jobMessage);
+        await this._databaseService.getJobRepository().save(job);
         if (await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)) {
-
-            const job = new Job();
-            job.jobMessage = jobMessage;
-            job.jobMessageId = jobMessage.id;
-            job.status = JobStatus.Queueing;
-            await this._databaseService.getJobRepository().save(job);
+            console.log('dispatched job ' + jobMessage.id);
         }
+    }
+
+    private newJob(msg: JobMessage): Job {
+        const job = new Job();
+        job.jobMessage = msg;
+        job.jobMessageId = msg.id;
+        job.status = JobStatus.Queueing;
+        job.progress = 0;
+        const jobState = new JobState();
+        jobState.log = 'new job created by Scheduler. JobMessageId: ' + msg.id + '. bangumiId: ' + msg.bangumiId;
+        jobState.startTime = new Date();
+        jobState.endTime = new Date();
+        job.stateHistory = [jobState];
+        job.createTime = new Date();
+        return job;
     }
 }

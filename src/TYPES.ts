@@ -28,5 +28,6 @@ export const JOB_EXCHANGE = 'video_job';
 export const DOWNLOAD_MESSAGE_EXCHANGE = 'download_message';
 export const VIDEO_MANAGER_EXCHANGE = 'video_manager';
 
+export const JOB_QUEUE = 'job_queue';
 export const DOWNLOAD_MESSAGE_QUEUE = 'download_message_queue';
 export const VIDEO_MANAGER_QUEUE = 'video_manager_queue';

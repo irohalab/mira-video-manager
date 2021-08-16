@@ -15,5 +15,5 @@
  */
 
 export enum ActionType {
-    Convert, Copy, Fragment
+    Convert = 'convert', Copy = 'copy', Fragment = 'fragment', Merge = 'merge'
 }

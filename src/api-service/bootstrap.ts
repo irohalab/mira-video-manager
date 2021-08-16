@@ -14,19 +14,44 @@
  * limitations under the License.
  */
 
-import './controller/VideoController'
 
 import { Container } from 'inversify';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
 import { TYPES } from '../TYPES';
 import { Server } from 'http';
+import * as bodyParser from 'body-parser';
+import * as cors from 'cors';
+
+const JOB_EXECUTOR = 'JOB_EXECUTOR';
+const API_SERVER = 'API_SERVER';
+
+const startAs = process.env.START_AS;
+if (startAs === JOB_EXECUTOR) {
+    // tslint:disable-next-line:no-var-requires
+    require('./controller/VideoController');
+} else if (startAs === API_SERVER) {
+    // tslint:disable-next-line:no-var-requires
+    require('./controller/RuleController');
+} else {
+    throw new Error('START_AS env not correct');
+}
+
+
+
+const DEBUG = process.env.DEBUG === 'true';
 
 export function bootstrap(container: Container): Server {
     const expressServer = new InversifyExpressServer(container);
 
     expressServer.setConfig((theApp) => {
-        // theApp.use()
+        theApp.use(bodyParser.urlencoded({
+            extended: true
+        }))
+        theApp.use(bodyParser.json())
+        if (DEBUG) {
+            theApp.use(cors());
+        }
     });
 
     const app = expressServer.build();

@@ -36,7 +36,6 @@ export class FileManageService {
             const fileStats = await stat(this.getLocalPath(filename, messageId));
             return fileStats.isFile();
         } catch (err) {
-            console.error(err);
             if (err.code === 'ENOENT') {
                 return false
             } else {

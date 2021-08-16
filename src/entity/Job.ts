@@ -50,7 +50,9 @@ export class Job {
     })
     public status: JobStatus
 
-    @Column()
+    @Column({
+        nullable: true
+    })
     public jobExecutorId: string;
 
     @Column({
@@ -59,12 +61,14 @@ export class Job {
     public createTime: Date;
 
     @Column({
-        type: 'timestamp'
+        type: 'timestamp',
+        nullable: true
     })
     public startTime: Date;
 
     @Column({
-        type: 'timestamp'
+        type: 'timestamp',
+        nullable: true
     })
     public finishedTime: Date;
 }

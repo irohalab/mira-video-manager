@@ -26,6 +26,11 @@ export class VideoProcessRule {
     @Column({
         nullable: true
     })
+    public name: string;
+
+    @Column({
+        nullable: true
+    })
     public bangumiId: string;
 
     @Column({

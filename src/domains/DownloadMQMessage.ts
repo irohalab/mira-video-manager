@@ -32,10 +32,4 @@ export class DownloadMQMessage implements MQMessage {
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[]; // other files in the same download task.
     public version: string;
-
-    public getAllRemoteFiles(): RemoteFile[] {
-        const remoteFiles = this.otherFiles ? [].concat(this.otherFiles) : [];
-        remoteFiles.push(this.videoFile);
-        return remoteFiles;
-    }
 }

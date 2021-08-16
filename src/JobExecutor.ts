@@ -17,7 +17,7 @@
 import { ConfigManager } from "./utils/ConfigManager";
 import { RabbitMQService } from './services/RabbitMQService';
 import { inject, injectable } from 'inversify';
-import { JOB_EXCHANGE, TYPES, VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_QUEUE } from './TYPES';
+import { JOB_EXCHANGE, JOB_QUEUE, TYPES, VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_QUEUE } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessor } from './processors/VideoProcessor';
@@ -64,8 +64,8 @@ export class JobExecutor implements JobApplication {
         await this.resumeJob();
 
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
-        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', VIDEO_MANAGER_QUEUE, '', true);
-        await this._rabbitmqService.consume(VIDEO_MANAGER_QUEUE, this.onJobReceived.bind(this));
+        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
+        await this._rabbitmqService.consume(JOB_QUEUE, this.onJobReceived.bind(this));
     }
 
     public async stop(): Promise<void> {
@@ -100,14 +100,20 @@ export class JobExecutor implements JobApplication {
     private async resumeJob(): Promise<void> {
         const jobRepo = this._databaseService.getJobRepository();
         const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
-        job.status = JobStatus.Running;
-        await jobRepo.save(job);
-        this.processJob(job)
-            .then(() => {
-                console.log('job processed');
-            }, (error) => {
-                console.error(error);
-            });
+        if (job) {
+            job.status = JobStatus.Running;
+            job.jobExecutorId = this.id;
+            if (!job.startTime) {
+                job.startTime = new Date();
+            }
+            await jobRepo.save(job);
+            this.processJob(job)
+                .then(() => {
+                    console.log('job processed');
+                }, (error) => {
+                    console.error(error);
+                });
+        }
     }
 
     private async processJob(job: Job): Promise<void> {
@@ -149,6 +155,7 @@ export class JobExecutor implements JobApplication {
         }
         // Finished
         job.status = JobStatus.Finished;
+        job.finishedTime = new Date();
         await jobRepo.save(job);
         await this.notifyFinished(job, outputPath);
     }
@@ -163,8 +170,9 @@ export class JobExecutor implements JobApplication {
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
-        if (await this._rabbitmqService.publish(VIDEO_MANAGER_QUEUE, '', msg)) {
+        if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, '', msg)) {
             // TODO: do something
+            console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');
         }
     }
 }

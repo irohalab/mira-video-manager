@@ -24,6 +24,7 @@ import { injectable } from 'inversify';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
 import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
+import { load as loadYaml } from 'js-yaml';
 
 type OrmConfig = {
     type: string;
@@ -40,12 +41,36 @@ type OrmConfig = {
     cli: { [key: string]: string };
 };
 
+type AppConfg = {
+    amqp: {
+        host: string;
+        port: number;
+        user: string;
+        password: string;
+    }
+    appIdHostMap: { [appId: string]: string};
+    jobExecProfileDir: string;
+    videoTempDir: string;
+    webserver: {
+        enabledHttps: boolean;
+        host: string;
+        port: number;
+    }
+};
+
+const CWD_PATTERN = /\${cwd}/;
+const HOME_PATTERN = /\${home}/;
+const PROJECT_ROOT_PATTERN = /\${project_root}/;
+
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
-    private _ormConfig: OrmConfig;
-
+    private readonly _ormConfig: OrmConfig;
+    private readonly _config: AppConfg;
     constructor() {
-        this._ormConfig = JSON.parse(readFileSync(resolve(__dirname, '../../ormconfig.json'), { encoding: 'utf-8' }));
+        const ormConfigPath = process.env.ORMCONFIG || resolve(__dirname, '../../ormconfig.json');
+        const appConfigPath = process.env.APPCONFIG || resolve(__dirname, '../../config.yml');
+        this._ormConfig = JSON.parse(readFileSync(ormConfigPath, { encoding: 'utf-8' }));
+        this._config = loadYaml(readFileSync(appConfigPath, { encoding: 'utf-8'})) as AppConfg;
     }
 
     public amqpServerUrl(): string {
@@ -54,10 +79,10 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public amqpConfig(): Options.Connect {
-        const host = process.env.AMQP_HOST || 'localhost';
-        const port = process.env.AMQP_PORT ? parseInt(process.env.AMQP_PORT, 10) : 5672;
-        const username = process.env.AMQP_USER || 'guest';
-        const password = process.env.PASSWORD || 'guest';
+        const host = this._config.amqp.host || 'localhost';
+        const port = this._config.amqp.port || 5672;
+        const username = this._config.amqp.user || 'guest';
+        const password = this._config.amqp.password || 'guest';
         return {
             protocol: 'amqp',
             hostname: host,
@@ -75,24 +100,27 @@ export class ConfigManagerImpl implements ConfigManager {
      * Use environment variable: APP1ID=HOST_URL1;APP2ID=HOST_URL2 format
      */
     appIdHostMap(): { [p: string]: string } {
-        const idHostMapENV = process.env.APPID_HOST_MAP;
-        const idHostMap = {};
-        if (idHostMapENV) {
-            const idHostPairs = idHostMapENV.split(';');
-            for (const pair of idHostPairs) {
-                const kv = pair.split('=');
-                idHostMap[kv[0]] = kv[1];
-            }
-        }
-        return idHostMap;
+        return this._config.appIdHostMap || {};
     }
 
     public jobProfileDirPath(): string {
-        return process.env.JOBEXEC_PROFILE_DIR || join(os.homedir(), '.mira', 'video-manager');
+        let profileDir = this._config.jobExecProfileDir;
+        if (profileDir) {
+            profileDir = ConfigManagerImpl.processPath(profileDir);
+        } else {
+            profileDir = join(os.homedir(), '.mira', 'video-manager');
+        }
+        return profileDir;
     }
 
     public videoFileTempDir(): string {
-        return process.env.VIDEO_TEMP_DIR || join(this.jobProfileDirPath(), 'temp');
+        let videoTempDir = this._config.videoTempDir;
+        if (videoTempDir) {
+            videoTempDir = ConfigManagerImpl.processPath(videoTempDir);
+        } else {
+            videoTempDir = join(this.jobProfileDirPath(), 'temp');
+        }
+        return videoTempDir;
     }
 
     public async jobExecutorId(): Promise<string> {
@@ -112,31 +140,31 @@ export class ConfigManagerImpl implements ConfigManager {
         const jobExecutorProfile = join(videoManagerDir, 'jobExecutor');
         let fc = null;
         try {
-            fc = readFile(jobExecutorProfile, {encoding: 'utf-8'});
+            fc = await readFile(jobExecutorProfile, {encoding: 'utf-8'});
         } catch (err) {
             if (err.code === 'ENOENT') {
-                return await this.writeNewProfile(jobExecutorProfile);
+                return await ConfigManagerImpl.writeNewProfile(jobExecutorProfile);
             }
+            throw err;
         }
 
         if (fc) {
             return JSON.parse(fc).id;
         } else {
-            return await this.writeNewProfile(jobExecutorProfile);
+            return await ConfigManagerImpl.writeNewProfile(jobExecutorProfile);
         }
     }
 
     enabledHttps(): boolean {
-        return process.env.ENABLED_HTTPS === 'true';
+        return this._config.webserver.enabledHttps || false;
     }
 
     serverHost(): string {
-        return process.env.SERVER_HOST || 'localhost';
+        return this._config.webserver.host || 'localhost';
     }
 
     serverPort(): number {
-        const portStr = process.env.SERVER_PORT;
-        return portStr ? parseInt(portStr, 10) : 8080;
+        return this._config.webserver.port || 8080;
     }
 
     getFileUrl(filename: string, jobMessageId: string): string {
@@ -147,19 +175,20 @@ export class ConfigManagerImpl implements ConfigManager {
         return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/video/output/${jobMessageId}/${filename}`;
     }
 
-    private async writeNewProfile(profilePath): Promise<string> {
+    public databaseConnectionConfig(): ConnectionOptions {
+        return Object.assign({}, this._ormConfig) as ConnectionOptions;
+    }
+
+    private static async writeNewProfile(profilePath): Promise<string> {
         const myId = uuidv4();
         await writeFile(profilePath, JSON.stringify({id: myId}));
         return myId
     }
 
-    public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, this._ormConfig, {
-            host: process.env.DB_HOST || this._ormConfig.host,
-            port: process.env.DB_PORT || this._ormConfig.port,
-            username: process.env.DB_USER || this._ormConfig.username,
-            password: process.env.DB_PASS || this._ormConfig.password,
-            database: process.env.DB_NAME || this._ormConfig.database
-        }) as ConnectionOptions;
+    private static processPath(pathStr: string): string {
+        const cwd = process.cwd();
+        const home = os.homedir();
+        const projectRoot = resolve(__dirname, '../../');
+        return pathStr.replace(CWD_PATTERN, cwd).replace(HOME_PATTERN, home).replace(PROJECT_ROOT_PATTERN, projectRoot);
     }
 }

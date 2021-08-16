@@ -23,10 +23,12 @@ import { DatabaseService } from './services/DatabaseService';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
+import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
+container.bind<VideoProcessRuleService>(VideoProcessRuleService).toSelf().inSingletonScope();
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 

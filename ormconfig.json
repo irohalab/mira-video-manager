@@ -2,9 +2,9 @@
    "type": "postgres",
    "host": "localhost",
    "port": 5432,
-   "username": "test",
-   "password": "test",
-   "database": "test",
+   "username": "postgres",
+   "password": "123456",
+   "database": "mira",
    "synchronize": true,
    "logging": false,
    "entities": [

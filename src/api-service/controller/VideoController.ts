@@ -15,7 +15,7 @@
  */
 
 import { Response as ExpressResponse } from 'express';
-import { controller, httpGet, interfaces, requestParam, response } from 'inversify-express-utils';
+import { controller, httpGet, interfaces, next, requestParam, response } from 'inversify-express-utils';
 import { inject } from 'inversify';
 import { TYPES } from '../../TYPES';
 import { ConfigManager } from '../../utils/ConfigManager';
@@ -35,14 +35,25 @@ export class VideoController implements interfaces.Controller {
                          @requestParam('filename') filename: string,
                          @response() res: ExpressResponse): Promise<void> {
         const fileLocalPath = join(this._videoTempPath, messageId, filename);
-        console.log('fileLocalPath', fileLocalPath);
+
         try {
             const fsStatObj = await stat(fileLocalPath);
             if (!fsStatObj.isFile()) {
                 res.status(404).json({'message': this._message404});
                 return;
             }
-            res.download(fileLocalPath, filename);
+            console.log('fileLocalPath', fileLocalPath);
+            await new Promise((resolve, reject) => {
+                res.download(fileLocalPath, filename, (err) => {
+                    if (err) {
+                        console.error(err);
+                        reject(err);
+                    } else {
+                        console.log('Sent:', filename);
+                        resolve();
+                    }
+                });
+            });
         } catch (e) {
             if (e.code === 'ENOENT') {
                 res.status(404).json({'message': this._message404});

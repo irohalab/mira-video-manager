@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import { EntityRepository, Repository } from "typeorm";
-import { Job } from "../entity/Job";
-
-@EntityRepository(Job)
-export class JobRepository extends Repository<Job> {
-
+export interface ResponseWrapper<T> {
+    data: T;
+    status: number;
+    message?: string;
 }

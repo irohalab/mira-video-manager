@@ -1,0 +1,30 @@
+version: 1
+# amqp config for connecting to amqp server
+amqp:
+  host: "localhost"
+  port: 5672
+  user: "guest"
+  password: "guest"
+
+# AppId Host Map is a mapping that used for JobExecutor or JobScheduler to replace the access url from the message
+# the remote url will be replaced with host defined in the mapping. there is no default value, if appid is not found,
+# no replacement will occur.
+appIdHostMap:
+  test_download_manager: "http://localhost:8000/"
+
+# Config Below is for JobExecutor
+# support variable:
+#   ${cwd}: current working directory
+#   ${home}: user's home directory
+#   ${project_root}: project's root directory
+# the job executor profile path, default is ~/.mira/video-manager
+jobExecProfileDir: "${project_root}/temp"
+
+# the job executor's temp directory for copied/downloaded video files, default is ${jobExecProfileDir}/temp
+videoTempDir: "${project_root}/temp/video"
+
+# used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
+webserver:
+  enabledHttps: true
+  host: "localhost"
+  port: 8080
