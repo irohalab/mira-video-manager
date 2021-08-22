@@ -17,7 +17,13 @@
 import { ConfigManager } from "./utils/ConfigManager";
 import { inject, injectable } from "inversify";
 import { RabbitMQService } from './services/RabbitMQService';
-import { DOWNLOAD_MESSAGE_EXCHANGE, DOWNLOAD_MESSAGE_QUEUE, JOB_EXCHANGE, TYPES } from './TYPES';
+import {
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    DOWNLOAD_MESSAGE_QUEUE,
+    JOB_EXCHANGE,
+    TYPES,
+    VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL
+} from './TYPES';
 import { DownloadMQMessage } from './domains/DownloadMQMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessRule } from './entity/VideoProcessRule';
@@ -29,6 +35,7 @@ import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
 import { RemoteFile } from './domains/RemoteFile';
 import { JobState } from './domains/JobState';
+import { VideoManagerMessage } from './domains/VideoManagerMessage';
 
 @injectable()
 export class JobScheduler implements JobApplication {
@@ -41,10 +48,16 @@ export class JobScheduler implements JobApplication {
 
     public async start(): Promise<void> {
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct');
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
-        this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, (msg) => {
-            this.onDownloadMessage(msg as DownloadMQMessage);
-            return Promise.resolve(true);
+        this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, async (msg) => {
+            try {
+                await this.onDownloadMessage(msg as DownloadMQMessage);
+                return true;
+            } catch (ex) {
+                console.error(ex);
+                return false;
+            }
         });
     }
 
@@ -65,14 +78,22 @@ export class JobScheduler implements JobApplication {
                 } else {
                     // take the first matched condition as the rule is already returned as higher priority first.
                     for (const rule of rules) {
-                        if (await this.checkConditionMatch(rule.condition, msg)) {
+                        if (await JobScheduler.checkConditionMatch(rule.condition, msg)) {
                             appliedRule = rule;
                             break;
                         }
                     }
                 }
             } else {
-                console.log('no rules found, ignore message');
+                const vmMsg = new VideoManagerMessage();
+                vmMsg.id = uuidv4();
+                vmMsg.bangumiId = msg.bangumiId;
+                vmMsg.videoId = msg.videoId;
+                vmMsg.version = '1';
+                vmMsg.isProcessed = false;
+                vmMsg.processedFile = null;
+                vmMsg.jobExecutorId = null;
+                await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
             }
         }
 
@@ -82,17 +103,17 @@ export class JobScheduler implements JobApplication {
         }
     }
 
-    private getAllRemoteFiles(msg: DownloadMQMessage): RemoteFile[] {
+    private static getAllRemoteFiles(msg: DownloadMQMessage): RemoteFile[] {
         const remoteFiles = msg.otherFiles ? [].concat(msg.otherFiles) : [];
         remoteFiles.push(msg.videoFile);
         return remoteFiles;
     }
 
-    private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
+    private static async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
         if (!condition) {
             return true;
         }
-        const files = this.getAllRemoteFiles(msg);
+        const files = JobScheduler.getAllRemoteFiles(msg);
         const conditionParser = new ConditionParser(condition, files, msg.downloadManagerId);
         return await conditionParser.evaluate();
     }
@@ -106,14 +127,15 @@ export class JobScheduler implements JobApplication {
         jobMessage.videoFile = msg.videoFile;
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.downloadAppId = msg.downloadManagerId;
-        const job = this.newJob(jobMessage);
+        const job = JobScheduler.newJob(jobMessage);
         await this._databaseService.getJobRepository().save(job);
-        if (await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)) {
-            console.log('dispatched job ' + jobMessage.id);
-        }
+        this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
+            .then(() => {
+                console.log('dispatched job ' + jobMessage.id);
+            });
     }
 
-    private newJob(msg: JobMessage): Job {
+    private static newJob(msg: JobMessage): Job {
         const job = new Job();
         job.jobMessage = msg;
         job.jobMessageId = msg.id;

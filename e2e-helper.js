@@ -23,6 +23,8 @@ const DOWNLOAD_MESSAGE_EXCHANGE = 'download_message';
 const VIDEO_MANAGER_EXCHANGE = 'video_manager';
 const DOWNLOAD_MESSAGE_QUEUE = 'download_message_queue';
 const VIDEO_MANAGER_QUEUE = 'video_manager_queue';
+// binding key
+const VIDEO_MANAGER_GENERAL = 'general';
 
 function getConfig() {
     const host = process.env.AMQP_HOST || 'localhost';
@@ -93,7 +95,7 @@ async function receiveFinishMessage() {
     const q = await channel.assertQueue(VIDEO_MANAGER_QUEUE, {
         durable: true
     });
-    await channel.bindQueue(q.queue, VIDEO_MANAGER_EXCHANGE, '');
+    await channel.bindQueue(q.queue, VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL);
     const consumer = await channel.consume(q.queue, (msg) => {
         const message = JSON.parse(msg.content.toString('utf-8'));
         console.log('finished');

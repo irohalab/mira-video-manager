@@ -17,7 +17,14 @@
 import { ConfigManager } from "./utils/ConfigManager";
 import { RabbitMQService } from './services/RabbitMQService';
 import { inject, injectable } from 'inversify';
-import { JOB_EXCHANGE, JOB_QUEUE, TYPES, VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_QUEUE } from './TYPES';
+import {
+    JOB_EXCHANGE,
+    JOB_QUEUE,
+    TYPES,
+    VIDEO_MANAGER_EXCHANGE,
+    VIDEO_MANAGER_GENERAL,
+    VIDEO_MANAGER_QUEUE
+} from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessor } from './processors/VideoProcessor';
@@ -27,7 +34,7 @@ import { Job } from './entity/Job';
 import { Action } from './domains/Action';
 import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { JobState } from './domains/JobState';
-import { ProcessFinishedMessage } from './domains/ProcessFinishedMessage';
+import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { v4 as uuidv4} from 'uuid';
 import { RemoteFile } from './domains/RemoteFile';
 import { basename } from "path";
@@ -161,7 +168,7 @@ export class JobExecutor implements JobApplication {
     }
 
     private async notifyFinished(job: Job, outputFilePath: string): Promise<void> {
-        const msg = new ProcessFinishedMessage();
+        const msg = new VideoManagerMessage();
         msg.id = uuidv4();
         msg.processedFile = new RemoteFile();
         msg.processedFile.filename = basename(outputFilePath);
@@ -170,7 +177,7 @@ export class JobExecutor implements JobApplication {
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
-        if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, '', msg)) {
+        if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
             console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');
         }

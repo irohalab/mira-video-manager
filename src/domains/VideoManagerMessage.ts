@@ -17,9 +17,10 @@
 import { MQMessage } from './MQMessage';
 import { RemoteFile } from './RemoteFile';
 
-export class ProcessFinishedMessage implements MQMessage {
+export class VideoManagerMessage implements MQMessage {
     public id: string;
-    public processedFile: RemoteFile;
+    public isProcessed: boolean; // if there is no rule match, this is false
+    public processedFile: RemoteFile; // can be null
     public jobExecutorId: string;
     public bangumiId: string;
     public videoId: string;
