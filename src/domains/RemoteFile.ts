@@ -15,7 +15,7 @@
  */
 
 export class RemoteFile {
-    filename: string;
+    filename: string; // relative path
     fileUri: string;
     fileLocalPath: string;
 }

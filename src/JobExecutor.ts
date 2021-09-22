@@ -22,8 +22,7 @@ import {
     JOB_QUEUE,
     TYPES,
     VIDEO_MANAGER_EXCHANGE,
-    VIDEO_MANAGER_GENERAL,
-    VIDEO_MANAGER_QUEUE
+    VIDEO_MANAGER_GENERAL
 } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
@@ -177,6 +176,7 @@ export class JobExecutor implements JobApplication {
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
+        msg.downloadTaskId = job.jobMessage.downloadTaskId;
         if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
             console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');

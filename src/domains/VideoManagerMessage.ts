@@ -19,6 +19,7 @@ import { RemoteFile } from './RemoteFile';
 
 export class VideoManagerMessage implements MQMessage {
     public id: string;
+    public downloadTaskId: string;
     public isProcessed: boolean; // if there is no rule match, this is false
     public processedFile: RemoteFile; // can be null
     public jobExecutorId: string;

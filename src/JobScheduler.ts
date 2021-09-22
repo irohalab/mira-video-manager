@@ -93,6 +93,7 @@ export class JobScheduler implements JobApplication {
                 vmMsg.isProcessed = false;
                 vmMsg.processedFile = null;
                 vmMsg.jobExecutorId = null;
+                vmMsg.downloadTaskId = msg.downloadTaskId;
                 await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
             }
         }
@@ -127,6 +128,7 @@ export class JobScheduler implements JobApplication {
         jobMessage.videoFile = msg.videoFile;
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.downloadAppId = msg.downloadManagerId;
+        jobMessage.downloadTaskId = msg.downloadTaskId;
         const job = JobScheduler.newJob(jobMessage);
         await this._databaseService.getJobRepository().save(job);
         this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)

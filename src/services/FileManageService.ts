@@ -21,6 +21,9 @@ import { RemoteFile } from '../domains/RemoteFile';
 import { URL } from 'url';
 import { copyFile, readdir, unlink, stat, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
+import { createWriteStream } from 'fs';
+import { finished } from 'stream/promises';
+import axios from 'axios';
 
 @injectable()
 export class FileManageService {
@@ -47,6 +50,7 @@ export class FileManageService {
     public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
         const idHostMap = this._configManager.appIdHostMap();
         const host = idHostMap[appId];
+        let remoteUrl: string = null;
         const destPath = this.getLocalPath(remoteFile.filename, messageId);
         // create folder if not exists
         try {
@@ -70,8 +74,14 @@ export class FileManageService {
                 fileURLObj.host = hostURLObj.host;
                 fileURLObj.protocol = hostURLObj.protocol;
                 fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
-                // TODO download file
+                remoteUrl = fileURLObj.toString();
             }
+        } else {
+            remoteUrl = remoteFile.fileUri;
+        }
+
+        if (remoteUrl) {
+            await FileManageService.getVideoViaHttp(remoteUrl, destPath);
         }
 
         return destPath;
@@ -87,6 +97,15 @@ export class FileManageService {
         } catch (err) {
             console.error(err);
         }
+    }
+
+    private static async getVideoViaHttp(sourceUrl: string, savePath: string): Promise<void> {
+        const writer = createWriteStream(savePath);
+        const response = await axios.get(sourceUrl, {
+            responseType: 'stream'
+        });
+        response.data.pipe(writer);
+        await finished(writer);
     }
 
     private static trimEndSlash(pathSeg: string) {

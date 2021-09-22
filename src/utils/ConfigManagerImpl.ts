@@ -96,9 +96,6 @@ export class ConfigManagerImpl implements ConfigManager {
         }
     }
 
-    /**
-     * Use environment variable: APP1ID=HOST_URL1;APP2ID=HOST_URL2 format
-     */
     appIdHostMap(): { [p: string]: string } {
         return this._config.appIdHostMap || {};
     }
@@ -170,7 +167,7 @@ export class ConfigManagerImpl implements ConfigManager {
     getFileUrl(filename: string, jobMessageId: string): string {
         const serverBaseUrl = process.env.SERVER_BASE_URL;
         if (serverBaseUrl) {
-            return `${serverBaseUrl}/${jobMessageId}/${filename}`;
+            return `${serverBaseUrl}/video/output/${jobMessageId}/${filename}`;
         }
         return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/video/output/${jobMessageId}/${filename}`;
     }
