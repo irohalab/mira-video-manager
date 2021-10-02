@@ -19,6 +19,7 @@ import { Options } from 'amqplib';
 import { injectable } from 'inversify';
 import { resolve, join } from 'path';
 import { NotImplementException } from '../exceptions/NotImplementException';
+import { WebServerConfig } from '../TYPES';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -53,10 +54,6 @@ export class FakeConfigManager implements ConfigManager {
         };
     }
 
-    enabledHttps(): boolean {
-        return false;
-    }
-
     getFileUrl(filename: string, jobMessageId: string): string {
         return '';
     }
@@ -69,19 +66,19 @@ export class FakeConfigManager implements ConfigManager {
         return this.profilePath ? this.profilePath : resolve(__dirname, '../../temp');
     }
 
-    serverHost(): string {
-        return '';
-    }
-
-    serverPort(): number {
-        return 0;
-    }
-
     videoFileTempDir(): string {
         return join(this.jobProfileDirPath(), 'video');
     }
 
     databaseConnectionConfig(): import("typeorm").ConnectionOptions {
         throw new NotImplementException();
+    }
+
+    public ApiWebServerConfig(): WebServerConfig {
+        return undefined;
+    }
+
+    public WebServerConfig(): WebServerConfig {
+        return undefined;
     }
 }

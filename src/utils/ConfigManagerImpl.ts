@@ -25,6 +25,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
 import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
 import { load as loadYaml } from 'js-yaml';
+import { WebServerConfig } from "../TYPES";
 
 type OrmConfig = {
     type: string;
@@ -51,11 +52,16 @@ type AppConfg = {
     appIdHostMap: { [appId: string]: string};
     jobExecProfileDir: string;
     videoTempDir: string;
-    webserver: {
-        enabledHttps: boolean;
+    WebServer: {
+        enableHttps: boolean;
         host: string;
         port: number;
-    }
+    };
+    ApiWebServer: {
+        enableHttps: boolean;
+        host: string;
+        port: number;
+    };
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -152,24 +158,12 @@ export class ConfigManagerImpl implements ConfigManager {
         }
     }
 
-    enabledHttps(): boolean {
-        return this._config.webserver.enabledHttps || false;
-    }
-
-    serverHost(): string {
-        return this._config.webserver.host || 'localhost';
-    }
-
-    serverPort(): number {
-        return this._config.webserver.port || 8080;
-    }
-
     getFileUrl(filename: string, jobMessageId: string): string {
         const serverBaseUrl = process.env.SERVER_BASE_URL;
         if (serverBaseUrl) {
             return `${serverBaseUrl}/video/output/${jobMessageId}/${filename}`;
         }
-        return `${this.enabledHttps() ? 'https' : 'http'}://${this.serverHost()}:${this.serverPort()}/video/output/${jobMessageId}/${filename}`;
+        return `${this.WebServerConfig().enableHttps ? 'https' : 'http'}://${this.WebServerConfig().host}:${this.WebServerConfig().port}/video/output/${jobMessageId}/${filename}`;
     }
 
     public databaseConnectionConfig(): ConnectionOptions {
@@ -187,5 +181,13 @@ export class ConfigManagerImpl implements ConfigManager {
         const home = os.homedir();
         const projectRoot = resolve(__dirname, '../../');
         return pathStr.replace(CWD_PATTERN, cwd).replace(HOME_PATTERN, home).replace(PROJECT_ROOT_PATTERN, projectRoot);
+    }
+
+    public ApiWebServerConfig(): WebServerConfig {
+        return this._config.ApiWebServer as WebServerConfig;
+    }
+
+    public WebServerConfig(): WebServerConfig {
+        return this._config.WebServer as WebServerConfig;
     }
 }

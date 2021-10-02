@@ -16,6 +16,7 @@
 
 import { Options } from 'amqplib';
 import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
+import { WebServerConfig } from '../TYPES';
 
 export interface ConfigManager {
     amqpServerUrl(): string;
@@ -46,9 +47,8 @@ export interface ConfigManager {
      */
     jobExecutorId(): Promise<string>;
 
-    enabledHttps(): boolean;
-    serverHost(): string;
-    serverPort(): number;
+    WebServerConfig(): WebServerConfig;
+    ApiWebServerConfig(): WebServerConfig;
 
     /**
      * Generate the file url for downloading output from job executor.

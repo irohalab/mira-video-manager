@@ -24,7 +24,12 @@ jobExecProfileDir: "${project_root}/temp"
 videoTempDir: "${project_root}/temp/video"
 
 # used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
-webserver:
+WebServer:
   enabledHttps: true
   host: "localhost"
-  port: 8080
+  port: 8082
+
+ApiWebServer:
+  enabledHttps: true
+  host: "localhost"
+  port: 8083

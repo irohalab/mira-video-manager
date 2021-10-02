@@ -7,7 +7,7 @@
       "test": "$(npm bin)/ava",
       "start:jobscheduler": "cross-env START_AS=JOB_SCHEDULER ts-node src/main.ts",
       "start:jobexecutor": "cross-env START_AS=JOB_EXECUTOR ts-node src/main.ts",
-      "start:server:api": "cross-env DEBUG=true ts-node src/WebServer.ts",
+      "start:server:api": "cross-env DEBUG=true START_AS=API_SERVER ts-node src/WebServer.ts",
       "start:server:jobexecutor": "cross-env DEBUG=true START_AS=JOB_EXECUTOR ts-node src/WebServer.ts"
    },
    "keywords": [],

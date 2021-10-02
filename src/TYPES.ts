@@ -24,6 +24,12 @@ export const TYPES = {
     DatabaseService: Symbol.for('DatabaseService')
 };
 
+export type WebServerConfig = {
+    host: string;
+    port: number;
+    enableHttps: boolean;
+};
+
 /**
  * Exchanges
  */

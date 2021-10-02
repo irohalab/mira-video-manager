@@ -66,6 +66,7 @@ export class JobScheduler implements JobApplication {
     }
 
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
+        console.log(JSON.stringify(msg));
         let appliedRule: VideoProcessRule;
         if (msg.appliedProcessRuleId) {
             appliedRule = await this._databaseService.getVideoProcessRuleRepository().findOne({id: msg.appliedProcessRuleId});

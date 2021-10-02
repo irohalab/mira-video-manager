@@ -56,7 +56,19 @@ export function bootstrap(container: Container): Server {
 
     const app = expressServer.build();
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
-    const server = app.listen(configManager.serverPort(), '0.0.0.0');
-    console.log('Server started on port ' + configManager.serverPort());
+    let host: string;
+    let port: number;
+    let protocol: string;
+    if (startAs === JOB_EXECUTOR) {
+        host = configManager.WebServerConfig().host;
+        port = configManager.WebServerConfig().port;
+        protocol = configManager.WebServerConfig().enableHttps ? 'https': 'http';
+    } else {
+        host = configManager.ApiWebServerConfig().host;
+        port = configManager.ApiWebServerConfig().port;
+        protocol = configManager.ApiWebServerConfig().enableHttps ? 'https' : 'http';
+    }
+    const server = app.listen(port, '0.0.0.0');
+    console.log('Server started on port ' + port);
     return server;
 }
