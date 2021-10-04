@@ -27,7 +27,7 @@ import {
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessor } from './processors/VideoProcessor';
-import { mkdir, stat } from 'fs/promises';
+import { mkdir, rename, stat } from 'fs/promises';
 import { JobStatus } from './domains/JobStatus';
 import { Job } from './entity/Job';
 import { Action } from './domains/Action';
@@ -36,18 +36,23 @@ import { JobState } from './domains/JobState';
 import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { v4 as uuidv4} from 'uuid';
 import { RemoteFile } from './domains/RemoteFile';
-import { basename } from "path";
+import { basename, extname, dirname, join } from "path";
 import { JobApplication } from './JobApplication';
+import { promisify } from 'util';
+
+const sleep = promisify(setTimeout);
 
 @injectable()
 export class JobExecutor implements JobApplication {
     public id: string;
     private currentVideoProcessor: VideoProcessor;
+    private isIdle: boolean;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 private _rabbitmqService: RabbitMQService,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
+        this.isIdle = true;
     }
 
     public async start(): Promise<void> {
@@ -79,18 +84,18 @@ export class JobExecutor implements JobApplication {
     }
 
     private async onJobReceived(msg: JobMessage): Promise<boolean> {
-        const job = await this._databaseService.getJobRepository().findOne({jobMessageId: msg.id});
-        if (job) {
-            if (job.status === JobStatus.Running || job.status === JobStatus.UnrecoverableError) {
-                // nack
-                return false;
-            } else if (job.status === JobStatus.Pause) {
-                throw new Error('Illegal Status');
+        if (this.isIdle) {
+            const job = await this._databaseService.getJobRepository().findOne({jobMessageId: msg.id});
+            console.log(msg.id + ' message received');
+            if (job) {
+                this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
+                return true;
             }
-            this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
-            return true;
+            throw new Error('no job found in database');
+        } else {
+            await sleep(3000);
+            return false;
         }
-        throw new Error('no job found in database');
     }
 
     private async pauseJob(): Promise<void> {
@@ -123,6 +128,7 @@ export class JobExecutor implements JobApplication {
     }
 
     private async processJob(job: Job): Promise<void> {
+        this.isIdle = false;
         const jobRepo = this._databaseService.getJobRepository();
         const jobMessage = job.jobMessage;
         let action: Action;
@@ -163,7 +169,18 @@ export class JobExecutor implements JobApplication {
         job.status = JobStatus.Finished;
         job.finishedTime = new Date();
         await jobRepo.save(job);
+        outputPath = await JobExecutor.normalizeFilename(basename(jobMessage.videoFile.filename), outputPath);
         await this.notifyFinished(job, outputPath);
+        this.isIdle = true;
+    }
+
+    private static async normalizeFilename(originalFilename: string, outputPath: string): Promise<string> {
+        const ext = extname(originalFilename);
+        const originalBasename = basename(originalFilename, ext);
+        const outputPathDir = dirname(outputPath);
+        const normalizedOutputPath = join(outputPathDir, originalBasename + extname(outputPath));
+        await rename(outputPath, normalizedOutputPath);
+        return normalizedOutputPath;
     }
 
     private async notifyFinished(job: Job, outputFilePath: string): Promise<void> {
@@ -177,6 +194,7 @@ export class JobExecutor implements JobApplication {
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
         msg.downloadTaskId = job.jobMessage.downloadTaskId;
+        msg.isProcessed = true;
         if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
             console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');

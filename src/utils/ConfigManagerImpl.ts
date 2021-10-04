@@ -160,6 +160,7 @@ export class ConfigManagerImpl implements ConfigManager {
 
     getFileUrl(filename: string, jobMessageId: string): string {
         const serverBaseUrl = process.env.SERVER_BASE_URL;
+        filename = encodeURIComponent(filename);
         if (serverBaseUrl) {
             return `${serverBaseUrl}/video/output/${jobMessageId}/${filename}`;
         }
