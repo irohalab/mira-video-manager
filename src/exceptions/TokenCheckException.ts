@@ -14,16 +14,8 @@
  * limitations under the License.
  */
 
-import test from 'ava';
-import { getStreamsInfo } from './VideoProber';
-import { join } from 'path';
-
-test('getStreamInfo .mp4 file', async t => {
-    try {
-        const promise = getStreamsInfo(join(__dirname, '../../tests/test-video-1.mp4'));
-        await t.notThrowsAsync(promise);
-        console.log(await promise);
-    } catch (e) {
-        console.log(e);
+export class TokenCheckException extends Error {
+    constructor(message: string, public range: number[], public type: string) {
+        super(message);
     }
-});
+}

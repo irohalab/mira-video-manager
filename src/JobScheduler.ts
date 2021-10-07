@@ -36,6 +36,7 @@ import { JobApplication } from './JobApplication';
 import { RemoteFile } from './domains/RemoteFile';
 import { JobState } from './domains/JobState';
 import { VideoManagerMessage } from './domains/VideoManagerMessage';
+import { FileManageService } from './services/FileManageService';
 
 @injectable()
 export class JobScheduler implements JobApplication {
@@ -43,6 +44,7 @@ export class JobScheduler implements JobApplication {
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
+                private _fileManageService: FileManageService,
                 private _rabbitmqService: RabbitMQService) {
     }
 
@@ -79,7 +81,7 @@ export class JobScheduler implements JobApplication {
                 } else {
                     // take the first matched condition as the rule is already returned as higher priority first.
                     for (const rule of rules) {
-                        if (await JobScheduler.checkConditionMatch(rule.condition, msg)) {
+                        if (await this.checkConditionMatch(rule.condition, msg)) {
                             appliedRule = rule;
                             break;
                         }
@@ -105,19 +107,20 @@ export class JobScheduler implements JobApplication {
         }
     }
 
-    private static getAllRemoteFiles(msg: DownloadMQMessage): RemoteFile[] {
-        const remoteFiles = msg.otherFiles ? [].concat(msg.otherFiles) : [];
-        remoteFiles.push(msg.videoFile);
-        return remoteFiles;
-    }
-
-    private static async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
+    private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
         if (!condition) {
             return true;
         }
-        const files = JobScheduler.getAllRemoteFiles(msg);
-        const conditionParser = new ConditionParser(condition, files, msg.downloadManagerId);
-        return await conditionParser.evaluate();
+        const videoFile = this._fileManageService.getFileUrlOrLocalPath(msg.videoFile, msg.downloadManagerId);
+        const otherFiles = msg.otherFiles.map(f => this._fileManageService.getFileUrlOrLocalPath(f, msg.downloadManagerId));
+        const conditionParser = new ConditionParser(condition, videoFile, otherFiles);
+        try {
+            await conditionParser.tokenCheck()
+            return await conditionParser.evaluate();
+        } catch (e) {
+            console.error(e);
+            return false;
+        }
     }
 
     private async dispatchJob(appliedRule: VideoProcessRule, msg: DownloadMQMessage): Promise<void> {

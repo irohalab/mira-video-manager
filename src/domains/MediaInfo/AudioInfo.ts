@@ -14,16 +14,25 @@
  * limitations under the License.
  */
 
-import test from 'ava';
-import { getStreamsInfo } from './VideoProber';
-import { join } from 'path';
+import { TrackInfo } from './TrackInfo';
 
-test('getStreamInfo .mp4 file', async t => {
-    try {
-        const promise = getStreamsInfo(join(__dirname, '../../tests/test-video-1.mp4'));
-        await t.notThrowsAsync(promise);
-        console.log(await promise);
-    } catch (e) {
-        console.log(e);
-    }
-});
+export interface AudioInfo extends TrackInfo {
+    Format_AdditionalFeatures: string;
+    CodecId: string;
+    Duration: number;
+    BitRate: number;
+    Channels: number;
+    ChannelPositions: string;
+    ChannelLayout: string;
+    SamplesPerFrame: number;
+    SamplingRate: number;
+    SamplingCount: number;
+    Compression_Mode: string;
+    Delay: number;
+    Delay_Source: string;
+    StreamSize: number;
+    StreamSize_Proportion: number;
+    Language: string;
+    Default: boolean;
+    Forced: boolean;
+}

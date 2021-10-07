@@ -47,10 +47,31 @@ export class FileManageService {
         }
     }
 
-    public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
+    public getFileUrlOrLocalPath(remoteFile: RemoteFile, appId: string): RemoteFile {
         const idHostMap = this._configManager.appIdHostMap();
         const host = idHostMap[appId];
-        let remoteUrl: string = null;
+        const convertedRemoteFile =  new RemoteFile();
+        convertedRemoteFile.filename = remoteFile.filename;
+        if (host) {
+            const hostURLObj = new URL(host);
+            if (hostURLObj.hostname === 'localhost') {
+                convertedRemoteFile.fileLocalPath = remoteFile.fileLocalPath;
+            } else {
+                // replace part
+                const fileURLObj = new URL(remoteFile.fileUri);
+                fileURLObj.host = hostURLObj.host;
+                fileURLObj.protocol = hostURLObj.protocol;
+                fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
+                convertedRemoteFile.fileUri = fileURLObj.toString();
+            }
+        } else {
+            convertedRemoteFile.fileUri = remoteFile.fileUri;
+        }
+        return convertedRemoteFile;
+    }
+
+    public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
+        const convertedRemoteFile = this.getFileUrlOrLocalPath(remoteFile, appId);
         const destPath = this.getLocalPath(remoteFile.filename, messageId);
         // create folder if not exists
         try {
@@ -58,30 +79,15 @@ export class FileManageService {
         } catch (err) {
             console.warn(err);
         }
-
-        if (host) {
-            const hostURLObj = new URL(host);
-            if (hostURLObj.hostname === 'localhost') {
-                // COPY local file
-                try {
-                    await copyFile(remoteFile.fileLocalPath, destPath);
-                } catch (err) {
-                    console.log(err);
-                }
-            } else {
-                // replace part
-                const fileURLObj = new URL(remoteFile.fileUri);
-                fileURLObj.host = hostURLObj.host;
-                fileURLObj.protocol = hostURLObj.protocol;
-                fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
-                remoteUrl = fileURLObj.toString();
+        if (convertedRemoteFile.fileLocalPath) {
+            // COPY local file
+            try {
+                await copyFile(convertedRemoteFile.fileLocalPath, destPath);
+            } catch (err) {
+                console.log(err);
             }
         } else {
-            remoteUrl = remoteFile.fileUri;
-        }
-
-        if (remoteUrl) {
-            await FileManageService.getVideoViaHttp(remoteUrl, destPath);
+            await FileManageService.getVideoViaHttp(convertedRemoteFile.fileUri, destPath);
         }
 
         return destPath;

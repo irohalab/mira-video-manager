@@ -15,112 +15,100 @@
  */
 
 import { RemoteFile } from '../domains/RemoteFile';
-import * as jsep from 'jsep';
-import {
-    BinaryExpression,
-    CallExpression,
-    Expression,
-    Identifier,
-    Literal,
-    MemberExpression,
-    UnaryExpression
-} from 'jsep';
+import { tokenize } from 'esprima';
+import { TokenCheckException } from '../exceptions/TokenCheckException';
+import * as vm from 'vm';
+import { getStreamsInfo } from './VideoProber';
+import { MediaContainer } from './Runtime/MediaContainer';
+import { VideoStream } from './Runtime/VideoStream';
+import { AudioStream } from './Runtime/AudioStream';
 
-const VAR_FILENAME = 'filename';
-const VAR_EXTNAME = 'extname';
-const VAR_CONTAINER = 'container';
-const VAR_VIDEO_CODEC = 'video_codec';
-const VAR_AUDIO_CODEC = 'audio_codec';
+interface Token {
+    type: string;
+    value: string;
+    range?: number[];
+}
+
+// allow keyword: false
+// allowed Identifier:
+const ID_VIDEO_FILENAME = 'video_filename';
+const ID_OTHER_FILENAMES = 'other_filenames';
+const ID_VIDEO_CONTAINER = 'video_container';
+const ID_VIDEO_STREAM = 'video_stream';
+const ID_AUDIO_STREAM = 'audio_stream';
+
+const TOKEN_TYPE = {
+    Punctuator: 'Punctuator',
+    Identifier: 'Identifier',
+    Numeric: 'Numeric',
+    Keyword: 'Keyword',
+    BlockComment: 'BlockComment',
+    RegularExpression: 'RegularExpression',
+    String: 'String'
+};
+
+// disallowed punctuator
+const DISALLOWED_PUNCTUATOR = [';', '=', '=>', '{', '}'];
+
+// allowed built-in identifier:
+const builtInIdentifier = ['Math', 'String', 'RegExp', 'Array', 'extname', 'basename']
+    .concat(Object.getOwnPropertyNames(Math).filter(m => m !== 'constructor' && typeof Math[m] === 'function'))
+    .concat(Object.getOwnPropertyNames(String.prototype).filter(m => m !== 'constructor' && typeof String.prototype[m] === 'function'))
+    .concat(Object.getOwnPropertyNames(RegExp.prototype).filter(m => m !== 'constructor' && typeof RegExp.prototype[m] === 'function'))
+    .concat(Object.getOwnPropertyNames(Array.prototype).filter(m => m !== 'constructor' && typeof Array.prototype[m] === 'function'));
+
+const ALLOWED_IDENTIFIER = [ID_VIDEO_FILENAME, ID_OTHER_FILENAMES, ID_VIDEO_CONTAINER, ID_VIDEO_STREAM, ID_AUDIO_STREAM]
+    .concat(builtInIdentifier)
+    .concat(Object.getOwnPropertyNames(MediaContainer.prototype).filter(m => m !== 'constructor'))
+    .concat(Object.getOwnPropertyNames(VideoStream.prototype).filter(m => m !== 'constructor'))
+    .concat(Object.getOwnPropertyNames(AudioStream.prototype).filter(m => m !== 'constructor'));
 
 export class ConditionParser {
-    private readonly _ast: Expression;
-    private static funcMapping = {
-        startsWith: String.prototype.startsWith,
-        contains: String.prototype.includes,
-        substring: String.prototype.substring
-    };
 
     constructor(private _condition: string,
-                private _files: RemoteFile[],
-                private _downloadManagerId: string) {
-        this._ast = jsep(this._condition);
+                private _videoFile: RemoteFile,  /* remote file's uri and localPath is preprocessed, they are mutual exclusive. */
+                private _otherFiles: RemoteFile[]) {
+
+    }
+
+    public tokenCheck(): void {
+        const tokens = tokenize(this._condition, {range: true}) as Token[];
+        for(const token of tokens) {
+            switch (token.type) {
+                case TOKEN_TYPE.Punctuator:
+                    if (DISALLOWED_PUNCTUATOR.includes(token.value)) {
+                        throw new TokenCheckException('Punctuator not support: ' + token.value, token.range, token.type);
+                    }
+                    break;
+                case TOKEN_TYPE.Identifier:
+                    if (!ALLOWED_IDENTIFIER.includes(token.value)) {
+                        throw new TokenCheckException('Identifier not support: ' + token.value, token.range, token.type);
+                    }
+                    break;
+                case TOKEN_TYPE.RegularExpression:
+                case TOKEN_TYPE.Numeric:case TOKEN_TYPE.String:
+                    // allowed
+                    break;
+                default:
+                    throw new TokenCheckException('Unsupported token type', token.range, token.type);
+            }
+        }
     }
 
     public async evaluate(): Promise<boolean> {
-        let result = false;
-        try {
-            result = await this.evaluateExpression(this._ast);
-        } catch (ex) {
-            console.error(ex);
-        }
-        return result;
+        const sandbox = {
+            [ID_VIDEO_FILENAME]: this._videoFile.filename,
+            [ID_OTHER_FILENAMES]: this._otherFiles.map(f => f.filename),
+        };
+        await this.getVideoInfo(sandbox);
+        return vm.runInContext(this._condition, sandbox);
     }
 
-    private async evaluateExpression(exp: Expression): Promise<any> {
-        switch (exp.type) {
-            case 'CallExpression':
-                const callExp = exp as CallExpression;
-                const callee = callExp.callee;
-                switch (callee.type) {
-                    case 'MemberExpression':
-                        return ConditionParser.callFunction(((callee as MemberExpression).property as Identifier).name, callExp.arguments, await this.evaluateExpression((callee as MemberExpression).object));
-                    case 'Identifier':
-                        return ConditionParser.callFunction((callee as Identifier).name, callExp.arguments, null);
-                    default:
-                        throw new Error('Unsupported Call expression type');
-                }
-            case 'UnaryExpression':
-                const unaryExp = exp as UnaryExpression;
-                switch (unaryExp.operator) {
-                    case '!':
-                        return !(await this.evaluateExpression(unaryExp.argument));
-                    default:
-                        throw new Error('Unsupported unary operator: ' + unaryExp.operator);
-                }
-            case 'BinaryExpression':
-            case 'LogicalExpression':
-                const binaryExp = exp as BinaryExpression;
-                const leftExp = await this.evaluateExpression(binaryExp.left);
-                const rightExp = await this.evaluateExpression(binaryExp.right);
-                // note that type won't convert
-                switch (binaryExp.operator) {
-                    case '==':
-                        return leftExp === rightExp;
-                    case '!=':
-                        return leftExp !== rightExp;
-                    case '>':
-                        return leftExp > rightExp;
-                    case '<':
-                        return leftExp > rightExp;
-                    case '>=':
-                        return leftExp >= rightExp;
-                    case '<=':
-                        return leftExp <= rightExp;
-                    case '&&':
-                        return leftExp && rightExp;
-                    case '||':
-                        return leftExp || rightExp;
-                    default:
-                        throw new Error('Unsupported operator: ' + binaryExp.operator);
-                }
-            case 'Identifier':
-                return await this.handleIdentifier((exp as Identifier).name);
-            case 'Literal':
-                return (exp as Literal).value;
-            default:
-                throw new Error('Unsupported expression type: ' + exp.type);
-        }
-    }
-
-    private static callFunction(funcName: string, args: any[], context: string): any {
-        const func = ConditionParser.funcMapping[funcName];
-        if (!func) {
-            throw new Error(`No function name ${funcName} is defined`);
-        }
-        return func.apply(context, args);
-    }
-
-    private async handleIdentifier(identifier: string): Promise<any> {
-        return null;
+    private async getVideoInfo(sandbox: any): Promise<void> {
+        const videoFilePath = this._videoFile.fileUri || this._videoFile.fileLocalPath;
+        const trackInfos = await getStreamsInfo(videoFilePath);
+        sandbox.video_container = new MediaContainer(trackInfos);
+        sandbox.video_stream = new VideoStream(sandbox.video_container.getDefaultVideoStreamInfo());
+        sandbox.audio_stream = new AudioStream(sandbox.audio_stream.getDefaultAudioStreamInfo());
     }
 }

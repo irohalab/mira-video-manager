@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import test from 'ava';
-import { getStreamsInfo } from './VideoProber';
-import { join } from 'path';
+import { AudioInfo } from '../../domains/MediaInfo/AudioInfo';
 
-test('getStreamInfo .mp4 file', async t => {
-    try {
-        const promise = getStreamsInfo(join(__dirname, '../../tests/test-video-1.mp4'));
-        await t.notThrowsAsync(promise);
-        console.log(await promise);
-    } catch (e) {
-        console.log(e);
+export class AudioStream {
+    constructor(private _info: AudioInfo) {
     }
-});
+
+    public isPlayable(): boolean {
+        return this._info.Format === 'AAC'
+    }
+
+    public getInfo(): AudioInfo {
+        return this._info;
+    }
+}

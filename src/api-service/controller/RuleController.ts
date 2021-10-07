@@ -14,11 +14,21 @@
  * limitations under the License.
  */
 
-import { controller, httpDelete, httpGet, httpPost, httpPut, interfaces, requestParam } from 'inversify-express-utils';
+import {
+    controller,
+    httpDelete,
+    httpGet,
+    httpPost,
+    httpPut,
+    interfaces,
+    requestParam
+} from 'inversify-express-utils';
 import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { VideoProcessRuleService } from '../../services/VideoProcessRuleService';
 import { ResponseWrapper } from '../ResponseWrapper';
+import { ConditionParser } from '../../utils/ConditionParser';
+import { TokenCheckException } from '../../exceptions/TokenCheckException';
 
 @controller('/rule')
 export class RuleController implements interfaces.Controller {
@@ -47,10 +57,16 @@ export class RuleController implements interfaces.Controller {
     @httpPost('/')
     public async addRule(request: Request): Promise<ResponseWrapper<VideoProcessRule>> {
         const rule = request.body as VideoProcessRule;
-        return {
-            data: await this._videoProcessRuleService.addRule(rule),
-            status: 0
-        };
+        const conditionParser = new ConditionParser(rule.condition, null, null);
+        try {
+            conditionParser.tokenCheck()
+            return {
+                data: await this._videoProcessRuleService.addRule(rule),
+                status: 0
+            };
+        } catch (ex) {
+            throw ex;
+        }
     }
 
     @httpPut('/:id')
@@ -72,4 +88,26 @@ export class RuleController implements interfaces.Controller {
         }
     }
 
+    @httpPost('/condition')
+    public async checkCondition(request: Request): Promise<ResponseWrapper<any>> {
+        const condition = request.body.condition;
+        const conditionParser = new ConditionParser(condition, null, null);
+        const result = {} as any;
+        try {
+            conditionParser.tokenCheck();
+        } catch (ex) {
+            if (ex instanceof TokenCheckException) {
+                result.type = ex.type;
+                result.message = ex.message;
+                result.range = ex.range;
+            } else {
+                result.message = ex.message;
+                result.type = 'unknown';
+            }
+        }
+        return {
+            status: result.type ? -1 : 0,
+            data: result
+        };
+    }
 }

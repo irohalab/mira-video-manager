@@ -15,6 +15,9 @@
  */
 
 import { spawn } from 'child_process';
+import { ContainerInfo } from '../domains/MediaInfo/ContainerInfo';
+import { TrackInfo } from '../domains/MediaInfo/TrackInfo';
+
 
 async function runCommandAndGetJson(cmdExc: string, cmdArgs: string[], input: string): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -41,20 +44,17 @@ async function runCommandAndGetJson(cmdExc: string, cmdArgs: string[], input: st
     });
 }
 
-export async function getStreamInfo(input: string): Promise<any> {
-    return await runCommandAndGetJson("ffprobe", ["-hide_banner", "-v", "error", "-show_streams", "-of", "json"], input);
+export async function getStreamsInfo(input): Promise<TrackInfo[]> {
+    const result = await runCommandAndGetJson("mediainfo", ["--Output=JSON", "-f"], input);
+    return result.media as TrackInfo[];
 }
 
-export async function getContainerInfo(input): Promise<any> {
-    return await runCommandAndGetJson("mediainfo", ["--Output=JSON", "-f"], input);
+export async function getContainerInfo(input): Promise<ContainerInfo> {
+    const result = await getStreamsInfo(input);
+    return result.find(track => track['@type'] === 'General') as ContainerInfo;
 }
 
 export async function isPlayableContainer(input: string): Promise<boolean> {
     const info = await getContainerInfo(input);
-    for (const track of info.media.track) {
-        if (track['@type'] === 'General') {
-            return track.Format === 'MPEG-4';
-        }
-    }
-    return false;
+    return info.Format === 'MPEG-4';
 }

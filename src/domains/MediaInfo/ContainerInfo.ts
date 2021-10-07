@@ -14,16 +14,20 @@
  * limitations under the License.
  */
 
-import test from 'ava';
-import { getStreamsInfo } from './VideoProber';
-import { join } from 'path';
+import { TrackInfo } from './TrackInfo';
 
-test('getStreamInfo .mp4 file', async t => {
-    try {
-        const promise = getStreamsInfo(join(__dirname, '../../tests/test-video-1.mp4'));
-        await t.notThrowsAsync(promise);
-        console.log(await promise);
-    } catch (e) {
-        console.log(e);
-    }
-});
+export interface ContainerInfo extends TrackInfo {
+    VideoCount: number;
+    AudioCount: number;
+    TextCount: number;
+    FileExtension: string;
+    Format_Version: string;
+    FileSize: number;
+    Duration: number;
+    OverallBitRate: number;
+    StreamSize: number;
+    IsStreamable: boolean;
+    extra: {
+        Attachments: string;
+    };
+}
