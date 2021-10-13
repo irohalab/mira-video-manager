@@ -87,23 +87,14 @@ export class JobScheduler implements JobApplication {
                         }
                     }
                 }
-            } else {
-                const vmMsg = new VideoManagerMessage();
-                vmMsg.id = uuidv4();
-                vmMsg.bangumiId = msg.bangumiId;
-                vmMsg.videoId = msg.videoId;
-                vmMsg.version = '1';
-                vmMsg.isProcessed = false;
-                vmMsg.processedFile = null;
-                vmMsg.jobExecutorId = null;
-                vmMsg.downloadTaskId = msg.downloadTaskId;
-                await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
             }
         }
 
         // preprocess actions of the rule
         if (appliedRule) {
             await this.dispatchJob(appliedRule, msg);
+        } else {
+            await this.sendNoNeedToProcessMessage(msg);
         }
     }
 
@@ -115,7 +106,7 @@ export class JobScheduler implements JobApplication {
         const otherFiles = msg.otherFiles.map(f => this._fileManageService.getFileUrlOrLocalPath(f, msg.downloadManagerId));
         const conditionParser = new ConditionParser(condition, videoFile, otherFiles);
         try {
-            await conditionParser.tokenCheck()
+            await conditionParser.tokenCheck();
             return await conditionParser.evaluate();
         } catch (e) {
             console.error(e);
@@ -139,6 +130,18 @@ export class JobScheduler implements JobApplication {
             .then(() => {
                 console.log('dispatched job ' + jobMessage.id);
             });
+    }
+
+    private async sendNoNeedToProcessMessage(msg: DownloadMQMessage) {
+        const vmMsg = new VideoManagerMessage();
+        vmMsg.id = uuidv4();
+        vmMsg.bangumiId = msg.bangumiId;
+        vmMsg.videoId = msg.videoId;
+        vmMsg.isProcessed = false;
+        vmMsg.processedFile = null;
+        vmMsg.jobExecutorId = null;
+        vmMsg.downloadTaskId = msg.downloadTaskId;
+        await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
     }
 
     private static newJob(msg: JobMessage): Job {

@@ -22,6 +22,7 @@ import { getStreamsInfo } from './VideoProber';
 import { MediaContainer } from './Runtime/MediaContainer';
 import { VideoStream } from './Runtime/VideoStream';
 import { AudioStream } from './Runtime/AudioStream';
+import { basename, extname } from 'path';
 
 interface Token {
     type: string;
@@ -99,8 +100,11 @@ export class ConditionParser {
         const sandbox = {
             [ID_VIDEO_FILENAME]: this._videoFile.filename,
             [ID_OTHER_FILENAMES]: this._otherFiles.map(f => f.filename),
+            basename,
+            extname
         };
         await this.getVideoInfo(sandbox);
+        vm.createContext(sandbox);
         return vm.runInContext(this._condition, sandbox);
     }
 
@@ -109,6 +113,6 @@ export class ConditionParser {
         const trackInfos = await getStreamsInfo(videoFilePath);
         sandbox.video_container = new MediaContainer(trackInfos);
         sandbox.video_stream = new VideoStream(sandbox.video_container.getDefaultVideoStreamInfo());
-        sandbox.audio_stream = new AudioStream(sandbox.audio_stream.getDefaultAudioStreamInfo());
+        sandbox.audio_stream = new AudioStream(sandbox.video_container.getDefaultAudioStreamInfo());
     }
 }

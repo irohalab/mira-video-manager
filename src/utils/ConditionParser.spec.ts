@@ -14,16 +14,9 @@
  * limitations under the License.
  */
 
-import { MQMessage } from './MQMessage';
-import { RemoteFile } from './RemoteFile';
+import test from 'ava';
+import { ConditionParser } from './ConditionParser';
 
-export class VideoManagerMessage implements MQMessage {
-    public id: string;
-    public downloadTaskId: string;
-    public isProcessed: boolean; // if there is no rule match, this is false
-    public processedFile: RemoteFile; // can be null
-    public jobExecutorId: string;
-    public bangumiId: string;
-    public videoId: string;
-    public version: string = '1.0';
-}
+test('detect invalid identifier, keyword and punctuator', t => {
+    const conditionParser = new ConditionParser('', null, null);
+});

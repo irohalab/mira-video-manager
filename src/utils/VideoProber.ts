@@ -18,11 +18,15 @@ import { spawn } from 'child_process';
 import { ContainerInfo } from '../domains/MediaInfo/ContainerInfo';
 import { TrackInfo } from '../domains/MediaInfo/TrackInfo';
 
+const COMMAND_TIMEOUT = 5000;
 
 async function runCommandAndGetJson(cmdExc: string, cmdArgs: string[], input: string): Promise<any> {
     return new Promise((resolve, reject) => {
         try {
-            const child = spawn(cmdExc, [...cmdArgs, input]);
+            const child = spawn(cmdExc, [...cmdArgs, input], {
+                timeout: COMMAND_TIMEOUT,
+                stdio: 'pipe'
+            });
             let output = '';
             let error = '';
             child.stdout.on('data', (data) => {
@@ -44,12 +48,17 @@ async function runCommandAndGetJson(cmdExc: string, cmdArgs: string[], input: st
     });
 }
 
-export async function getStreamsInfo(input): Promise<TrackInfo[]> {
-    const result = await runCommandAndGetJson("mediainfo", ["--Output=JSON", "-f"], input);
-    return result.media as TrackInfo[];
+export async function getStreamsWithFfprobe(input: string): Promise<any> {
+    const result = await runCommandAndGetJson('ffprobe', ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams'], input);
+    return result.streams
 }
 
-export async function getContainerInfo(input): Promise<ContainerInfo> {
+export async function getStreamsInfo(input: string): Promise<TrackInfo[]> {
+    const result = await runCommandAndGetJson("mediainfo", ["--Output=JSON", "-f"], input);
+    return result.media.track as TrackInfo[];
+}
+
+export async function getContainerInfo(input: string): Promise<ContainerInfo> {
     const result = await getStreamsInfo(input);
     return result.find(track => track['@type'] === 'General') as ContainerInfo;
 }

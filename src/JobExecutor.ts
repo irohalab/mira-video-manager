@@ -150,6 +150,7 @@ export class JobExecutor implements JobApplication {
             state.log = `preparing for action[${i}]`;
             this.currentVideoProcessor.registerLogHandler((logChunk, ch) => {
                 // TODO: realTime logging
+                console.log(ch + ':' + logChunk);
             });
             await this.currentVideoProcessor.prepare(jobMessage, action);
             state.endTime = new Date();

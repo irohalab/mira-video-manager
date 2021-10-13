@@ -38,6 +38,10 @@ export class MediaContainer {
         return this._trackInfos.filter(info => info['@type'] === 'Audio').length;
     }
 
+    public isStreamable(): boolean {
+        return this.getContainerInfo().IsStreamable;
+    }
+
     public getContainerInfo(): ContainerInfo {
         return this._trackInfos.find(info => info['@type'] === 'General') as ContainerInfo;
     }

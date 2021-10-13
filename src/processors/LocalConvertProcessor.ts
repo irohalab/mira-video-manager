@@ -90,7 +90,7 @@ export class LocalConvertProcessor implements VideoProcessor {
         }
         const convertProfile = this._profileFactory(currentAction.profile, videoFilePath, action.index, extra);
         const outputFilename = convertProfile.getOutputFilename();
-        await this.runCommand(convertProfile.getCommandArgs(), outputFilename);
+        await this.runCommand(await convertProfile.getCommandArgs(), outputFilename);
         return outputFilename;
     }
 

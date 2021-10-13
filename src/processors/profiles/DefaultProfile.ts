@@ -24,8 +24,8 @@ export class DefaultProfile extends BaseProfile {
 
     public static profileName = 'default';
 
-    public getCommandArgs(): string[] {
-        return ['-i', this.videoFilePath, '-strict', '-2'];
+    public getCommandArgs(): Promise<string[]> {
+        return Promise.resolve(['-i', this.videoFilePath, '-strict', '-2']);
     }
 
     public getOutputFilename(): string {

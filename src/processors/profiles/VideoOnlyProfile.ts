@@ -16,6 +16,7 @@
 
 import { BaseProfile } from "./BaseProfile";
 import { NotImplementException } from "../../exceptions/NotImplementException";
+import { join, dirname, basename } from "path";
 
 export class VideoOnlyProfile extends BaseProfile {
     constructor(videoFilePath: string, actionIndex: number) {
@@ -24,11 +25,11 @@ export class VideoOnlyProfile extends BaseProfile {
 
     public static profileName = 'video_only'
 
-    getCommandArgs(): string[] {
-        throw new NotImplementException();
+    public getCommandArgs(): Promise<string[]> {
+        return Promise.resolve(['-i', this.videoFilePath, '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
     }
 
     getOutputFilename(): string {
-        return '';
+        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + '-' + this.actionIndex + '.mp4');
     }
 }
