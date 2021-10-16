@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { basename, dirname, join } from 'path';
+
 export abstract class BaseProfile {
     protected constructor(protected videoFilePath: string, protected actionIndex: number) {
     }
@@ -27,7 +29,9 @@ export abstract class BaseProfile {
     /**
      * Get the output filename for the profile.
      */
-    public abstract getOutputFilename(): string;
+    public getOutputFilename(): string {
+        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + '-' + this.actionIndex + '.mp4');
+    }
 
     /**
      * Get the count of channels for given audio stream

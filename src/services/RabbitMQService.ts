@@ -47,7 +47,7 @@ export class RabbitMQService {
                     })
                     .catch((err) => {
                         console.error(err);
-                    })
+                    });
             }
         })
         this._connected = true;

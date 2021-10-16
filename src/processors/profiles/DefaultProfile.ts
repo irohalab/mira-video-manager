@@ -27,8 +27,4 @@ export class DefaultProfile extends BaseProfile {
     public getCommandArgs(): Promise<string[]> {
         return Promise.resolve(['-i', this.videoFilePath, '-strict', '-2']);
     }
-
-    public getOutputFilename(): string {
-        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + '-' + this.actionIndex + '.mp4');
-    }
 }

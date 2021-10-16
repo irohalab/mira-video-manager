@@ -14,18 +14,16 @@
  * limitations under the License.
  */
 
-import { BaseProfile } from "./BaseProfile";
-import { NotImplementException } from "../../exceptions/NotImplementException";
-import { join, dirname, basename } from "path";
+import { BaseProfile } from './BaseProfile';
 
-export class VideoOnlyProfile extends BaseProfile {
-    constructor(videoFilePath: string, actionIndex: number) {
+export class ContainerOnlyProfile extends BaseProfile {
+    public static profileName = 'container_only';
+
+    constructor(videoFilePath, actionIndex) {
         super(videoFilePath, actionIndex);
     }
 
-    public static profileName = 'video_only'
-
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve(['-i', this.videoFilePath, '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
+        return Promise.resolve(['-i', this.videoFilePath, '-c:v', 'copy', '-c:a', 'copy', '-strict', '-2']);
     }
 }

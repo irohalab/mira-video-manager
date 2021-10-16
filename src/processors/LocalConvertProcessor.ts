@@ -84,7 +84,7 @@ export class LocalConvertProcessor implements VideoProcessor {
                 subtitleFilePath = inputPath;
             }
         }
-        const extra = Object.assign({}, currentAction.profileExtraData);
+        const extra = { data: currentAction.profileExtraData } as any;
         if (subtitleFilePath) {
             extra.subtitleFile = subtitleFilePath;
         }

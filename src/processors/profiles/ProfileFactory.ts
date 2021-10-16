@@ -19,14 +19,17 @@ import { VideoOnlyProfile } from "./VideoOnlyProfile";
 import { DefaultProfile } from "./DefaultProfile";
 import { interfaces } from "inversify";
 import { BaseProfile } from "./BaseProfile";
+import { ContainerOnlyProfile } from './ContainerOnlyProfile';
 
 export function ProfileFactory(context: interfaces.Context): ProfileFactoryInitiator {
     return (profileName: string, videoFilePath: string, actionIndex: number, profileExtraData?: any) => {
         switch (profileName) {
             case SoundOnlyProfile.profileName:
-                return new SoundOnlyProfile(videoFilePath, profileExtraData, actionIndex);
+                return new SoundOnlyProfile(videoFilePath, profileExtraData.data, actionIndex);
             case VideoOnlyProfile.profileName:
                 return new VideoOnlyProfile(videoFilePath, actionIndex);
+            case ContainerOnlyProfile.profileName:
+                return new ContainerOnlyProfile(videoFilePath, actionIndex);
             case DefaultProfile.profileName:
             default:
                 return new DefaultProfile(videoFilePath, actionIndex);

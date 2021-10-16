@@ -36,47 +36,8 @@ export class SoundOnlyProfile extends BaseProfile {
         super(videoFilePath, actionIndex);
     }
 
-    public async getCommandArgs(): Promise<string[]> {
-        const streams = await getStreamsWithFfprobe(this.videoFilePath);
-        const audioStreams = streams.filter(stream => stream.codec_type.toLowerCase() === 'audio');
-        let audioStreamIndex = -1;
-        if (audioStreams.length > 1) {
-            if (this._preferredTrack) {
-                const result = this.parsePreferredTrack();
-                if (result.length === 1) {
-                    audioStreamIndex = result[0];
-                } else {
-                    for (let i = 0; i < audioStreams.length; i++) {
-                        if (result.length === 2) {
-                            const streamPropertyVal = audioStreams[i][result[0]];
-                            if (streamPropertyVal === result[1]) {
-                                audioStreamIndex = i;
-                                break;
-                            }
-                        } else if (result.length === 3) {
-                            const subObj = audioStreams[i][result[0]];
-                            if (subObj && subObj[result[1]] === result[2]) {
-                                audioStreamIndex = i;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        let bitrate: number;
-        if (audioStreamIndex === -1) {
-            bitrate = this.getAudioChannelCount(audioStreams.find(stream => stream.disposition.default === 1)) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
-        } else {
-            bitrate = this.getAudioChannelCount(audioStreams[audioStreamIndex]) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
-        }
-
-    }
-
-    public getOutputFilename(): string {
-        return join(dirname(this.videoFilePath), basename(this.videoFilePath) + '-' + this.actionIndex + '.mp4');
+    private static isPropertyEqual(prop1: any, prop2: string): boolean {
+        return prop1 && (prop1 + '') === prop2;
     }
 
     private parsePreferredTrack(): any[] {
@@ -97,5 +58,44 @@ export class SoundOnlyProfile extends BaseProfile {
                 return [property, pair[1]];
             }
         }
+    }
+
+    public async getCommandArgs(): Promise<string[]> {
+        const streams = await getStreamsWithFfprobe(this.videoFilePath);
+        const audioStreams = streams.filter(stream => stream.codec_type.toLowerCase() === 'audio');
+        let audioStreamIndex = -1;
+        if (audioStreams.length > 1) {
+            if (this._preferredTrack) {
+                const result = this.parsePreferredTrack();
+                if (result.length === 1) {
+                    audioStreamIndex = result[0];
+                } else {
+                    for (let i = 0; i < audioStreams.length; i++) {
+                        if (result.length === 2) {
+                            const streamPropertyVal = audioStreams[i][result[0]];
+                            if (SoundOnlyProfile.isPropertyEqual(streamPropertyVal, result[1])) {
+                                audioStreamIndex = i;
+                                break;
+                            }
+                        } else if (result.length === 3) {
+                            const subObj = audioStreams[i][result[0]];
+                            if (subObj && SoundOnlyProfile.isPropertyEqual(subObj[result[1]], result[2])) {
+                                audioStreamIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let bitrate: number;
+        if (audioStreamIndex === -1) {
+            bitrate = this.getAudioChannelCount(audioStreams.find(stream => stream.disposition.default === 1)) * DEFAULT_BIT_RATE_PER_CHANNEL;
+            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+        } else {
+            bitrate = this.getAudioChannelCount(audioStreams[audioStreamIndex]) * DEFAULT_BIT_RATE_PER_CHANNEL;
+            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+        }
+
     }
 }
