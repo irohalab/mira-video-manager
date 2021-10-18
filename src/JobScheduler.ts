@@ -21,7 +21,7 @@ import {
     DOWNLOAD_MESSAGE_EXCHANGE,
     DOWNLOAD_MESSAGE_QUEUE,
     JOB_EXCHANGE,
-    TYPES,
+    TYPES, VIDEO_MANAGER_COMMAND,
     VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL
 } from './TYPES';
 import { DownloadMQMessage } from './domains/DownloadMQMessage';
@@ -33,14 +33,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
-import { RemoteFile } from './domains/RemoteFile';
 import { JobState } from './domains/JobState';
 import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { FileManageService } from './services/FileManageService';
+import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { promisify } from 'util';
+
+const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
+const sleep = promisify(setTimeout);
 
 @injectable()
 export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
+    private _jobStatusCheckerTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
@@ -49,6 +54,7 @@ export class JobScheduler implements JobApplication {
     }
 
     public async start(): Promise<void> {
+        this.checkJobStatus();
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct');
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
@@ -64,7 +70,7 @@ export class JobScheduler implements JobApplication {
     }
 
     public async stop(): Promise<void> {
-        // TODO: clean up;
+        clearTimeout(this._jobStatusCheckerTimerId);
     }
 
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
@@ -157,5 +163,34 @@ export class JobScheduler implements JobApplication {
         job.stateHistory = [jobState];
         job.createTime = new Date();
         return job;
+    }
+
+    private checkJobStatus(): void {
+        this._jobStatusCheckerTimerId = setTimeout(async () => {
+            await this.doCheckJobStatus();
+            this.checkJobStatus();
+        }, JOB_STATUS_CHECK_INTERVAL);
+    }
+
+    private async doCheckJobStatus(): Promise<void> {
+        const jobRepo = this._databaseService.getJobRepository();
+        const unfinishedRunningJobs = await jobRepo.getUnfinishedJobs(this._configManager.maxJobProcessTime());
+        // cancel and reschedule jobs
+        for (const job of unfinishedRunningJobs) {
+            const cmd = new CommandMessage();
+            cmd.command = CMD_CANCEL;
+            cmd.jobId = job.id;
+            await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_COMMAND, cmd);
+        }
+
+        await sleep(10000);
+
+        for (const job of unfinishedRunningJobs) {
+            const jobMessage = Object.assign({}, job.jobMessage);
+            jobMessage.id = uuidv4();
+            const rerunJob = JobScheduler.newJob(jobMessage);
+            await jobRepo.save(rerunJob);
+            await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage);
+        }
     }
 }

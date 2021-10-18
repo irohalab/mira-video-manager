@@ -15,8 +15,6 @@
  */
 
 import { BaseProfile } from "./BaseProfile";
-import { NotImplementException } from "../../exceptions/NotImplementException";
-import { join, dirname, basename } from "path";
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
 
 const DEFAULT_BIT_RATE_PER_CHANNEL = 64; // kbit/s

@@ -18,9 +18,11 @@ import { ConfigManager } from "./utils/ConfigManager";
 import { RabbitMQService } from './services/RabbitMQService';
 import { inject, injectable } from 'inversify';
 import {
+    COMMAND_QUEUE,
     JOB_EXCHANGE,
     JOB_QUEUE,
     TYPES,
+    VIDEO_MANAGER_COMMAND,
     VIDEO_MANAGER_EXCHANGE,
     VIDEO_MANAGER_GENERAL
 } from './TYPES';
@@ -34,22 +36,28 @@ import { Action } from './domains/Action';
 import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { JobState } from './domains/JobState';
 import { VideoManagerMessage } from './domains/VideoManagerMessage';
-import { v4 as uuidv4} from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 import { RemoteFile } from './domains/RemoteFile';
-import { basename, extname, dirname, join } from "path";
+import { basename, dirname, extname, join } from "path";
 import { JobApplication } from './JobApplication';
 import { promisify } from 'util';
+import { FileManageService } from './services/FileManageService';
+import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { JobRepository } from './repository/JobRepository';
 
 const sleep = promisify(setTimeout);
+const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
 
 @injectable()
 export class JobExecutor implements JobApplication {
     public id: string;
     private currentVideoProcessor: VideoProcessor;
     private isIdle: boolean;
+    private _cleanUpTimer: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 private _rabbitmqService: RabbitMQService,
+                private _fileManageService: FileManageService,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
         this.isIdle = true;
@@ -73,13 +81,17 @@ export class JobExecutor implements JobApplication {
         this.id = await this._configManager.jobExecutorId();
 
         await this.resumeJob();
+        this.removeOldFiles();
 
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
         await this._rabbitmqService.consume(JOB_QUEUE, this.onJobReceived.bind(this));
+        await this._rabbitmqService.consume(COMMAND_QUEUE, this.onCommandReceived.bind(this));
     }
 
     public async stop(): Promise<void> {
+        clearTimeout(this._cleanUpTimer);
         await this.pauseJob();
     }
 
@@ -96,6 +108,28 @@ export class JobExecutor implements JobApplication {
             await sleep(3000);
             return false;
         }
+    }
+
+    private async onCommandReceived(msg: CommandMessage): Promise<boolean> {
+        const jobRepo = this._databaseService.getJobRepository();
+        switch(msg.command) {
+            case CMD_CANCEL:
+                const job = await jobRepo.findOne({jobExecutorId: this.id, id: msg.jobId, status: JobStatus.Running});
+                if (job) {
+                    await this.cancelJob(job, jobRepo);
+                    return true;
+                }
+                break;
+            // no default
+        }
+        return false;
+    }
+
+    private async cancelJob(job: Job, jobRepo: JobRepository): Promise<void> {
+        job.status = JobStatus.Canceled;
+        await jobRepo.save(job);
+        await this.currentVideoProcessor.cancel();
+        this.currentVideoProcessor = null;
     }
 
     private async pauseJob(): Promise<void> {
@@ -138,7 +172,7 @@ export class JobExecutor implements JobApplication {
         if (!Array.isArray(job.stateHistory)) {
             job.stateHistory = [];
         }
-        for (let i = initialProgress; i < jobMessage.actions.length; i++) {
+        for (let i = initialProgress; i < jobMessage.actions.length && job.status !== JobStatus.Canceled; i++) {
             state = new JobState();
             state.startTime = new Date();
             action = jobMessage.actions[i];
@@ -166,12 +200,14 @@ export class JobExecutor implements JobApplication {
             await jobRepo.save(job);
             await this.currentVideoProcessor.dispose();
         }
-        // Finished
-        job.status = JobStatus.Finished;
-        job.finishedTime = new Date();
-        await jobRepo.save(job);
-        outputPath = await JobExecutor.normalizeFilename(basename(jobMessage.videoFile.filename), outputPath);
-        await this.notifyFinished(job, outputPath);
+        if (job.status !== JobStatus.Canceled) {
+            // Finished
+            job.status = JobStatus.Finished;
+            job.finishedTime = new Date();
+            await jobRepo.save(job);
+            outputPath = await JobExecutor.normalizeFilename(basename(jobMessage.videoFile.filename), outputPath);
+            await this.notifyFinished(job, outputPath);
+        }
         this.isIdle = true;
     }
 
@@ -199,6 +235,28 @@ export class JobExecutor implements JobApplication {
         if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
             console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');
+        }
+    }
+
+    private removeOldFiles(): void {
+        this._cleanUpTimer = setTimeout(async () => {
+            await this.doRemoveFiles();
+            this.removeOldFiles();
+        }, REMOVE_OLD_FILE_INTERVAL);
+    }
+
+    private async doRemoveFiles(): Promise<void> {
+        console.log('start clean up files')
+        const jobRepo = this._databaseService.getJobRepository();
+        const successFullJobs = await jobRepo.getUncleanedFinishedJobs(this._configManager.fileRetentionDays());
+        const failedJobs = await jobRepo.getUncleanedFailedJobs(this._configManager.failedFileRetentionDays());
+        for (const job of successFullJobs) {
+            await this._fileManageService.cleanUpFiles(job.jobMessageId);
+            console.log(`cleaned successful job ${job.id} files`);
+        }
+        for (const job of failedJobs) {
+            await this._fileManageService.cleanUpFiles(job.jobMessageId);
+            console.log(`cleaned failed job ${job.id} files`);
         }
     }
 }

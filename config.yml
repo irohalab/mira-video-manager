@@ -23,6 +23,19 @@ jobExecProfileDir: "${project_root}/temp"
 # the job executor's temp directory for copied/downloaded video files, default is ${jobExecProfileDir}/temp
 videoTempDir: "${project_root}/temp/video"
 
+# the maximum execution time of a job, a job will be rescheduled if it exceeds the maximum time. unit is minutes
+maxJobProcessTime: 300
+
+# How long will the job executor keep processed files and downloaded files for successful jobs
+fileRetentionDays: 3
+
+# How long will the job executor keep processed files and downloaded files for failed jobs
+failedFileRetentionDays: 10
+
+# how many threads can ffmpeg use for encoding, it should be less than your cpu cores, if the value is 0, then no limit is added
+# if the value is negative. then it will use (<logical cores> - maxThreadsToProcess) threads
+maxThreadsToProcess: -1
+
 # used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
 WebServer:
   enabledHttps: false

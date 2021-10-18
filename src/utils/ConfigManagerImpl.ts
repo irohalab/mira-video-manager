@@ -52,6 +52,10 @@ type AppConfg = {
     appIdHostMap: { [appId: string]: string};
     jobExecProfileDir: string;
     videoTempDir: string;
+    maxJobProcessTime: number;
+    fileRetentionDays: number;
+    failedFileRetentionDays: number;
+    maxThreadsToProcess: number;
     WebServer: {
         enableHttps: boolean;
         host: string;
@@ -157,8 +161,30 @@ export class ConfigManagerImpl implements ConfigManager {
             return await ConfigManagerImpl.writeNewProfile(jobExecutorProfile);
         }
     }
+    public maxJobProcessTime(): number {
+        return this._config.maxJobProcessTime;
+    }
 
-    getFileUrl(filename: string, jobMessageId: string): string {
+    public fileRetentionDays(): number {
+        return this._config.fileRetentionDays;
+    }
+
+    failedFileRetentionDays(): number {
+        return this._config.failedFileRetentionDays;
+    }
+
+    public maxThreadsToProcess(): number {
+        const maxLogicalCores = os.cpus().length;
+        if (this._config.maxThreadsToProcess === 0 || this._config.maxThreadsToProcess >= maxLogicalCores) {
+            return 0;
+        } else if (this._config.maxThreadsToProcess > 0) {
+            return this._config.maxThreadsToProcess;
+        } else {
+            return maxLogicalCores + this._config.maxThreadsToProcess;
+        }
+    }
+
+    public getFileUrl(filename: string, jobMessageId: string): string {
         const serverBaseUrl = process.env.SERVER_BASE_URL;
         filename = encodeURIComponent(filename);
         if (serverBaseUrl) {

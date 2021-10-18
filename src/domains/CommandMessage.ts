@@ -14,6 +14,20 @@
  * limitations under the License.
  */
 
-export enum JobStatus {
-    Queueing, Running, Finished, UnrecoverableError, Pause, Canceled
+import { MQMessage } from './MQMessage';
+import { v4 as uuid4 } from 'uuid';
+
+export class CommandMessage implements MQMessage {
+    public id: string;
+    public version: string;
+    public command: string;
+    public jobId: string;
+
+    constructor() {
+        this.id = uuid4();
+        this.version = '1.0';
+    }
+
 }
+
+export const CMD_CANCEL  = 'cancel';

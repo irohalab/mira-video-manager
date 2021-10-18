@@ -23,6 +23,18 @@ import { WebServerConfig } from '../TYPES';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
+    failedFileRetentionDays(): number {
+        return 5;
+    }
+    maxJobProcessTime(): number {
+        return 10;
+    }
+    fileRetentionDays(): number {
+        return 1;
+    }
+    maxThreadsToProcess(): number {
+        return 0;
+    }
     public profilePath: string;
 
     amqpConfig(): Options.Connect {

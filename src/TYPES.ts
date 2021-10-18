@@ -43,8 +43,10 @@ export const VIDEO_MANAGER_EXCHANGE = 'video_manager';
 export const JOB_QUEUE = 'job_queue';
 export const DOWNLOAD_MESSAGE_QUEUE = 'download_message_queue';
 export const VIDEO_MANAGER_QUEUE = 'video_manager_queue';
+export const COMMAND_QUEUE = 'command_queue';
 
 /**
  * Binding Keys
  */
 export const VIDEO_MANAGER_GENERAL = 'general';
+export const VIDEO_MANAGER_COMMAND = 'command';

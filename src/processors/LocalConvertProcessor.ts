@@ -103,12 +103,14 @@ export class LocalConvertProcessor implements VideoProcessor {
     }
 
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
-        console.log('ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename);
+        const maxThreads = this._configManager.maxThreadsToProcess();
+        const threadsLimit = maxThreads > 0 ? ['-threads', `${maxThreads}`] : [];
+        console.log('ffmpeg -n ' + threadsLimit.join(' ') + ' ' + cmdArgs.join(' ') + ' ' + outputFilename);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
                 // abort when output filename collision
-                const child = spawn('ffmpeg', ['-n', ...cmdArgs, outputFilename], {
+                const child = spawn('ffmpeg', ['-n', ...threadsLimit, ...cmdArgs, outputFilename], {
                     signal: this._controller.signal,
                     stdio: 'pipe'
                 });

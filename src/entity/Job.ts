@@ -71,4 +71,9 @@ export class Job {
         nullable: true
     })
     public finishedTime: Date;
+
+    @Column({
+        default: false
+    })
+    public cleaned: boolean;
 }
