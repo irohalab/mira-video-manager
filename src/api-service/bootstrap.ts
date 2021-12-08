@@ -33,6 +33,8 @@ if (startAs === JOB_EXECUTOR) {
 } else if (startAs === API_SERVER) {
     // tslint:disable-next-line:no-var-requires
     require('./controller/RuleController');
+    // tslint:disable-next-line:no-var-requires
+    require('./controller/JobController');
 } else {
     throw new Error('START_AS env not correct');
 }

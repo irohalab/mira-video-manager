@@ -57,9 +57,12 @@ export class RuleController implements interfaces.Controller {
     @httpPost('/')
     public async addRule(request: Request): Promise<ResponseWrapper<VideoProcessRule>> {
         const rule = request.body as VideoProcessRule;
-        const conditionParser = new ConditionParser(rule.condition, null, null);
+
         try {
-            conditionParser.tokenCheck()
+            if (rule.condition) {
+                const conditionParser = new ConditionParser(rule.condition, null, null);
+                conditionParser.tokenCheck();
+            }
             return {
                 data: await this._videoProcessRuleService.addRule(rule),
                 status: 0

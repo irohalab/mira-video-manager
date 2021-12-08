@@ -15,5 +15,10 @@
  */
 
 export enum JobStatus {
-    Queueing, Running, Finished, UnrecoverableError, Pause, Canceled
+    Queueing = 'Queueing',
+    Running = 'Running',
+    Finished = 'Finished',
+    UnrecoverableError = 'UnrecoverableError',
+    Pause = 'Pause',
+    Canceled = 'Canceled'
 }

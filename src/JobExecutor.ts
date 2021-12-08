@@ -97,9 +97,13 @@ export class JobExecutor implements JobApplication {
 
     private async onJobReceived(msg: JobMessage): Promise<boolean> {
         if (this.isIdle) {
-            const job = await this._databaseService.getJobRepository().findOne({jobMessageId: msg.id});
+            const jobRepo = this._databaseService.getJobRepository();
+            const job = await jobRepo.findOne({jobMessageId: msg.id});
             console.log(msg.id + ' message received');
             if (job) {
+                job.status = JobStatus.Running;
+                job.startTime = new Date();
+                await jobRepo.save(job);
                 this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
                 return true;
             }
@@ -172,7 +176,8 @@ export class JobExecutor implements JobApplication {
         if (!Array.isArray(job.stateHistory)) {
             job.stateHistory = [];
         }
-        for (let i = initialProgress; i < jobMessage.actions.length && job.status !== JobStatus.Canceled; i++) {
+        for (let i = initialProgress; i < jobMessage.actions.length && job.status !== JobStatus.Canceled && job.status !== JobStatus.UnrecoverableError; i++) {
+            job.progress = i;
             state = new JobState();
             state.startTime = new Date();
             action = jobMessage.actions[i];
@@ -193,10 +198,14 @@ export class JobExecutor implements JobApplication {
             state = new JobState();
             state.startTime = new Date();
             state.log = `start processing action[${i}]`;
-            outputPath = await this.currentVideoProcessor.process(action);
+            try {
+                outputPath = await this.currentVideoProcessor.process(action);
+            } catch (e) {
+                job.status = JobStatus.UnrecoverableError;
+                console.warn(e);
+            }
             state.endTime = new Date();
             job.stateHistory.push(state);
-            job.progress = i;
             await jobRepo.save(job);
             await this.currentVideoProcessor.dispose();
         }

@@ -76,21 +76,21 @@ export class JobScheduler implements JobApplication {
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
         console.log(JSON.stringify(msg));
         let appliedRule: VideoProcessRule;
-        if (msg.appliedProcessRuleId) {
-            appliedRule = await this._databaseService.getVideoProcessRuleRepository().findOne({id: msg.appliedProcessRuleId});
-        } else {
-            const rules = await this._databaseService.getVideoProcessRuleRepository().findByBangumiId(msg.bangumiId);
+        const rules = await this._databaseService.getVideoProcessRuleRepository().findByBangumiId(msg.bangumiId);
 
-            if (rules && rules.length > 0) {
-                if (rules.length === 1 && rules[0].condition === null) {
-                    appliedRule = rules[0];
-                } else {
-                    // take the first matched condition as the rule is already returned as higher priority first.
-                    for (const rule of rules) {
-                        if (await this.checkConditionMatch(rule.condition, msg)) {
-                            appliedRule = rule;
-                            break;
-                        }
+        if (rules && rules.length > 0) {
+            if (rules.length === 1 && rules[0].condition === null) {
+                appliedRule = rules[0];
+            } else {
+                // take the first matched condition as the rule is already returned as higher priority first.
+                for (const rule of rules) {
+                    if (rule.videoFileId && msg.videoId && rule.videoFileId === msg.videoId) {
+                        appliedRule = rule;
+                        break;
+                    }
+                    if (await this.checkConditionMatch(rule.condition, msg)) {
+                        appliedRule = rule;
+                        break;
                     }
                 }
             }

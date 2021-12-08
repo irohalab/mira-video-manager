@@ -104,7 +104,7 @@ export class RabbitMQService {
                             });
                         reject(err);
                     } else {
-                        resolve();
+                        resolve(true);
                         console.log('message acked')
                     }
                 });

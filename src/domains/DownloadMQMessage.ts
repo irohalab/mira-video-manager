@@ -27,7 +27,6 @@ export class DownloadMQMessage implements MQMessage {
     public bangumiId: string;
     public downloadTaskId: string;
     public videoId: string;
-    public appliedProcessRuleId: string; // can be null, only available for those manually downloaded
     public downloadManagerId: string; // can used to determine whether to use uri or local path to retrieve the video file.
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[]; // other files in the same download task.
