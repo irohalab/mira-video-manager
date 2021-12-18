@@ -1,4 +1,5 @@
 FROM node:17 AS base
+RUN sudo apt install -y mediainfo ffmpeg
 WORKDIR /app
 
 FROM base AS dev
