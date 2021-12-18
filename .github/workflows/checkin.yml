@@ -26,6 +26,10 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+    - name: Add FFmpeg
+      uses: FedericoCarboni/setup-ffmpeg@v1
+    - name: Add mediainfo
+      run: apt-get install -y mediainfo
     - name: Install dependencies
       run: yarn install
     - name: Run Unit test
