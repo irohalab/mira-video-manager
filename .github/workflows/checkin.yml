@@ -28,6 +28,7 @@ jobs:
         cache: 'npm'
     - name: Install dependencies
     - run: yarn install
+    - name: Run Unit test
     - run: | 
         export AMQP_URL=${{secrets.AMQP_URL}}
         npm test
