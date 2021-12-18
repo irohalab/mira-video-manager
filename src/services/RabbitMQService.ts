@@ -37,7 +37,7 @@ export class RabbitMQService {
     }
 
     private async connectAsync(): Promise<void> {
-        this._connection = await connect(this._configManager.amqpConfig());
+        this._connection = await connect(this._configManager.amqpServerUrl() || this._configManager.amqpConfig());
         this._connection.on('close', () => {
             if (this._connected) {
                 console.warn('reconnect in 5 seconds');

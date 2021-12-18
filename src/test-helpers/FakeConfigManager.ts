@@ -56,8 +56,7 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     amqpServerUrl(): string {
-        const config = this.amqpConfig();
-        return `${config.protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}${config.vhost}?heartbeat=${config.heartbeat}&frameMax=${config.frameMax}`;
+        return process.env.AMQP_URL;
     }
 
     appIdHostMap(): { [p: string]: string } {

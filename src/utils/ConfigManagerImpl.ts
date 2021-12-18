@@ -84,8 +84,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public amqpServerUrl(): string {
-        const config = this.amqpConfig();
-        return `${config.protocol}://${config.username}:${config.password}@${config.hostname}:${config.port}${config.vhost}?heartbeat=${config.heartbeat}&frameMax=${config.frameMax}`;
+        return process.env.AMQP_URL;
     }
 
     public amqpConfig(): Options.Connect {
