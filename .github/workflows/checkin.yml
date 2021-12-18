@@ -29,7 +29,7 @@ jobs:
     - name: Add FFmpeg
       uses: FedericoCarboni/setup-ffmpeg@v1
     - name: Add mediainfo
-      run: apt-get install -y mediainfo
+      run: sudo apt-get install -y mediainfo
     - name: Install dependencies
       run: yarn install
     - name: Run Unit test
