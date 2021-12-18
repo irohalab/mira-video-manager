@@ -38,11 +38,11 @@ maxThreadsToProcess: -1
 
 # used for composing the url for downloading output file from job executor, default is http://localhost:8000/output/
 WebServer:
-  enabledHttps: false
+  enableHttps: false
   host: "localhost"
   port: 8082
 
 ApiWebServer:
-  enabledHttps: false
+  enableHttps: false
   host: "localhost"
   port: 8083

@@ -87,10 +87,18 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     public ApiWebServerConfig(): WebServerConfig {
-        return undefined;
+        return {
+            enableHttps: false,
+            host: 'localhost',
+            port: 8083
+        };
     }
 
     public WebServerConfig(): WebServerConfig {
-        return undefined;
+        return {
+            enableHttps: false,
+            host: 'localhost',
+            port: 8082
+        };
     }
 }

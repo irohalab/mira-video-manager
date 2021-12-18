@@ -25,6 +25,8 @@ import { bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 
+const startAs = process.env.START_AS;
+
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
@@ -36,7 +38,7 @@ let webServer: Server;
 
 databaseService.start()
     .then(() => {
-        webServer = bootstrap(container);
+        webServer = bootstrap(container, startAs);
     });
 
 function beforeExitHandler() {

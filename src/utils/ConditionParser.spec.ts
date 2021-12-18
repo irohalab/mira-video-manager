@@ -18,5 +18,6 @@ import test from 'ava';
 import { ConditionParser } from './ConditionParser';
 
 test('detect invalid identifier, keyword and punctuator', t => {
-    const conditionParser = new ConditionParser('', null, null);
+    const conditionParser = new ConditionParser('bash ls', null, null);
+    t.throws(conditionParser.tokenCheck);
 });

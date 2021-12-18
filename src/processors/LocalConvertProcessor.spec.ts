@@ -39,7 +39,7 @@ import { projectRoot } from '../test-helpers/helpers';
 type Cxt = { container: Container };
 
 const testVideoFile = 'test-video-2.mkv';
-const testSubtitleFile = 'sub.ass';
+const testSubtitleFile = 'test-video-2.ass';
 
 test.beforeEach((t) => {
     const context = t.context as Cxt;

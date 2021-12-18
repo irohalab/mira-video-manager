@@ -24,7 +24,7 @@ import { join } from 'path';
 import { cleanDir, ensureTempDir, projectRoot } from '../../test-helpers/helpers';
 import { copyFile } from 'fs/promises';
 import { v4 as uuid4 } from 'uuid';
-import { bootstrap } from '../bootstrap';
+import { bootstrap, JOB_EXECUTOR } from '../bootstrap';
 import { Server } from 'http';
 import * as supertest from 'supertest';
 
@@ -50,7 +50,8 @@ test.before(async (t) => {
 test.beforeEach((t) => {
     const context = t.context as Ctx;
     const container = context.container;
-    context.server = bootstrap(container);
+    const startAs = JOB_EXECUTOR;
+    context.server = bootstrap(container, startAs);
 })
 
 test.afterEach((t) => {
@@ -70,6 +71,6 @@ test('download output video file', async (t) => {
     const context = t.context as Ctx;
     await supertest(context.server)
         .get(`/video/output/${messageId}/${outputFilename}`)
-        .expect(204);
+        .expect(200);
     t.pass();
 });

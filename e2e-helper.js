@@ -57,8 +57,8 @@ function createDownloadMessage() {
         downloadManagerId: 'test_download_manager',
         appliedProcessRuleId: null,
         videoFile: {
-            filename: 'test-video-2.mkv',
-            fileLocalPath: path.join(__dirname, 'tests', 'test-video-2.mkv'),
+            filename: 'gochuusa-cm-2.mkv',
+            fileLocalPath: path.join(__dirname, 'tests', 'gochuusa-cm-2.mkv'),
             fileUri: null
         },
         otherFiles: [{

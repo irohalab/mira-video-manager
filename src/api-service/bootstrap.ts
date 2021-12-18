@@ -23,27 +23,24 @@ import { Server } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 
-const JOB_EXECUTOR = 'JOB_EXECUTOR';
-const API_SERVER = 'API_SERVER';
-
-const startAs = process.env.START_AS;
-if (startAs === JOB_EXECUTOR) {
-    // tslint:disable-next-line:no-var-requires
-    require('./controller/VideoController');
-} else if (startAs === API_SERVER) {
-    // tslint:disable-next-line:no-var-requires
-    require('./controller/RuleController');
-    // tslint:disable-next-line:no-var-requires
-    require('./controller/JobController');
-} else {
-    throw new Error('START_AS env not correct');
-}
-
-
+export const JOB_EXECUTOR = 'JOB_EXECUTOR';
+export const API_SERVER = 'API_SERVER';
 
 const DEBUG = process.env.DEBUG === 'true';
 
-export function bootstrap(container: Container): Server {
+export function bootstrap(container: Container, startAs: string): Server {
+    if (startAs === JOB_EXECUTOR) {
+        // tslint:disable-next-line:no-var-requires
+        require('./controller/VideoController');
+    } else if (startAs === API_SERVER) {
+        // tslint:disable-next-line:no-var-requires
+        require('./controller/RuleController');
+        // tslint:disable-next-line:no-var-requires
+        require('./controller/JobController');
+    } else {
+        throw new Error('START_AS env not correct');
+    }
+
     const expressServer = new InversifyExpressServer(container);
 
     expressServer.setConfig((theApp) => {
