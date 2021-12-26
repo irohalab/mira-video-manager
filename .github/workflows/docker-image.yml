@@ -20,15 +20,14 @@ jobs:
         sentry-cli releases -o ${{ secrets.SENTRY_ORG }} new -p ${{ secrets.SENTRY_PROJECT }} $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
         sentry-cli releases -o ${{ secrets.SENTRY_ORG }} set-commits -p ${{ secrets.SENTRY_PROJECT }} --auto $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
 
-    - name: Publish to Registry
-      uses: elgohr/Publish-Docker-Github-Action@master
+    - uses: pmorelli92/github-container-registry-build-push@2.0.0
+      name: Build and Publish latest service image
       with:
-        name: irohalab/mira-video-manager
-        username: ${{ secrets.USERNAME }}
-        password: ${{ secrets.GITHUB_TOKEN }}
-        buildoptions: "--target prod"
-        # registry: docker.pkg.github.com
-        tag_names: true
+        github-push-secret: ${{ secrets.GITHUB_TOKEN }}
+        docker-image-name: mira-video-manager
+        docker-image-tag: ${{ github.ref_name	}} # optional
+        # dockerfile-path: ./src/svc/Dockerfile # optional
+        # build-context: ./src/svc # optional
 
     - name: Finalize release
       run: |
