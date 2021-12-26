@@ -16,12 +16,9 @@ jobs:
       run: curl -sL https://sentry.io/get-cli/ | bash
     - name: Create a release
       run: |
-        export SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-        export SENTRY_ORG=${{ secrets.SENTRY_ORG }}
-        export SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
-        export VERSION=indexer@$(git describe --tags)
-        sentry-cli releases new $VERSION
-        sentry-cli releases set-commits --auto $VERSION
+        export VERSION=mira-video-manager@$(git describe --tags)
+        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} new -p ${{ secrets.SENTRY_PROJECT }} $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
+        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} set-commits -p ${{ secrets.SENTRY_PROJECT }} --auto $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     - name: Publish to Registry
       uses: elgohr/Publish-Docker-Github-Action@master
@@ -35,8 +32,5 @@ jobs:
 
     - name: Finalize release
       run: |
-        export SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
-        export SENTRY_ORG=${{ secrets.SENTRY_ORG }}
-        export SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
         export VERSION=indexer@$(git describe --tags)
-        sentry-cli releases finalize $VERSION
+        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} finalize -p ${{ secrets.SENTRY_PROJECT }} --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} $VERSION
