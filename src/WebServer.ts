@@ -15,6 +15,7 @@
  */
 
 import 'reflect-metadata';
+import { setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
 import { TYPES } from './TYPES';
@@ -24,8 +25,11 @@ import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
+import { hostname } from 'os';
 
 const startAs = process.env.START_AS;
+
+setupSentry(`WEB_${startAs}_${hostname()}`);
 
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();

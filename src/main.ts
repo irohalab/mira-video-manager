@@ -19,6 +19,8 @@
 // JobExecutor mode grab job from queue, executing job, update executing state.
 
 import 'reflect-metadata';
+import { setup as setupSentry } from './utils/sentry';
+import { hostname } from 'os';
 import { Container } from 'inversify';
 import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
 import { TYPES } from './TYPES';
@@ -36,6 +38,12 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 
+const JOB_EXECUTOR = 'JOB_EXECUTOR';
+const JOB_SCHEDULER = 'JOB_SCHEDULER';
+const startAs = process.env.START_AS;
+
+setupSentry(`${startAs}_${hostname()}`);
+
 const container = new Container();
 
 container.bind<LocalConvertProcessor>(TYPES.LocalConvertProcessor).to(LocalConvertProcessor);
@@ -47,10 +55,6 @@ container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope()
 // factory provider
 container.bind<ProcessorFactoryInitiator>(TYPES.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
 container.bind<ProfileFactoryInitiator>(TYPES.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
-
-const JOB_EXECUTOR = 'JOB_EXECUTOR';
-const JOB_SCHEDULER = 'JOB_SCHEDULER';
-const startAs = process.env.START_AS;
 
 if (startAs === JOB_EXECUTOR) {
     container.bind<JobExecutor>(TYPES.JobApplication).to(JobExecutor);

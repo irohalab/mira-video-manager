@@ -1,6 +1,6 @@
 {
    "name": "mira-video-manager",
-   "version": "0.0.1",
+   "version": "0.1.0",
    "description": "Video Process for mira project",
    "main": "index.js",
    "scripts": {
@@ -21,6 +21,7 @@
    "author": "Everett Summer",
    "license": "Apache-2.0",
    "dependencies": {
+      "@sentry/node": "^6.16.1",
       "amqplib": "^0.7.1",
       "axios": "^0.21.2",
       "body-parser": "^1.19.0",
