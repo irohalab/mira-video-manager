@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,10 @@ import { TYPES } from '../../TYPES';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join } from 'path';
 import { stat } from 'fs/promises';
+import pino from 'pino';
+import { capture } from '../../utils/sentry';
+
+const logger = pino();
 
 @controller('/video')
 export class VideoController implements interfaces.Controller {
@@ -42,14 +46,12 @@ export class VideoController implements interfaces.Controller {
                 res.status(404).json({'message': this._message404});
                 return;
             }
-            console.log('fileLocalPath', fileLocalPath);
             await new Promise<void>((resolve, reject) => {
                 res.download(fileLocalPath, filename, (err) => {
                     if (err) {
-                        console.error(err);
                         reject(err);
                     } else {
-                        console.log('Sent:', filename);
+                        logger.log('Sent:', filename);
                         resolve();
                     }
                 });
@@ -57,6 +59,10 @@ export class VideoController implements interfaces.Controller {
         } catch (e) {
             if (e.code === 'ENOENT') {
                 res.status(404).json({'message': this._message404});
+            } else {
+                logger.error(e);
+                capture(e);
+                res.status(500).json({'message': 'internal server error'});
             }
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,14 @@ import { TYPES } from '../TYPES';
 import { Server } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
+import pino from 'pino';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';
 
 const DEBUG = process.env.DEBUG === 'true';
+
+const logger = pino();
 
 export function bootstrap(container: Container, startAs: string): Server {
     if (startAs === JOB_EXECUTOR) {
@@ -68,6 +71,6 @@ export function bootstrap(container: Container, startAs: string): Server {
         protocol = configManager.ApiWebServerConfig().enableHttps ? 'https' : 'http';
     }
     const server = app.listen(port, '0.0.0.0');
-    console.log('Server started on port ' + port);
+    logger.info('Server started on port ' + port);
     return server;
 }

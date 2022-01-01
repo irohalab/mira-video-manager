@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@ import { JobMessage } from '../domains/JobMessage';
 import { spawn } from 'child_process';
 import { FileManageService } from '../services/FileManageService';
 import { StringDecoder } from 'string_decoder';
+import pino from 'pino';
+
+const logger = pino();
 
 const VIDEO_FILE_EXT: string[] = ['.mp4', '.mkv', '.avi', 'rmvb', '.rm', '.mov', '.wmv', '.ts'];
 const SUBTITLE_EXT: string[] = ['.ass', '.ssa', '.srt', '.sub', '.scc', '.vtt', '.smi', '.sbv'];
@@ -55,7 +58,7 @@ export class LocalConvertProcessor implements VideoProcessor {
                 }
             }
         } catch (err) {
-            console.error(err);
+            logger.error(err);
         }
     }
 

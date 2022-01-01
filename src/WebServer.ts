@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 
 import 'reflect-metadata';
-import { setup as setupSentry } from './utils/sentry';
+import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
 import { TYPES } from './TYPES';
@@ -26,8 +26,11 @@ import { bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
+import pino from 'pino';
 
 const startAs = process.env.START_AS;
+
+const logger = pino();
 
 setupSentry(`WEB_${startAs}_${hostname()}`);
 
@@ -52,7 +55,8 @@ function beforeExitHandler() {
             process.exit(0);
         }, (error) => {
             webServer.close();
-            console.error(error);
+            capture(error);
+            logger.error(error);
             process.exit(-1);
         });
 }

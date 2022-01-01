@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,10 @@ import { join, dirname } from 'path';
 import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
 import axios from 'axios';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
+
+const logger = pino();
 
 @injectable()
 export class FileManageService {
@@ -77,14 +81,16 @@ export class FileManageService {
         try {
             await mkdir(dirname(destPath), { recursive: true });
         } catch (err) {
-            console.warn(err);
+            capture(err);
+            logger.warn(err);
         }
         if (convertedRemoteFile.fileLocalPath) {
             // COPY local file
             try {
                 await copyFile(convertedRemoteFile.fileLocalPath, destPath);
             } catch (err) {
-                console.log(err);
+                capture(err);
+                logger.warn(err);
             }
         } else {
             await FileManageService.getVideoViaHttp(convertedRemoteFile.fileUri, destPath);
@@ -101,7 +107,8 @@ export class FileManageService {
                 await unlink(file);
             }
         } catch (err) {
-            console.error(err);
+            capture(err);
+            logger.error(err);
         }
     }
 

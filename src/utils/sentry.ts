@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ export function setup(serverName: string): void {
     }
 }
 
-export function captureException(err: any, context?: {[key: string]: string}) {
+export function capture(obj: any, context?: {[key: string]: string}) {
     if (DSN) {
         if (context) {
             const scope = new Scope();
@@ -41,18 +41,10 @@ export function captureException(err: any, context?: {[key: string]: string}) {
                 scope.setTag(k, v);
             }
         }
-        sentryCaptureException(err);
-    }
-}
-
-export function captureMessage(msg: any, context?: {[key: string]: string}) {
-    if (DSN) {
-        if (context) {
-            const scope = new Scope();
-            for (const [k, v] of Object.entries(context)) {
-                scope.setTag(k, v);
-            }
+        if (obj instanceof Error) {
+            sentryCaptureException(obj);
+        } else {
+            sentryCaptureMessage(obj);
         }
-        sentryCaptureMessage(msg);
     }
 }

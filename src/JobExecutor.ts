@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,9 +44,13 @@ import { promisify } from 'util';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
+import pino from 'pino';
+import { capture } from './utils/sentry';
 
 const sleep = promisify(setTimeout);
 const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
+
+const logger = pino();
 
 @injectable()
 export class JobExecutor implements JobApplication {
@@ -71,6 +75,9 @@ export class JobExecutor implements JobApplication {
         } catch (err) {
             if (err.code === 'ENOENT') {
                 await mkdir(tmpDir, {recursive: true});
+            } else {
+                capture(err);
+                logger.error(err);
             }
         }
 
@@ -158,9 +165,10 @@ export class JobExecutor implements JobApplication {
             await jobRepo.save(job);
             this.processJob(job)
                 .then(() => {
-                    console.log('job processed');
+                    logger.info('job processed');
                 }, (error) => {
-                    console.error(error);
+                    capture(error);
+                    logger.error(error);
                 });
         }
     }
@@ -189,7 +197,7 @@ export class JobExecutor implements JobApplication {
             state.log = `preparing for action[${i}]`;
             this.currentVideoProcessor.registerLogHandler((logChunk, ch) => {
                 // TODO: realTime logging
-                console.log(ch + ':' + logChunk);
+                logger.info(ch + ':' + logChunk);
             });
             await this.currentVideoProcessor.prepare(jobMessage, action);
             state.endTime = new Date();
@@ -202,7 +210,8 @@ export class JobExecutor implements JobApplication {
                 outputPath = await this.currentVideoProcessor.process(action);
             } catch (e) {
                 job.status = JobStatus.UnrecoverableError;
-                console.warn(e);
+                capture(e);
+                logger.warn(e);
             }
             state.endTime = new Date();
             job.stateHistory.push(state);
@@ -243,7 +252,7 @@ export class JobExecutor implements JobApplication {
         msg.isProcessed = true;
         if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
-            console.log('TODO: after published to VIDEO_MANAGER_EXCHANGE');
+            logger.info('TODO: after published to VIDEO_MANAGER_EXCHANGE');
         }
     }
 
@@ -261,11 +270,11 @@ export class JobExecutor implements JobApplication {
         const failedJobs = await jobRepo.getUncleanedFailedJobs(this._configManager.failedFileRetentionDays());
         for (const job of successFullJobs) {
             await this._fileManageService.cleanUpFiles(job.jobMessageId);
-            console.log(`cleaned successful job ${job.id} files`);
+            logger.info(`cleaned successful job ${job.id} files`);
         }
         for (const job of failedJobs) {
             await this._fileManageService.cleanUpFiles(job.jobMessageId);
-            console.log(`cleaned failed job ${job.id} files`);
+            logger.info(`cleaned failed job ${job.id} files`);
         }
     }
 }

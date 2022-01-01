@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,13 @@ import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
+import pino from 'pino';
+import { capture } from './utils/sentry';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
+
+const logger = pino();
 
 @injectable()
 export class JobScheduler implements JobApplication {
@@ -63,7 +67,8 @@ export class JobScheduler implements JobApplication {
                 await this.onDownloadMessage(msg as DownloadMQMessage);
                 return true;
             } catch (ex) {
-                console.error(ex);
+                capture(ex);
+                logger.error(ex);
                 return false;
             }
         });
@@ -74,7 +79,6 @@ export class JobScheduler implements JobApplication {
     }
 
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
-        console.log(JSON.stringify(msg));
         let appliedRule: VideoProcessRule;
         const rules = await this._databaseService.getVideoProcessRuleRepository().findByBangumiId(msg.bangumiId);
 
@@ -115,7 +119,8 @@ export class JobScheduler implements JobApplication {
             await conditionParser.tokenCheck();
             return await conditionParser.evaluate();
         } catch (e) {
-            console.error(e);
+            capture(e);
+            logger.error(e);
             return false;
         }
     }
@@ -134,7 +139,7 @@ export class JobScheduler implements JobApplication {
         await this._databaseService.getJobRepository().save(job);
         this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
             .then(() => {
-                console.log('dispatched job ' + jobMessage.id);
+                logger.log('dispatched job ' + jobMessage.id);
             });
     }
 

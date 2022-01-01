@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,11 @@ import { MQMessage } from '../domains/MQMessage';
 import { DatabaseService } from './DatabaseService';
 import { Message } from '../entity/Message';
 import { TYPES } from '../TYPES';
+import pino from 'pino';
+import { capture } from '../utils/sentry';
 
 const CHECK_INTERVAL = 5000;
+const logger = pino();
 
 @injectable()
 export class RabbitMQService {
@@ -36,22 +39,29 @@ export class RabbitMQService {
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService) {
     }
 
-    private async connectAsync(): Promise<void> {
-        this._connection = await connect(this._configManager.amqpServerUrl() || this._configManager.amqpConfig());
-        this._connection.on('close', () => {
-            if (this._connected) {
-                console.warn('reconnect in 5 seconds');
-                this.connectAsync()
-                    .then(() => {
-                        console.log('reconnect successfully');
-                    })
-                    .catch((err) => {
-                        console.error(err);
-                    });
-            }
-        })
-        this._connected = true;
-        await this.resendMessageInFailedQueue();
+    public publish(exchangeName: string, routingKey: string, message: any): Promise<boolean> {
+        const channel = this._channels.get(exchangeName);
+        return new Promise<boolean>((resolve, reject) => {
+            channel.publish(
+                exchangeName,
+                routingKey,
+                Buffer.from(JSON.stringify(message), 'utf-8'),
+                {},
+                (err, ok) => {
+                    if (err !== null) {
+                        // TODO: currently not reachable, need to figure out how to test this piece of code.
+                        logger.warn('message nacked');
+                        this.saveMessage(exchangeName, routingKey, message)
+                            .then(() => {
+                                logger.info('message saved, will be resent')
+                            });
+                        reject(err);
+                    } else {
+                        resolve(true);
+                        logger.debug('message acked')
+                    }
+                });
+        });
     }
 
     public async initPublisher(exchangeName: string, exchangeType: string): Promise<void> {
@@ -86,29 +96,23 @@ export class RabbitMQService {
         this._queues.set(queueName, exchangeName);
     }
 
-    public publish(exchangeName: string, routingKey: string, message: any): Promise<boolean> {
-        const channel = this._channels.get(exchangeName);
-        return new Promise<boolean>((resolve, reject) => {
-            channel.publish(
-                exchangeName,
-                routingKey,
-                Buffer.from(JSON.stringify(message), 'utf-8'),
-                {},
-                (err, ok) => {
-                    if (err !== null) {
-                        // TODO: currently not reachable, need to figure out how to test this piece of code.
-                        console.warn('message nacked');
-                        this.saveMessage(exchangeName, routingKey, message)
-                            .then(() => {
-                                console.log('message saved, will be resent')
-                            });
-                        reject(err);
-                    } else {
-                        resolve(true);
-                        console.log('message acked')
-                    }
-                });
-        });
+    private async connectAsync(): Promise<void> {
+        this._connection = await connect(this._configManager.amqpServerUrl() || this._configManager.amqpConfig());
+        this._connection.on('close', () => {
+            if (this._connected) {
+                logger.warn('reconnect in 5 seconds');
+                this.connectAsync()
+                    .then(() => {
+                        logger.info('reconnect successfully');
+                    })
+                    .catch((err) => {
+                        capture(err);
+                        logger.error(err);
+                    });
+            }
+        })
+        this._connected = true;
+        await this.resendMessageInFailedQueue();
     }
 
     public async consume(queueName: string, onMessage: (msg: MQMessage) => Promise<boolean>): Promise<string> {

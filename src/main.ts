@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 // JobExecutor mode grab job from queue, executing job, update executing state.
 
 import 'reflect-metadata';
-import { setup as setupSentry } from './utils/sentry';
+import { capture, setup as setupSentry } from './utils/sentry';
 import { hostname } from 'os';
 import { Container } from 'inversify';
 import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
@@ -37,10 +37,13 @@ import { JobScheduler } from './JobScheduler';
 import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
+import pino from 'pino';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
 const startAs = process.env.START_AS;
+
+const logger = pino();
 
 setupSentry(`${startAs}_${hostname()}`);
 
@@ -61,7 +64,7 @@ if (startAs === JOB_EXECUTOR) {
 } else if (startAs === JOB_SCHEDULER) {
     container.bind<JobScheduler>(TYPES.JobApplication).to(JobScheduler);
 } else {
-    console.error('failed to start, START_AS environment variable is not valid');
+    logger.error('failed to start, START_AS environment variable is not valid');
     process.exit(-1);
 }
 
@@ -73,9 +76,10 @@ databaseService.start()
         return jobApplication.start();
     })
     .then(() => {
-        console.log(startAs.toLowerCase() + ' started');
+        logger.info(startAs.toLowerCase() + ' started');
     }, (error) => {
-        console.error(error);
+        capture(error)
+        logger.error(error);
         process.exit(-1);
     });
 
@@ -87,7 +91,7 @@ function beforeExitHandler() {
         .then(() => {
             process.exit(0);
         }, (error) => {
-            console.error(error);
+            logger.error(error);
             process.exit(-1);
         });
 }
