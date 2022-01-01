@@ -17,8 +17,8 @@ jobs:
     - name: Create a release
       run: |
         export VERSION=mira-video-manager@$(git describe --tags)
-        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} new -p ${{ secrets.SENTRY_PROJECT }} $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
-        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} set-commits -p ${{ secrets.SENTRY_PROJECT }} --auto $VERSION --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }}
+        sentry-cli --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} releases -o ${{ secrets.SENTRY_ORG }} new -p ${{ secrets.SENTRY_PROJECT }} $VERSION
+        sentry-cli --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} releases -o ${{ secrets.SENTRY_ORG }} set-commits -p ${{ secrets.SENTRY_PROJECT }} --auto $VERSION
 
     - uses: pmorelli92/github-container-registry-build-push@2.0.0
       name: Build and Publish latest service image
@@ -32,4 +32,4 @@ jobs:
     - name: Finalize release
       run: |
         export VERSION=mira-video-manager@$(git describe --tags)
-        sentry-cli releases -o ${{ secrets.SENTRY_ORG }} finalize -p ${{ secrets.SENTRY_PROJECT }} --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} $VERSION
+        sentry-cli --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} releases -o ${{ secrets.SENTRY_ORG }} finalize -p ${{ secrets.SENTRY_PROJECT }} $VERSION
