@@ -31,5 +31,5 @@ jobs:
 
     - name: Finalize release
       run: |
-        export VERSION=indexer@$(git describe --tags)
+        export VERSION=mira-video-manager@$(git describe --tags)
         sentry-cli releases -o ${{ secrets.SENTRY_ORG }} finalize -p ${{ secrets.SENTRY_PROJECT }} --auth-token ${{ secrets.SENTRY_AUTH_TOKEN }} $VERSION
