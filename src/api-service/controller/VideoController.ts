@@ -51,7 +51,7 @@ export class VideoController implements interfaces.Controller {
                     if (err) {
                         reject(err);
                     } else {
-                        logger.log('Sent:', filename);
+                        logger.info('Sent:', filename);
                         resolve();
                     }
                 });
