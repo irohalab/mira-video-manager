@@ -6,6 +6,9 @@ amqp:
   user: "guest"
   password: "guest"
 
+# amqp url has higher priority than amqp config object
+amqpUrl: ''
+
 # AppId Host Map is a mapping that used for JobExecutor or JobScheduler to replace the access url from the message
 # the remote url will be replaced with host defined in the mapping. there is no default value, if appid is not found,
 # no replacement will occur.

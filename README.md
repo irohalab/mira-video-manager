@@ -19,3 +19,6 @@ Optional:
 - ORMCONFIG: the ormconfig.json path, default is current project root
 - APPCONFIG: the config.yml path, default is current project root
 - AMQP_URL: if you provide this url, it will override the amqp config in the APPCONFIG file.
+
+## Configuration file
+
