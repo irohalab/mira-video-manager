@@ -6,14 +6,10 @@ name: Unit Test
 on:
   push:
     branches: [ master ]
-  pull_request_target:
-    branches: [ master ]
-    types: [labeled]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'Ready To Test')
     strategy:
       matrix:
         node-version: [16.x]
