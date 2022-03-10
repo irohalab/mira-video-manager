@@ -139,7 +139,7 @@ export class JobScheduler implements JobApplication {
         await this._databaseService.getJobRepository().save(job);
         this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
             .then(() => {
-                logger.log('dispatched job ' + jobMessage.id);
+                logger.info('dispatched job ' + jobMessage.id);
             });
     }
 
