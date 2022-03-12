@@ -102,8 +102,10 @@ export class JobScheduler implements JobApplication {
 
         // preprocess actions of the rule
         if (appliedRule) {
+            logger.info({message: 'condition matched', video_id: msg.videoId, video_file: msg.videoFile, rule: appliedRule});
             await this.dispatchJob(appliedRule, msg);
         } else {
+            logger.info({message: 'no condition matched', video_id: msg.videoId, video_file: msg.videoFile});
             await this.sendNoNeedToProcessMessage(msg);
         }
     }

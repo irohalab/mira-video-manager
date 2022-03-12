@@ -99,12 +99,14 @@ export class RabbitMQService {
     private async connectAsync(): Promise<void> {
         this._connection = await connect(this._configManager.amqpServerUrl() || this._configManager.amqpConfig());
         this._connection.on('error', (error: any) => {
+            logger.error({error, event: 'amqp connection error'});
             if (this._connected) {
                 capture(error);
                 this.reconnect();
             }
         });
         this._connection.on('close', (error: any) => {
+            logger.error({error, event: 'amqp connection close'});
             if (this._connected && error) {
                 capture(error);
                 this.reconnect();
