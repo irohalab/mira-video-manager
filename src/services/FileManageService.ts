@@ -15,9 +15,7 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
 import { ConfigManager } from '../utils/ConfigManager';
-import { RemoteFile } from '../domains/RemoteFile';
 import { URL } from 'url';
 import { copyFile, readdir, unlink, stat, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
@@ -25,13 +23,14 @@ import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
 import axios from 'axios';
 import pino from 'pino';
-import { capture } from '../utils/sentry';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 
 @injectable()
 export class FileManageService {
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
     public getLocalPath(filename: string, messageId: string): string {
@@ -81,7 +80,7 @@ export class FileManageService {
         try {
             await mkdir(dirname(destPath), { recursive: true });
         } catch (err) {
-            capture(err);
+            this._sentry.capture(err);
             logger.warn(err);
         }
         if (convertedRemoteFile.fileLocalPath) {
@@ -89,7 +88,7 @@ export class FileManageService {
             try {
                 await copyFile(convertedRemoteFile.fileLocalPath, destPath);
             } catch (err) {
-                capture(err);
+                this._sentry.capture(err);
                 logger.warn(err);
             }
         } else {
@@ -107,7 +106,7 @@ export class FileManageService {
                 await unlink(file);
             }
         } catch (err) {
-            capture(err);
+            this._sentry.capture(err);
             logger.error(err);
         }
     }

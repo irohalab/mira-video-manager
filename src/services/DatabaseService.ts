@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,9 @@
 
 import { JobRepository } from '../repository/JobRepository';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
-import { MessageRepository } from '../repository/MessageRepository';
+import { BaseDatabaseService } from '@irohalab/mira-shared';
 
-export interface DatabaseService {
-    start(): Promise<void>;
-    stop(): Promise<void>;
+export interface DatabaseService extends BaseDatabaseService {
     getJobRepository(): JobRepository;
     getVideoProcessRuleRepository(): VideoProcessRuleRepository;
-    getMessageRepository(): MessageRepository;
 }

@@ -18,11 +18,11 @@
 import { Container } from 'inversify';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '../TYPES';
 import { Server } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 import pino from 'pino';
+import { TYPES } from '@irohalab/mira-shared';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';

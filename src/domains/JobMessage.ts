@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { MQMessage } from './MQMessage';
+import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
 import { Action } from './Action';
-import { RemoteFile } from './RemoteFile';
 
 export class JobMessage implements MQMessage {
     public id: string;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-
-import { MessageRepository } from '../repository/MessageRepository';
-import { Message } from '../entity/Message';
+import { Message, MessageRepository } from '@irohalab/mira-shared';
 
 export class FakeMessageRepository extends MessageRepository {
     mockQueue: Message[] = [];

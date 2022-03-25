@@ -15,14 +15,13 @@
  */
 
 import { Response as ExpressResponse } from 'express';
-import { controller, httpGet, interfaces, next, requestParam, response } from 'inversify-express-utils';
+import { controller, httpGet, interfaces, requestParam, response } from 'inversify-express-utils';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join } from 'path';
 import { stat } from 'fs/promises';
 import pino from 'pino';
-import { capture } from '../../utils/sentry';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
 
 const logger = pino();
 
@@ -30,7 +29,8 @@ const logger = pino();
 export class VideoController implements interfaces.Controller {
     private readonly _videoTempPath: string;
     private readonly _message404 = 'file not found';
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
         this._videoTempPath = this._configManager.videoFileTempDir();
     }
 
@@ -61,7 +61,7 @@ export class VideoController implements interfaces.Controller {
                 res.status(404).json({'message': this._message404});
             } else {
                 logger.error(e);
-                capture(e);
+                this._sentry.capture(e);
                 res.status(500).json({'message': 'internal server error'});
             }
         }

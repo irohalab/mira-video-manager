@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,6 @@
  */
 
 import { BaseProfile } from "./BaseProfile";
-import { NotImplementException } from "../../exceptions/NotImplementException";
-import { join, dirname, basename } from "path";
 
 export class VideoOnlyProfile extends BaseProfile {
     constructor(videoFilePath: string, actionIndex: number) {

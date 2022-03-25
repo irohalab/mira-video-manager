@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
 import { DatabaseService } from './DatabaseService';
 import { VideoProcessRule } from '../entity/VideoProcessRule';
+import { TYPES } from '@irohalab/mira-shared';
 
 @injectable()
 export class VideoProcessRuleService {
