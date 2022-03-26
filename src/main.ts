@@ -35,8 +35,7 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 import pino from 'pino';
-import { RabbitMQService, Sentry, TYPES } from '@irohalab/mira-shared';
-import { SentryImpl } from './utils/Sentry';
+import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from './TYPES';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
@@ -46,8 +45,13 @@ const startAs = process.env.START_AS;
 const logger = pino();
 
 const container = new Container();
-
+// tslint:disable-next-line
+const { version } = require('../package.json');
 container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
+const sentry = container.get<Sentry>(TYPES.Sentry);
+sentry.setup(`${startAs}_${hostname()}`, 'mira-video-manager', version);
+
+
 container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
@@ -66,8 +70,6 @@ if (startAs === JOB_EXECUTOR) {
     logger.error('failed to start, START_AS environment variable is not valid');
     process.exit(-1);
 }
-const sentry = container.get<Sentry>(TYPES.Sentry);
-sentry.setup(`${startAs}_${hostname()}`)
 
 const jobApplication = container.get<JobApplication>(TYPES_VM.JobApplication);
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);

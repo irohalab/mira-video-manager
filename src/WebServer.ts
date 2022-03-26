@@ -25,14 +25,11 @@ import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
 import pino from 'pino';
-import { Sentry, TYPES } from '@irohalab/mira-shared';
-import { SentryImpl } from './utils/Sentry';
+import { Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 
 const startAs = process.env.START_AS;
 
 const logger = pino();
-
-
 
 const container = new Container();
 container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
@@ -40,8 +37,10 @@ container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingl
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<VideoProcessRuleService>(VideoProcessRuleService).toSelf().inSingletonScope();
 
+// tslint:disable-next-line
+const { version } = require('../package.json');
 const sentry = container.get<Sentry>(TYPES.Sentry);
-sentry.setup(`WEB_${startAs}_${hostname()}`);
+sentry.setup(`WEB_${startAs}_${hostname()}`, 'mira-video-manager', version);
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
