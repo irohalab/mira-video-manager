@@ -18,9 +18,8 @@ import { controller, httpGet, interfaces, queryParam } from 'inversify-express-u
 import { DatabaseService } from '../../services/DatabaseService';
 import { inject } from 'inversify';
 import { JobStatus } from '../../domains/JobStatus';
-import { ResponseWrapper } from '../ResponseWrapper';
 import { Job } from '../../entity/Job';
-import { TYPES } from '@irohalab/mira-shared';
+import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
 
 @controller('/job')
 export class JobController implements interfaces.Controller {

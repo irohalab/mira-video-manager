@@ -30,10 +30,10 @@
   dependencies:
     arrify "^1.0.1"
 
-"@irohalab/mira-shared@^1.4.1":
-  version "1.4.1"
-  resolved "https://registry.yarnpkg.com/@irohalab/mira-shared/-/mira-shared-1.4.1.tgz#446580e74f260d9bc2082b81a45c6ffe135a89e2"
-  integrity sha512-pFNGEV19o+ZeFjFRvPZL1QDsBRGMSlnVWz5kSfUSbHtA8B3nM1YhW9xY1RnK6hN5JhPJgvHuHtA1rsfVEHOZew==
+"@irohalab/mira-shared@^1.5.0":
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/@irohalab/mira-shared/-/mira-shared-1.5.0.tgz#0f687a1de548d1912de708cc3ea03f4597376f48"
+  integrity sha512-KOjIzPz2yTqaPzpKuvse4bmAW4UHwmd2ANTiyXumjAOyK6cyN29U2LQ6b+i+X3ovFsoJAczLX3Wc7hXXkRiPaw==
   dependencies:
     "@sentry/node" "^6.19.2"
     amqplib "^0.7.1"

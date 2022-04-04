@@ -21,7 +21,7 @@
    "author": "Everett Summer",
    "license": "Apache-2.0",
    "dependencies": {
-      "@irohalab/mira-shared": "^1.4.1",
+      "@irohalab/mira-shared": "^1.5.0",
       "@sentry/node": "^6.19.2",
       "amqplib": "^0.7.1",
       "axios": "^0.21.2",

@@ -26,9 +26,8 @@ import {
 import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { VideoProcessRuleService } from '../../services/VideoProcessRuleService';
-import { ResponseWrapper } from '../ResponseWrapper';
 import { ConditionParser } from '../../utils/ConditionParser';
-import { TokenCheckException } from '@irohalab/mira-shared';
+import { ResponseWrapper, TokenCheckException } from '@irohalab/mira-shared';
 
 @controller('/rule')
 export class RuleController implements interfaces.Controller {
