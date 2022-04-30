@@ -46,8 +46,8 @@ export class FakeDatabaseService implements DatabaseService {
     }
 
     public requestContextMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
-        return (p1: Request, p2: Response, p3: NextFunction) => {
-            // nothing
+        return (req: Request, res: Response, next: NextFunction) => {
+            next();
         };
     }
 }
