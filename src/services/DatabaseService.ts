@@ -19,6 +19,6 @@ import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleReposi
 import { BaseDatabaseService } from '@irohalab/mira-shared';
 
 export interface DatabaseService extends BaseDatabaseService {
-    getJobRepository(): JobRepository;
-    getVideoProcessRuleRepository(): VideoProcessRuleRepository;
+    getJobRepository(useRequestContext?: boolean): JobRepository;
+    getVideoProcessRuleRepository(useRequestContext?: boolean): VideoProcessRuleRepository;
 }

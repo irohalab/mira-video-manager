@@ -26,7 +26,10 @@ import { v4 as uuid4 } from 'uuid';
 import { bootstrap, JOB_EXECUTOR } from '../bootstrap';
 import { Server } from 'http';
 import * as supertest from 'supertest';
-import { TYPES } from '@irohalab/mira-shared';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
+import { FakeDatabaseService } from '../../test-helpers/FakeDatabaseService';
+import { DatabaseService } from '../../services/DatabaseService';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 
 type Ctx = { container: Container, server: Server };
 
@@ -40,6 +43,8 @@ test.before(async (t) => {
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager).inSingletonScope();
+    container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/video-controller');
     await ensureTempDir(join(configManager.videoFileTempDir(), messageId));

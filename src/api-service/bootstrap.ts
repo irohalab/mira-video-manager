@@ -23,6 +23,7 @@ import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
+import { DatabaseService } from '../services/DatabaseService';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';
@@ -45,8 +46,10 @@ export function bootstrap(container: Container, startAs: string): Server {
     }
 
     const expressServer = new InversifyExpressServer(container);
+    const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
     expressServer.setConfig((theApp) => {
+        theApp.use(databaseService.requestContextMiddleware());
         theApp.use(bodyParser.urlencoded({
             extended: true
         }))

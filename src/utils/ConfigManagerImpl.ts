@@ -23,24 +23,23 @@ import { mkdir, stat, readFile, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
-import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
+import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { MiraNamingStrategy } from '@irohalab/mira-shared';
 
 type OrmConfig = {
     type: string;
     host: string;
     port: number;
-    username: string;
+    user: string;
     password: string;
-    database: string;
-    synchronize: boolean;
-    logging: boolean;
+    dbName: string;
     entities: string[];
-    migrations: string[];
-    subscribers: string[];
-    cli: { [key: string]: string };
+    entitiesTs: string[];
 };
+
 
 type AppConfg = {
     amqp: {
@@ -197,8 +196,8 @@ export class ConfigManagerImpl implements ConfigManager {
         return `${this.WebServerConfig().enableHttps ? 'https' : 'http'}://${this.WebServerConfig().host}:${this.WebServerConfig().port}/video/output/${jobMessageId}/${filename}`;
     }
 
-    public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, this._ormConfig) as ConnectionOptions;
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {

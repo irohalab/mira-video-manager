@@ -20,6 +20,8 @@ import { injectable } from 'inversify';
 import { resolve, join } from 'path';
 import { WebServerConfig } from '../TYPES';
 import { NotImplementException } from '@irohalab/mira-shared';
+import { MikroORMOptions } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -81,7 +83,7 @@ export class FakeConfigManager implements ConfigManager {
         return join(this.jobProfileDirPath(), 'video');
     }
 
-    databaseConnectionConfig(): import("typeorm").ConnectionOptions {
+    databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
         throw new NotImplementException();
     }
 

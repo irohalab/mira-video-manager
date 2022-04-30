@@ -25,22 +25,22 @@ export class VideoProcessRuleService {
     }
 
     public async addRule(rule: VideoProcessRule): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         return await repo.save(rule);
     }
 
     public async listAll(): Promise<VideoProcessRule[]> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
-        return await repo.find();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
+        return await repo.findAll();
     }
 
     public async listByBangumi(bangumiId: string): Promise<VideoProcessRule[]> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         return await repo.find({ bangumiId });
     }
 
     public async updateRule(ruleId: string, updateRule: VideoProcessRule): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         const rule = await repo.findOneOrFail({ id: ruleId });
         rule.name = updateRule.name;
         rule.condition = updateRule.condition;
@@ -50,7 +50,7 @@ export class VideoProcessRuleService {
     }
 
     public async deleteRule(ruleId: string): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
-        await repo.delete({ id: ruleId });
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
+        await repo.nativeDelete({ id: ruleId });
     }
 }

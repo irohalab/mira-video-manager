@@ -16,11 +16,12 @@
 
 import { inject, injectable } from "inversify";
 import { JobRepository } from "../repository/JobRepository";
-import { getCustomRepository } from "typeorm";
 import { VideoProcessRuleRepository } from "../repository/VideoProcessRuleRepository";
 import { DatabaseService } from './DatabaseService';
 import { ConfigManager } from '../utils/ConfigManager';
 import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
+import { Job } from '../entity/Job';
+import { VideoProcessRule } from '../entity/VideoProcessRule';
 
 @injectable()
 export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
@@ -29,11 +30,11 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
         super(configManager);
     }
 
-    public getJobRepository(): JobRepository {
-        return getCustomRepository<JobRepository>(JobRepository);
+    public getJobRepository(useRequestContext: boolean = false): JobRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(Job);
     }
 
-    public getVideoProcessRuleRepository(): VideoProcessRuleRepository {
-        return getCustomRepository<VideoProcessRuleRepository>(VideoProcessRuleRepository);
+    public getVideoProcessRuleRepository(useRequestContext: boolean = false): VideoProcessRuleRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(VideoProcessRule);
     }
 }

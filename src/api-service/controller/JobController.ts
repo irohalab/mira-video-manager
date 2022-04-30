@@ -29,14 +29,7 @@ export class JobController implements interfaces.Controller {
     @httpGet('/')
     public async listJobs(@queryParam('status') jobStatus: string): Promise<ResponseWrapper<Job[]>> {
         const status = jobStatus as JobStatus;
-        const jobs = await this._databaseService.getJobRepository().find(
-            {
-                where: { status },
-                order: {
-                    createTime: 'DESC'
-                }
-            }
-        );
+        const jobs = await this._databaseService.getJobRepository().getJobsByStatus(status);
         return {
             data: jobs,
             status: 0

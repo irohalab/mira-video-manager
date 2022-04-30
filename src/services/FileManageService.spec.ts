@@ -24,7 +24,8 @@ import { join } from 'path';
 import { FileManageService } from './FileManageService';
 import { v4 as uuid4 } from 'uuid';
 import { cleanDir, ensureTempDir, projectRoot } from '../test-helpers/helpers';
-import { RemoteFile, TYPES } from '@irohalab/mira-shared';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 
 const testVideoFilename = 'test-video-1.mp4';
 const testVideoFilePath = join(__dirname, '../../tests/', testVideoFilename);
@@ -35,6 +36,7 @@ test.before(async (t) => {
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager).inSingletonScope();
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry).inSingletonScope();
     const configManager = context.container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/file-manager');
     const videoTempPath = configManager.videoFileTempDir();

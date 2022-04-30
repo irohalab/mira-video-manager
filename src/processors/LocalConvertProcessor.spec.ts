@@ -33,8 +33,11 @@ import { rm } from 'fs/promises';
 import { ActionType } from '../domains/ActionType';
 import { isPlayableContainer } from '../utils/VideoProber';
 import { projectRoot } from '../test-helpers/helpers';
-import { RemoteFile, TYPES } from '@irohalab/mira-shared';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
+import { DatabaseService } from '../services/DatabaseService';
 
 type Cxt = { container: Container };
 
@@ -46,8 +49,10 @@ test.beforeEach((t) => {
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
+    container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
     container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
     container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-convert-processor');
 });

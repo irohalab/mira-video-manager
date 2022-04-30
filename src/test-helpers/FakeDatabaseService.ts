@@ -21,6 +21,7 @@ import { JobRepository } from '../repository/JobRepository';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
 import { FakeMessageRepository } from './FakeMessageRepository';
 import { NotImplementException } from '@irohalab/mira-shared';
+import { NextFunction, Request, Response } from 'express';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
@@ -42,5 +43,11 @@ export class FakeDatabaseService implements DatabaseService {
 
     stop(): Promise<void> {
         return Promise.resolve(undefined);
+    }
+
+    public requestContextMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
+        return (p1: Request, p2: Response, p3: NextFunction) => {
+            // nothing
+        };
     }
 }
