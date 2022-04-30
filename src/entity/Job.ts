@@ -17,7 +17,15 @@
 import { JobStatus } from "../domains/JobStatus";
 import { JobMessage } from '../domains/JobMessage';
 import { JobState } from '../domains/JobState';
-import { DateType, Entity, EntityRepositoryType, Enum, JsonType, PrimaryKey, Property } from "@mikro-orm/core";
+import {
+    DateTimeType,
+    Entity,
+    EntityRepositoryType,
+    Enum,
+    JsonType,
+    PrimaryKey,
+    Property
+} from "@mikro-orm/core";
 import { JobRepository } from '../repository/JobRepository';
 import { randomUUID } from 'crypto';
 
@@ -57,20 +65,20 @@ export class Job {
     public jobExecutorId: string;
 
     @Property({
-        type: DateType,
+        type: DateTimeType,
         columnType: 'timestamp'
     })
     public createTime: Date;
 
     @Property({
-        type: DateType,
+        type: DateTimeType,
         columnType: 'timestamp',
         nullable: true
     })
     public startTime: Date;
 
     @Property({
-        type: DateType,
+        type: DateTimeType,
         columnType: 'timestamp',
         nullable: true
     })

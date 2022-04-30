@@ -27,19 +27,7 @@ import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
 import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
-import { MiraNamingStrategy } from '@irohalab/mira-shared';
-
-type OrmConfig = {
-    type: string;
-    host: string;
-    port: number;
-    user: string;
-    password: string;
-    dbName: string;
-    entities: string[];
-    entitiesTs: string[];
-};
-
+import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
 
 type AppConfg = {
     amqp: {
@@ -74,7 +62,7 @@ const PROJECT_ROOT_PATTERN = /\${project_root}/;
 
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
-    private readonly _ormConfig: OrmConfig;
+    private readonly _ormConfig: ORMConfig;
     private readonly _config: AppConfg;
     constructor() {
         const ormConfigPath = process.env.ORMCONFIG || resolve(__dirname, '../../ormconfig.json');
