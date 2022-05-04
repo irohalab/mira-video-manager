@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,10 @@
  * limitations under the License.
  */
 
-import { Options } from 'amqplib';
-import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
 import { WebServerConfig } from '../TYPES';
+import { BaseConfigManager } from '@irohalab/mira-shared';
 
-export interface ConfigManager {
-    amqpServerUrl(): string;
-
-    amqpConfig(): Options.Connect;
+export interface ConfigManager extends BaseConfigManager {
 
     /**
      * AppId and Host mapping, from the perspective of this application to access target app, use the write method.
@@ -58,9 +54,4 @@ export interface ConfigManager {
      * Generate the file url for downloading output from job executor.
      */
     getFileUrl(filename: string, jobMessageId: string): string;
-
-    /**
-     * Generate postgres configuration
-     */
-    databaseConnectionConfig(): ConnectionOptions;
 }

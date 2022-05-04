@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,14 +15,10 @@
  */
 
 import { VideoProcessRule } from "../entity/VideoProcessRule";
-import { EntityRepository, Repository } from "typeorm";
+import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
 
-@EntityRepository(VideoProcessRule)
-export class VideoProcessRuleRepository extends Repository<VideoProcessRule> {
+export class VideoProcessRuleRepository extends BaseEntityRepository<VideoProcessRule> {
     public async findByBangumiId(bangumiId: string): Promise<VideoProcessRule[]> {
-        return await this.find({
-            where: {bangumiId},
-            order: {priority: 'DESC'}
-        });
+        return await this.find({bangumiId},{orderBy: {priority: 'DESC'}});
     }
 }

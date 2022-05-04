@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,9 @@
 import { controller, httpGet, interfaces, queryParam } from 'inversify-express-utils';
 import { DatabaseService } from '../../services/DatabaseService';
 import { inject } from 'inversify';
-import { TYPES } from '../../TYPES';
 import { JobStatus } from '../../domains/JobStatus';
-import { ResponseWrapper } from '../ResponseWrapper';
 import { Job } from '../../entity/Job';
+import { ResponseWrapper, TYPES } from '@irohalab/mira-shared';
 
 @controller('/job')
 export class JobController implements interfaces.Controller {
@@ -30,14 +29,7 @@ export class JobController implements interfaces.Controller {
     @httpGet('/')
     public async listJobs(@queryParam('status') jobStatus: string): Promise<ResponseWrapper<Job[]>> {
         const status = jobStatus as JobStatus;
-        const jobs = await this._databaseService.getJobRepository().find(
-            {
-                where: { status },
-                order: {
-                    createTime: 'DESC'
-                }
-            }
-        );
+        const jobs = await this._databaseService.getJobRepository().getJobsByStatus(status);
         return {
             data: jobs,
             status: 0

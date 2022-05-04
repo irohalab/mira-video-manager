@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,9 @@
 import { VideoProcessor } from './VideoProcessor';
 import { interfaces } from 'inversify';
 import { ActionType } from '../domains/ActionType';
-import { TYPES } from '../TYPES';
 import { LocalConvertProcessor } from './LocalConvertProcessor';
-import { NotImplementException } from '../exceptions/NotImplementException';
+import { NotImplementException } from '@irohalab/mira-shared';
+import { TYPES_VM } from '../TYPES';
 
 export function ProcessorFactory(context: interfaces.Context): ProcessorFactoryInitiator {
     return (actionType: ActionType) => {
@@ -27,7 +27,7 @@ export function ProcessorFactory(context: interfaces.Context): ProcessorFactoryI
             case ActionType.Copy:
                 throw new NotImplementException();
             case ActionType.Convert:
-                return context.container.get<LocalConvertProcessor>(TYPES.LocalConvertProcessor);
+                return context.container.get<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor);
             case ActionType.Fragment:
                 throw new NotImplementException();
         }

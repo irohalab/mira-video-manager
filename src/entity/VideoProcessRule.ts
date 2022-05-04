@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,26 +14,28 @@
  * limitations under the License.
  */
 
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 import { Action } from "../domains/Action";
+import { Entity, EntityRepositoryType, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
+import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
+import { randomUUID } from 'crypto';
 
-@Entity()
+@Entity({customRepository: () => VideoProcessRuleRepository})
 export class VideoProcessRule {
 
-    @PrimaryGeneratedColumn('uuid')
-    public id: string;
+    @PrimaryKey()
+    public id: string = randomUUID();
 
-    @Column({
+    @Property({
         nullable: true
     })
     public name: string;
 
-    @Column({
+    @Property({
         nullable: true
     })
     public bangumiId: string;
 
-    @Column({
+    @Property({
         nullable: true
     })
     public videoFileId: string;
@@ -41,19 +43,22 @@ export class VideoProcessRule {
     /**
      * An expression to determine a rule can apply to a certain download
      */
-    @Column({
+    @Property({
         nullable: true
     })
     public condition: string;
 
-    @Column({
-        type: 'jsonb',
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb',
         nullable: false
     })
     public actions: Action[];
 
-    @Column({
-        type: 'integer'
+    @Property({
+        columnType: 'integer'
     })
     public priority: number;
+
+    [EntityRepositoryType]?: VideoProcessRuleRepository;
 }

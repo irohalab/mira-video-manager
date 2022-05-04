@@ -23,24 +23,11 @@ import { mkdir, stat, readFile, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
-import { ConnectionOptions } from 'typeorm/connection/ConnectionOptions';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
-
-type OrmConfig = {
-    type: string;
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    database: string;
-    synchronize: boolean;
-    logging: boolean;
-    entities: string[];
-    migrations: string[];
-    subscribers: string[];
-    cli: { [key: string]: string };
-};
+import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
+import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
 
 type AppConfg = {
     amqp: {
@@ -75,7 +62,7 @@ const PROJECT_ROOT_PATTERN = /\${project_root}/;
 
 @injectable()
 export class ConfigManagerImpl implements ConfigManager {
-    private readonly _ormConfig: OrmConfig;
+    private readonly _ormConfig: ORMConfig;
     private readonly _config: AppConfg;
     constructor() {
         const ormConfigPath = process.env.ORMCONFIG || resolve(__dirname, '../../ormconfig.json');
@@ -197,8 +184,8 @@ export class ConfigManagerImpl implements ConfigManager {
         return `${this.WebServerConfig().enableHttps ? 'https' : 'http'}://${this.WebServerConfig().host}:${this.WebServerConfig().port}/video/output/${jobMessageId}/${filename}`;
     }
 
-    public databaseConnectionConfig(): ConnectionOptions {
-        return Object.assign({}, this._ormConfig) as ConnectionOptions;
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {

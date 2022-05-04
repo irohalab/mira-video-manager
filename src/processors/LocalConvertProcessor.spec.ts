@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import test from 'ava';
 import 'reflect-metadata';
 import { Container } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '../TYPES';
 import { FakeConfigManager } from '../test-helpers/FakeConfigManager';
 import { ProcessorFactory, ProcessorFactoryInitiator } from './ProcessorFactory';
 import { VideoProcessor } from './VideoProcessor';
@@ -27,7 +26,6 @@ import { BaseProfile } from './profiles/BaseProfile';
 import { LocalConvertProcessor } from './LocalConvertProcessor';
 import { JobMessage } from '../domains/JobMessage';
 import { v4 as uuid4 } from 'uuid';
-import { RemoteFile } from '../domains/RemoteFile';
 import { ConvertAction } from '../domains/ConvertAction';
 import { join, resolve, basename } from 'path';
 import { FileManageService } from '../services/FileManageService';
@@ -35,6 +33,11 @@ import { rm } from 'fs/promises';
 import { ActionType } from '../domains/ActionType';
 import { isPlayableContainer } from '../utils/VideoProber';
 import { projectRoot } from '../test-helpers/helpers';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { TYPES_VM } from '../TYPES';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
+import { DatabaseService } from '../services/DatabaseService';
 
 type Cxt = { container: Container };
 
@@ -46,8 +49,10 @@ test.beforeEach((t) => {
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
     container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
-    container.bind<ProcessorFactoryInitiator>(TYPES.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
-    container.bind<ProfileFactoryInitiator>(TYPES.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+    container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
+    container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+    container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-convert-processor');
 });

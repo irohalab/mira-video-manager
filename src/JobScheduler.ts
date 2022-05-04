@@ -16,15 +16,6 @@
 
 import { ConfigManager } from "./utils/ConfigManager";
 import { inject, injectable } from "inversify";
-import { RabbitMQService } from './services/RabbitMQService';
-import {
-    DOWNLOAD_MESSAGE_EXCHANGE,
-    DOWNLOAD_MESSAGE_QUEUE,
-    JOB_EXCHANGE,
-    TYPES, VIDEO_MANAGER_COMMAND,
-    VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL
-} from './TYPES';
-import { DownloadMQMessage } from './domains/DownloadMQMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessRule } from './entity/VideoProcessRule';
 import { ConditionParser } from './utils/ConditionParser';
@@ -34,12 +25,23 @@ import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
 import { JobState } from './domains/JobState';
-import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
 import pino from 'pino';
-import { capture } from './utils/sentry';
+import {
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    DOWNLOAD_MESSAGE_QUEUE,
+    DownloadMQMessage,
+    JOB_EXCHANGE,
+    RabbitMQService,
+    Sentry,
+    TYPES,
+    VIDEO_MANAGER_COMMAND,
+    VIDEO_MANAGER_EXCHANGE,
+    VIDEO_MANAGER_GENERAL,
+    VideoManagerMessage
+} from '@irohalab/mira-shared';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
@@ -53,6 +55,7 @@ export class JobScheduler implements JobApplication {
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
+                @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _fileManageService: FileManageService,
                 private _rabbitmqService: RabbitMQService) {
     }
@@ -67,8 +70,8 @@ export class JobScheduler implements JobApplication {
                 await this.onDownloadMessage(msg as DownloadMQMessage);
                 return true;
             } catch (ex) {
-                capture(ex);
                 logger.error(ex);
+                this._sentry.capture(ex);
                 return false;
             }
         });
@@ -121,8 +124,8 @@ export class JobScheduler implements JobApplication {
             await conditionParser.tokenCheck();
             return await conditionParser.evaluate();
         } catch (e) {
-            capture(e);
             logger.error(e);
+            this._sentry.capture(e);
             return false;
         }
     }

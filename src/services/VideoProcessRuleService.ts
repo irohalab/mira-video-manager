@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,9 @@
  */
 
 import { inject, injectable } from 'inversify';
-import { TYPES } from '../TYPES';
 import { DatabaseService } from './DatabaseService';
 import { VideoProcessRule } from '../entity/VideoProcessRule';
+import { TYPES } from '@irohalab/mira-shared';
 
 @injectable()
 export class VideoProcessRuleService {
@@ -25,22 +25,22 @@ export class VideoProcessRuleService {
     }
 
     public async addRule(rule: VideoProcessRule): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         return await repo.save(rule);
     }
 
     public async listAll(): Promise<VideoProcessRule[]> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
-        return await repo.find();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
+        return await repo.findAll();
     }
 
     public async listByBangumi(bangumiId: string): Promise<VideoProcessRule[]> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         return await repo.find({ bangumiId });
     }
 
     public async updateRule(ruleId: string, updateRule: VideoProcessRule): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
         const rule = await repo.findOneOrFail({ id: ruleId });
         rule.name = updateRule.name;
         rule.condition = updateRule.condition;
@@ -50,7 +50,7 @@ export class VideoProcessRuleService {
     }
 
     public async deleteRule(ruleId: string): Promise<any> {
-        const repo = this._databaseService.getVideoProcessRuleRepository();
-        await repo.delete({ id: ruleId });
+        const repo = this._databaseService.getVideoProcessRuleRepository(true);
+        await repo.nativeDelete({ id: ruleId });
     }
 }

@@ -1,24 +1,16 @@
 {
-   "type": "postgres",
+   "type": "postgresql",
    "host": "localhost",
    "port": 5432,
-   "username": "postgres",
+   "user": "postgres",
    "password": "123456",
-   "database": "mira",
-   "synchronize": true,
-   "logging": false,
+   "dbName": "mira",
    "entities": [
-      "src/entity/**/*.ts"
+      "dist/entity/**/*.js",
+      "node_modules/@irohalab/mira-shared/entity/**/*.js"
    ],
-   "migrations": [
-      "src/migration/**/*.ts"
-   ],
-   "subscribers": [
-      "src/subscriber/**/*.ts"
-   ],
-   "cli": {
-      "entitiesDir": "src/entity",
-      "migrationsDir": "src/migration",
-      "subscribersDir": "src/subscriber"
-   }
+   "entitiesTs": [
+      "src/entity/**/*.ts",
+      "node_modules/@irohalab/mira-shared/entity/**/*.ts"
+   ]
 }

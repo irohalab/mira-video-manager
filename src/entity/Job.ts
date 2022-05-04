@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,66 +14,78 @@
  * limitations under the License.
  */
 
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 import { JobStatus } from "../domains/JobStatus";
 import { JobMessage } from '../domains/JobMessage';
 import { JobState } from '../domains/JobState';
+import {
+    DateTimeType,
+    Entity,
+    EntityRepositoryType,
+    Enum,
+    JsonType,
+    PrimaryKey,
+    Property
+} from "@mikro-orm/core";
+import { JobRepository } from '../repository/JobRepository';
+import { randomUUID } from 'crypto';
 
-@Entity()
+@Entity({customRepository: () => JobRepository})
 export class Job {
-    @PrimaryGeneratedColumn('uuid')
-    public id: string;
 
-    @Column()
+    @PrimaryKey()
+    public id: string = randomUUID();
+
+    @Property()
     public jobMessageId: string;
 
-    @Column({
-        type: 'jsonb'
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb'
     })
     public jobMessage: JobMessage;
 
     /**
      * index of current action to be or being executed from actions array.
      */
-    @Column()
+    @Property()
     public progress: number;
 
-    @Column({
-        type: 'jsonb'
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb'
     })
     public stateHistory: JobState[];
 
-    @Column({
-        type: 'enum',
-        enum: JobStatus,
-        default: JobStatus.Queueing
-    })
-    public status: JobStatus
+    @Enum()
+    public status: JobStatus = JobStatus.Queueing;
 
-    @Column({
+    @Property({
         nullable: true
     })
     public jobExecutorId: string;
 
-    @Column({
-        type: 'timestamp'
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp'
     })
     public createTime: Date;
 
-    @Column({
-        type: 'timestamp',
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp',
         nullable: true
     })
     public startTime: Date;
 
-    @Column({
-        type: 'timestamp',
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp',
         nullable: true
     })
     public finishedTime: Date;
 
-    @Column({
-        default: false
-    })
-    public cleaned: boolean;
+    @Property()
+    public cleaned: boolean = false;
+
+    [EntityRepositoryType]?: JobRepository;
 }

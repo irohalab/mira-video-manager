@@ -15,10 +15,8 @@
  */
 
 import 'reflect-metadata';
-import { capture, setup as setupSentry } from './utils/sentry';
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
-import { TYPES } from './TYPES';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './services/DatabaseService';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
@@ -27,17 +25,22 @@ import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
 import pino from 'pino';
+import { Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 
 const startAs = process.env.START_AS;
 
 const logger = pino();
 
-setupSentry(`WEB_${startAs}_${hostname()}`);
-
 const container = new Container();
+container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<VideoProcessRuleService>(VideoProcessRuleService).toSelf().inSingletonScope();
+
+// tslint:disable-next-line
+const { version } = require('../package.json');
+const sentry = container.get<Sentry>(TYPES.Sentry);
+sentry.setup(`WEB_${startAs}_${hostname()}`, 'mira-video-manager', version);
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
@@ -55,7 +58,7 @@ function beforeExitHandler() {
             process.exit(0);
         }, (error) => {
             webServer.close();
-            capture(error);
+            sentry.capture(error);
             logger.error(error);
             process.exit(-1);
         });

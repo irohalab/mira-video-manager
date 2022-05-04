@@ -15,17 +15,8 @@
  */
 
 import { ConfigManager } from "./utils/ConfigManager";
-import { RabbitMQService } from './services/RabbitMQService';
 import { inject, injectable } from 'inversify';
-import {
-    COMMAND_QUEUE,
-    JOB_EXCHANGE,
-    JOB_QUEUE,
-    TYPES,
-    VIDEO_MANAGER_COMMAND,
-    VIDEO_MANAGER_EXCHANGE,
-    VIDEO_MANAGER_GENERAL
-} from './TYPES';
+import { TYPES_VM } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessor } from './processors/VideoProcessor';
@@ -35,9 +26,7 @@ import { Job } from './entity/Job';
 import { Action } from './domains/Action';
 import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { JobState } from './domains/JobState';
-import { VideoManagerMessage } from './domains/VideoManagerMessage';
 import { v4 as uuidv4 } from 'uuid';
-import { RemoteFile } from './domains/RemoteFile';
 import { basename, dirname, extname, join } from "path";
 import { JobApplication } from './JobApplication';
 import { promisify } from 'util';
@@ -45,7 +34,19 @@ import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
 import pino from 'pino';
-import { capture } from './utils/sentry';
+import {
+    COMMAND_QUEUE,
+    JOB_EXCHANGE,
+    JOB_QUEUE,
+    RabbitMQService,
+    RemoteFile,
+    Sentry,
+    TYPES,
+    VIDEO_MANAGER_COMMAND,
+    VIDEO_MANAGER_EXCHANGE,
+    VIDEO_MANAGER_GENERAL,
+    VideoManagerMessage
+} from '@irohalab/mira-shared';
 
 const sleep = promisify(setTimeout);
 const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
@@ -60,10 +61,11 @@ export class JobExecutor implements JobApplication {
     private _cleanUpTimer: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _rabbitmqService: RabbitMQService,
                 private _fileManageService: FileManageService,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
+                @inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
         this.isIdle = true;
     }
 
@@ -76,8 +78,8 @@ export class JobExecutor implements JobApplication {
             if (err.code === 'ENOENT') {
                 await mkdir(tmpDir, {recursive: true});
             } else {
-                capture(err);
                 logger.error(err);
+                this._sentry.capture(err);
             }
         }
 
@@ -167,8 +169,8 @@ export class JobExecutor implements JobApplication {
                 .then(() => {
                     logger.info('job processed');
                 }, (error) => {
-                    capture(error);
                     logger.error(error);
+                    this._sentry.capture(error);
                 });
         }
     }
@@ -210,8 +212,8 @@ export class JobExecutor implements JobApplication {
                 outputPath = await this.currentVideoProcessor.process(action);
             } catch (e) {
                 job.status = JobStatus.UnrecoverableError;
-                capture(e);
                 logger.warn(e);
+                this._sentry.capture(e);
             }
             state.endTime = new Date();
             job.stateHistory.push(state);

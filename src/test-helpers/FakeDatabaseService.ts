@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,10 @@
 import { injectable } from 'inversify';
 import { DatabaseService } from '../services/DatabaseService';
 import { JobRepository } from '../repository/JobRepository';
-import { NotImplementException } from '../exceptions/NotImplementException';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
 import { FakeMessageRepository } from './FakeMessageRepository';
+import { NotImplementException } from '@irohalab/mira-shared';
+import { NextFunction, Request, Response } from 'express';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
@@ -42,5 +43,11 @@ export class FakeDatabaseService implements DatabaseService {
 
     stop(): Promise<void> {
         return Promise.resolve(undefined);
+    }
+
+    public requestContextMiddleware(): (req: Request, res: Response, next: NextFunction) => void {
+        return (req: Request, res: Response, next: NextFunction) => {
+            next();
+        };
     }
 }

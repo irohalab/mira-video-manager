@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,8 @@ import {
 import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { VideoProcessRuleService } from '../../services/VideoProcessRuleService';
-import { ResponseWrapper } from '../ResponseWrapper';
 import { ConditionParser } from '../../utils/ConditionParser';
-import { TokenCheckException } from '../../exceptions/TokenCheckException';
+import { ResponseWrapper, TokenCheckException } from '@irohalab/mira-shared';
 
 @controller('/rule')
 export class RuleController implements interfaces.Controller {

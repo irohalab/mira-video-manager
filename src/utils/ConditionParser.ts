@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-import { RemoteFile } from '../domains/RemoteFile';
 import { tokenize } from 'esprima';
-import { TokenCheckException } from '../exceptions/TokenCheckException';
 import * as vm from 'vm';
 import { getStreamsInfo } from './VideoProber';
 import { MediaContainer } from './Runtime/MediaContainer';
 import { VideoStream } from './Runtime/VideoStream';
 import { AudioStream } from './Runtime/AudioStream';
 import { basename, extname } from 'path';
+import { RemoteFile, TokenCheckException } from '@irohalab/mira-shared';
 
 interface Token {
     type: string;

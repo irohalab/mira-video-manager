@@ -21,12 +21,13 @@ import { Action } from "../domains/Action";
 import { ConvertAction } from "../domains/ConvertAction";
 import { ProfileFactoryInitiator } from "./profiles/ProfileFactory";
 import { inject, injectable } from "inversify";
-import { TYPES } from "../TYPES";
 import { JobMessage } from '../domains/JobMessage';
 import { spawn } from 'child_process';
 import { FileManageService } from '../services/FileManageService';
 import { StringDecoder } from 'string_decoder';
 import pino from 'pino';
+import { TYPES } from '@irohalab/mira-shared';
+import { TYPES_VM } from '../TYPES';
 
 const logger = pino();
 
@@ -40,7 +41,7 @@ export class LocalConvertProcessor implements VideoProcessor {
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
+                @inject(TYPES_VM.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
                 private _fileManageService: FileManageService) {
     }
 

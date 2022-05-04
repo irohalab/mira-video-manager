@@ -19,14 +19,11 @@
 // JobExecutor mode grab job from queue, executing job, update executing state.
 
 import 'reflect-metadata';
-import { capture, setup as setupSentry } from './utils/sentry';
 import { hostname } from 'os';
 import { Container } from 'inversify';
 import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
-import { TYPES } from './TYPES';
 import { ConfigManager } from './utils/ConfigManager';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
-import { RabbitMQService } from './services/RabbitMQService';
 import { ProcessorFactory, ProcessorFactoryInitiator } from './processors/ProcessorFactory';
 import { VideoProcessor } from './processors/VideoProcessor';
 import { ProfileFactory, ProfileFactoryInitiator } from './processors/profiles/ProfileFactory';
@@ -38,6 +35,8 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 import pino from 'pino';
+import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
+import { TYPES_VM } from './TYPES';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
@@ -45,30 +44,34 @@ const startAs = process.env.START_AS;
 
 const logger = pino();
 
-setupSentry(`${startAs}_${hostname()}`);
-
 const container = new Container();
+// tslint:disable-next-line
+const { version } = require('../package.json');
+container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
+const sentry = container.get<Sentry>(TYPES.Sentry);
+sentry.setup(`${startAs}_${hostname()}`, 'mira-video-manager', version);
 
-container.bind<LocalConvertProcessor>(TYPES.LocalConvertProcessor).to(LocalConvertProcessor);
+
+container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 
 // factory provider
-container.bind<ProcessorFactoryInitiator>(TYPES.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
-container.bind<ProfileFactoryInitiator>(TYPES.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
 
 if (startAs === JOB_EXECUTOR) {
-    container.bind<JobExecutor>(TYPES.JobApplication).to(JobExecutor);
+    container.bind<JobExecutor>(TYPES_VM.JobApplication).to(JobExecutor);
 } else if (startAs === JOB_SCHEDULER) {
-    container.bind<JobScheduler>(TYPES.JobApplication).to(JobScheduler);
+    container.bind<JobScheduler>(TYPES_VM.JobApplication).to(JobScheduler);
 } else {
     logger.error('failed to start, START_AS environment variable is not valid');
     process.exit(-1);
 }
 
-const jobApplication = container.get<JobApplication>(TYPES.JobApplication);
+const jobApplication = container.get<JobApplication>(TYPES_VM.JobApplication);
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
 databaseService.start()
@@ -78,7 +81,7 @@ databaseService.start()
     .then(() => {
         logger.info(startAs.toLowerCase() + ' started');
     }, (error) => {
-        capture(error)
+        sentry.capture(error);
         logger.error(error);
         process.exit(-1);
     });

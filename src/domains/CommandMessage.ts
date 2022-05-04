@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MQMessage } from './MQMessage';
+import { MQMessage } from '@irohalab/mira-shared';
 import { v4 as uuid4 } from 'uuid';
 
 export class CommandMessage implements MQMessage {

@@ -16,60 +16,25 @@
 
 import { inject, injectable } from "inversify";
 import { JobRepository } from "../repository/JobRepository";
-import { Connection, createConnection, getCustomRepository } from "typeorm";
 import { VideoProcessRuleRepository } from "../repository/VideoProcessRuleRepository";
-import { MessageRepository } from '../repository/MessageRepository';
 import { DatabaseService } from './DatabaseService';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '../TYPES';
-import { promisify } from 'util';
-import pino from 'pino';
-
-const RETRY_DELAY = 5000;
-const MAX_RETRY_COUNT = 10;
-const sleep = promisify(setTimeout);
-
-const logger = pino();
+import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
+import { Job } from '../entity/Job';
+import { VideoProcessRule } from '../entity/VideoProcessRule';
 
 @injectable()
-export class DatabaseServiceImpl implements DatabaseService {
-    private _connection: Connection;
-    private _retryCount: number = 0;
+export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
 
-    constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+    constructor(@inject(TYPES.ConfigManager) configManager: ConfigManager) {
+        super(configManager);
     }
 
-    public async start(): Promise<void> {
-        try {
-            this._connection = await createConnection(this._configManager.databaseConnectionConfig());
-            this._retryCount = 0;
-        } catch (exception) {
-            logger.warn(exception);
-            if (this._retryCount < MAX_RETRY_COUNT) {
-                await sleep(RETRY_DELAY);
-                this._retryCount++;
-                await this.start();
-            } else {
-                throw exception;
-            }
-        }
-        return Promise.resolve(undefined);
+    public getJobRepository(useRequestContext: boolean = false): JobRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(Job);
     }
 
-    public async stop(): Promise<void> {
-        await this._connection.close();
-        return Promise.resolve(undefined);
-    }
-
-    public getJobRepository(): JobRepository {
-        return getCustomRepository<JobRepository>(JobRepository);
-    }
-
-    public getVideoProcessRuleRepository(): VideoProcessRuleRepository {
-        return getCustomRepository<VideoProcessRuleRepository>(VideoProcessRuleRepository);
-    }
-
-    public getMessageRepository(): MessageRepository {
-        return getCustomRepository<MessageRepository>(MessageRepository);
+    public getVideoProcessRuleRepository(useRequestContext: boolean = false): VideoProcessRuleRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(VideoProcessRule);
     }
 }
