@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,30 @@
  */
 
 import { BaseProfile } from "./BaseProfile";
-import { basename, dirname, join } from "path";
+import { ConvertAction } from '../../domains/ConvertAction';
 
 export class DefaultProfile extends BaseProfile {
-    constructor(videoFilePath: string, actionIndex: number) {
-        super(videoFilePath, actionIndex);
+    constructor(action: ConvertAction) {
+        super(action);
     }
 
     public static profileName = 'default';
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve(['-i', this.videoFilePath, '-strict', '-2']);
+        return Promise.resolve(['-i', ...this.getInputCommandArgs(), '-strict', '-2']);
+    }
+
+    protected getInputCommandArgs(): string[] {
+        let cmd = [];
+        if (this.action.videoFilePath) {
+            cmd = cmd.concat(['-i', this.action.videoFilePath]);
+        }
+        if (this.action.audioFilePath) {
+            cmd = cmd.concat(['-i', this.action.audioFilePath]);
+        }
+        if (this.action.subtitlePath) {
+            cmd = cmd.concat(['-vf', `"subtitles='${this.action.subtitlePath}'"`]);
+        }
+        return cmd;
     }
 }

@@ -28,6 +28,8 @@ import {
 } from "@mikro-orm/core";
 import { JobRepository } from '../repository/JobRepository';
 import { randomUUID } from 'crypto';
+import { ActionMap } from '../domains/ActionMap';
+import { VertexMap } from '../domains/VertexMap';
 
 @Entity({customRepository: () => JobRepository})
 export class Job {
@@ -43,6 +45,12 @@ export class Job {
         columnType: 'jsonb'
     })
     public jobMessage: JobMessage;
+
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb'
+    })
+    public jobVertexMap: VertexMap;
 
     /**
      * index of current action to be or being executed from actions array.

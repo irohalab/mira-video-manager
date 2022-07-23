@@ -111,6 +111,15 @@ export class FileManageService {
         }
     }
 
+    public async localCopy(src: string, dest: string): Promise<void> {
+        try {
+            await copyFile(src, dest);
+        } catch (ex) {
+            this._sentry.capture(ex);
+            logger.error(ex);
+        }
+    }
+
     private static async getVideoViaHttp(sourceUrl: string, savePath: string): Promise<void> {
         const writer = createWriteStream(savePath);
         const response = await axios.get(sourceUrl, {

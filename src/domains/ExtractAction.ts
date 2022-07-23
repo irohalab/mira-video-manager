@@ -14,17 +14,20 @@
  * limitations under the License.
  */
 
-import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
-import { ActionMap } from './ActionMap';
+import { Action } from './Action';
+import { ExtractSource } from './ExtractSource';
+import { ExtractTarget } from './ExtractTarget';
 
-export class JobMessage implements MQMessage {
-    public id: string;
-    public bangumiId: string;
-    public videoId: string;
-    public actions: ActionMap;
-    public videoFile: RemoteFile;
-    public otherFiles: RemoteFile[];
-    public downloadAppId: string;
-    public downloadTaskId: string;
-    public version: string = '2';
+/**
+ * Action that extract files, streams or subtitles from message.
+ * This action cannot have upstream action
+ */
+export class ExtractAction extends Action {
+    public videoFilePath: string;
+    public otherFilePaths: string[];
+    public extractFrom: ExtractSource;
+    public extractTarget: ExtractTarget;
+    public outputExtname: string;
+    public extractRegex: string;
+    public extractorId: string;
 }

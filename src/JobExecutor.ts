@@ -47,6 +47,7 @@ import {
     VIDEO_MANAGER_GENERAL,
     VideoManagerMessage
 } from '@irohalab/mira-shared';
+import { findFinalActionsId, reverseTraverse } from './utils/ActionDAGUtils';
 
 const sleep = promisify(setTimeout);
 const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
@@ -179,10 +180,20 @@ export class JobExecutor implements JobApplication {
         this.isIdle = false;
         const jobRepo = this._databaseService.getJobRepository();
         const jobMessage = job.jobMessage;
+        const actionMap = jobMessage.actions;
         let action: Action;
         let outputPath: string;
         let state: JobState;
-        const initialProgress = job.progress;
+        const finalActionIds = findFinalActionsId(actionMap);
+        for (const finalActionId of finalActionIds) {
+            const startActionIds = [];
+            reverseTraverse(finalActionId, actionMap, startActionIds);
+
+        }
+
+        // const initialProgress = job.progress;
+        // reverseTraverse(action)
+
         if (!Array.isArray(job.stateHistory)) {
             job.stateHistory = [];
         }

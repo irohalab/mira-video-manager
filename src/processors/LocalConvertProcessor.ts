@@ -28,17 +28,22 @@ import { StringDecoder } from 'string_decoder';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
+import { ActionType } from '../domains/ActionType';
+import { ExtractAction } from '../domains/ExtractAction';
+import { ExtractTarget } from '../domains/ExtractTarget';
+import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../domains/FilenameExtensionConstants';
 
 const logger = pino();
 
-const VIDEO_FILE_EXT: string[] = ['.mp4', '.mkv', '.avi', 'rmvb', '.rm', '.mov', '.wmv', '.ts'];
-const SUBTITLE_EXT: string[] = ['.ass', '.ssa', '.srt', '.sub', '.scc', '.vtt', '.smi', '.sbv'];
-
+/**
+ * Convert inputs to a single mp4 file with h264+aac encoding
+ */
 @injectable()
 export class LocalConvertProcessor implements VideoProcessor {
 
     private _controller: AbortController;
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
+    private upstreamActions: Action[];
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
@@ -46,56 +51,61 @@ export class LocalConvertProcessor implements VideoProcessor {
     }
 
     public async prepare(jobMessage: JobMessage, action: ConvertAction): Promise<void> {
-        const videoFilePath: string = this._fileManageService.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
-        action.inputList = [videoFilePath];
-        try {
-            if (!await this._fileManageService.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
-                await this._fileManageService.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
-            }
-            for (const remoteFile of jobMessage.otherFiles) {
-                action.inputList.push(this._fileManageService.getLocalPath(remoteFile.filename, jobMessage.id));
-                if (!await this._fileManageService.checkExists(remoteFile.filename, jobMessage.id)) {
-                    await this._fileManageService.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
-                }
-            }
-        } catch (err) {
-            logger.error(err);
-        }
+        action.outputPath = this._fileManageService.getLocalPath(action.id + '.mp4', jobMessage.id);
+        const actionMap = jobMessage.actions;
+        this.upstreamActions = action.upstreamActionIds.map(actionId => actionMap[actionId]);
+        return Promise.resolve();
     }
 
     public async process(action: Action): Promise<string> {
         const currentAction = action as ConvertAction;
         let videoFilePath = null;
         let subtitleFilePath = null;
-
-        if (action.lastOutput) {
-            const lastOutputExtname = extname(action.lastOutput).toLowerCase();
-            if (lastOutputExtname && VIDEO_FILE_EXT.indexOf(lastOutputExtname) !== -1) {
-                videoFilePath = action.lastOutput;
-            } else if (lastOutputExtname && SUBTITLE_EXT.indexOf(lastOutputExtname) !== -1) {
-                subtitleFilePath = action.lastOutput;
+        let audioFilePath = null;
+        for (const upstreamAction of this.upstreamActions) {
+            const actionOutputPath = upstreamAction.outputPath;
+            switch (upstreamAction.type) {
+                case ActionType.Convert:
+                    videoFilePath = actionOutputPath;
+                    break;
+                case ActionType.Extract:
+                    const extractAction = upstreamAction as ExtractAction;
+                    switch(extractAction.extractTarget) {
+                        case ExtractTarget.KeepContainer:
+                            const ext = extname(actionOutputPath);
+                            if (!videoFilePath && VIDEO_FILE_EXT.includes(ext)) {
+                                videoFilePath = actionOutputPath;
+                            } else if (!audioFilePath && AUDIO_FILE_EXT.includes(ext)) {
+                                audioFilePath = actionOutputPath;
+                            } else if (!subtitleFilePath && SUBTITLE_EXT.includes(ext)) {
+                                subtitleFilePath = actionOutputPath;
+                            }
+                            break;
+                        case ExtractTarget.AudioStream:
+                            audioFilePath = actionOutputPath;
+                            break;
+                        case ExtractTarget.Subtitle:
+                            subtitleFilePath = actionOutputPath;
+                            break;
+                    }
+                    break;
+                case ActionType.Merge:
+                    // TODO: support merge output
+                    break;
+                // fragment should the final output, should not be in upstream of convert action
             }
         }
+        currentAction.videoFilePath = videoFilePath;
+        currentAction.audioFilePath = audioFilePath;
+        currentAction.subtitlePath = subtitleFilePath;
 
-        for (const inputPath of currentAction.inputList) {
-            if (videoFilePath && subtitleFilePath) {
-                break;
-            }
-            const extName = extname(inputPath).toLowerCase();
-            if (!videoFilePath && VIDEO_FILE_EXT.indexOf(extName) !== -1) {
-                videoFilePath = inputPath;
-            } else if (!subtitleFilePath && SUBTITLE_EXT.indexOf(extName) !== -1) {
-                subtitleFilePath = inputPath;
-            }
-        }
         const extra = { data: currentAction.profileExtraData } as any;
         if (subtitleFilePath) {
             extra.subtitleFile = subtitleFilePath;
         }
-        const convertProfile = this._profileFactory(currentAction.profile, videoFilePath, action.index, extra);
-        const outputFilename = convertProfile.getOutputFilename();
-        await this.runCommand(await convertProfile.getCommandArgs(), outputFilename);
-        return outputFilename;
+        const convertProfile = this._profileFactory(currentAction.profile, currentAction, extra);
+        await this.runCommand(await convertProfile.getCommandArgs(), currentAction.outputPath);
+        return currentAction.outputPath;
     }
 
     public async cancel(): Promise<void> {

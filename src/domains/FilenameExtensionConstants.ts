@@ -14,17 +14,8 @@
  * limitations under the License.
  */
 
-import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
-import { ActionMap } from './ActionMap';
 
-export class JobMessage implements MQMessage {
-    public id: string;
-    public bangumiId: string;
-    public videoId: string;
-    public actions: ActionMap;
-    public videoFile: RemoteFile;
-    public otherFiles: RemoteFile[];
-    public downloadAppId: string;
-    public downloadTaskId: string;
-    public version: string = '2';
-}
+export const VIDEO_FILE_EXT: string[] = ['.mp4', '.mkv', '.avi', 'rmvb', '.rm', '.mov', '.wmv', '.ts'];
+export const AUDIO_FILE_EXT: string[] = ['.m4a', '.aac', '.flac', '.mka', '.mp3', '.wma', '.wav'];
+export const SUBTITLE_EXT: string[] = ['.ass', '.ssa', '.srt', '.sub', '.scc', '.vtt', '.smi', '.sbv'];
+

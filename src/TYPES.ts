@@ -19,7 +19,8 @@ export const TYPES_VM = {
     ProcessorFactory: Symbol.for('Factory<VideoProcessor>'),
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
-    JobApplication: Symbol.for('JobApplication')
+    JobApplication: Symbol.for('JobApplication'),
+    ExtractorFactory: Symbol.for('ExtractorFactory')
 };
 
 export type WebServerConfig = {
