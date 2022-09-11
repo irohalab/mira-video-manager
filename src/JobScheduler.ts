@@ -20,11 +20,9 @@ import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessRule } from './entity/VideoProcessRule';
 import { ConditionParser } from './utils/ConditionParser';
 import { JobMessage } from './domains/JobMessage';
-import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
-import { JobState } from './domains/JobState';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
@@ -42,6 +40,7 @@ import {
     VIDEO_MANAGER_GENERAL,
     VideoManagerMessage
 } from '@irohalab/mira-shared';
+import { randomUUID } from 'crypto';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
@@ -57,7 +56,7 @@ export class JobScheduler implements JobApplication {
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _fileManageService: FileManageService,
-                private _rabbitmqService: RabbitMQService) {
+                @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService) {
     }
 
     public async start(): Promise<void> {
@@ -130,9 +129,20 @@ export class JobScheduler implements JobApplication {
         }
     }
 
+    private static newJob(msg: JobMessage): Job {
+        const job = new Job();
+        job.jobMessage = msg;
+        job.jobMessageId = msg.id;
+        job.status = JobStatus.Queueing;
+        job.progress = 0;
+        job.createTime = new Date();
+        job.actionMap = msg.actions;
+        return job;
+    }
+
     private async dispatchJob(appliedRule: VideoProcessRule, msg: DownloadMQMessage): Promise<void> {
         const jobMessage = new JobMessage();
-        jobMessage.id = uuidv4();
+        jobMessage.id = randomUUID();
         jobMessage.bangumiId = msg.bangumiId;
         jobMessage.videoId = msg.videoId;
         jobMessage.actions = appliedRule.actions;
@@ -140,8 +150,9 @@ export class JobScheduler implements JobApplication {
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.downloadAppId = msg.downloadManagerId;
         jobMessage.downloadTaskId = msg.downloadTaskId;
-        const job = JobScheduler.newJob(jobMessage);
-        await this._databaseService.getJobRepository().save(job);
+        let job = JobScheduler.newJob(jobMessage);
+        job = await this._databaseService.getJobRepository().save(job) as Job;
+        jobMessage.jobId = job.id;
         this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
             .then(() => {
                 logger.info('dispatched job ' + jobMessage.id);
@@ -150,29 +161,14 @@ export class JobScheduler implements JobApplication {
 
     private async sendNoNeedToProcessMessage(msg: DownloadMQMessage) {
         const vmMsg = new VideoManagerMessage();
-        vmMsg.id = uuidv4();
+        vmMsg.id = randomUUID();
         vmMsg.bangumiId = msg.bangumiId;
         vmMsg.videoId = msg.videoId;
         vmMsg.isProcessed = false;
-        vmMsg.processedFile = null;
+        vmMsg.processedFiles = null;
         vmMsg.jobExecutorId = null;
         vmMsg.downloadTaskId = msg.downloadTaskId;
         await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
-    }
-
-    private static newJob(msg: JobMessage): Job {
-        const job = new Job();
-        job.jobMessage = msg;
-        job.jobMessageId = msg.id;
-        job.status = JobStatus.Queueing;
-        job.progress = 0;
-        const jobState = new JobState();
-        jobState.log = 'new job created by Scheduler. JobMessageId: ' + msg.id + '. bangumiId: ' + msg.bangumiId;
-        jobState.startTime = new Date();
-        jobState.endTime = new Date();
-        job.stateHistory = [jobState];
-        job.createTime = new Date();
-        return job;
     }
 
     private checkJobStatus(): void {
@@ -197,7 +193,7 @@ export class JobScheduler implements JobApplication {
 
         for (const job of unfinishedRunningJobs) {
             const jobMessage = Object.assign({}, job.jobMessage);
-            jobMessage.id = uuidv4();
+            jobMessage.id = randomUUID();
             const rerunJob = JobScheduler.newJob(jobMessage);
             await jobRepo.save(rerunJob);
             await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage);

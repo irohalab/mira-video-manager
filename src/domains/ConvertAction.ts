@@ -15,12 +15,18 @@
  */
 
 import { Action } from "./Action";
+import { ActionType } from './ActionType';
 
+/**
+ * ConvertAction takes output from upstream actions and convert the file defined with profile.
+ * This action cannot be input action(entry stream)
+ */
 export class ConvertAction extends Action {
     public profile: string;
     public profileExtraData: any;
+    public type = ActionType.Convert;
     // below properties will not be serialized.
-    public videoFilePath: string;
-    public audioFilePath: string;
-    public subtitlePath: string;
+    public videoFilePath?: string;
+    public audioFilePath?: string;
+    public subtitlePath?: string;
 }

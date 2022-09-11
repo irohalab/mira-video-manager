@@ -22,19 +22,31 @@ import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleReposi
 import { FakeMessageRepository } from './FakeMessageRepository';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { NextFunction, Request, Response } from 'express';
+import { VertexRepository } from '../repository/VertexRepository';
+import { FakeVertexRepository } from './FakeVertexRepository';
+import { SqlEntityManager } from '@mikro-orm/postgresql';
+import { Vertex } from '../entity/Vertex';
+import { FakeJobRepository } from './FakeJobRepository';
+import { Job } from '../entity/Job';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
+    private vertexRepo = new FakeVertexRepository({} as SqlEntityManager, Vertex);
+    private jobRepo = new FakeJobRepository({} as SqlEntityManager, Job);
     getJobRepository(): JobRepository {
-        throw new NotImplementException();
+        return this.jobRepo;
     }
 
     getMessageRepository(): FakeMessageRepository {
-        return undefined;
+        throw new NotImplementException();
     }
 
     getVideoProcessRuleRepository(): VideoProcessRuleRepository {
         throw new NotImplementException();
+    }
+
+    public getVertexRepository(useRequestContext?: boolean): VertexRepository {
+        return this.vertexRepo;
     }
 
     start(): Promise<void> {

@@ -19,16 +19,16 @@ import * as process from 'process';
 import { Options } from 'amqplib';
 import * as os from 'os';
 import { join, resolve } from 'path';
-import { mkdir, stat, readFile, writeFile } from 'fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
-import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
-import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
+import { MikroORMOptions } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
 import { TSMigrationGenerator } from '@mikro-orm/migrations';
+import { randomUUID } from 'crypto';
 
 type AppConfg = {
     amqp: {
@@ -55,6 +55,7 @@ type AppConfg = {
         host: string;
         port: number;
     };
+    jobLogPath: string;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -206,7 +207,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {
-        const myId = uuidv4();
+        const myId = randomUUID();
         await writeFile(profilePath, JSON.stringify({id: myId}));
         return myId
     }
@@ -224,5 +225,9 @@ export class ConfigManagerImpl implements ConfigManager {
 
     public WebServerConfig(): WebServerConfig {
         return this._config.WebServer as WebServerConfig;
+    }
+
+    public jobLogPath(): string {
+        return this._config.jobLogPath;
     }
 }

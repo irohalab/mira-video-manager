@@ -17,7 +17,6 @@
 import { VideoProcessor } from "./VideoProcessor";
 import { extname } from "path";
 import { ConfigManager } from "../utils/ConfigManager";
-import { Action } from "../domains/Action";
 import { ConvertAction } from "../domains/ConvertAction";
 import { ProfileFactoryInitiator } from "./profiles/ProfileFactory";
 import { inject, injectable } from "inversify";
@@ -32,8 +31,8 @@ import { ActionType } from '../domains/ActionType';
 import { ExtractAction } from '../domains/ExtractAction';
 import { ExtractTarget } from '../domains/ExtractTarget';
 import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../domains/FilenameExtensionConstants';
-
-const logger = pino();
+import { Vertex } from '../entity/Vertex';
+import { DatabaseService } from '../services/DatabaseService';
 
 /**
  * Convert inputs to a single mp4 file with h264+aac encoding
@@ -43,33 +42,35 @@ export class LocalConvertProcessor implements VideoProcessor {
 
     private _controller: AbortController;
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
-    private upstreamActions: Action[];
+    private upstreamVertices: Vertex[];
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_VM.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
                 private _fileManageService: FileManageService) {
     }
 
-    public async prepare(jobMessage: JobMessage, action: ConvertAction): Promise<void> {
-        action.outputPath = this._fileManageService.getLocalPath(action.id + '.mp4', jobMessage.id);
-        const actionMap = jobMessage.actions;
-        this.upstreamActions = action.upstreamActionIds.map(actionId => actionMap[actionId]);
+    public async prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+        const outputFilename = vertex.action.outputFilename || vertex.id + '.mp4';
+        vertex.outputPath = this._fileManageService.getLocalPath(outputFilename, jobMessage.id);
+        const verticesMap = await this._databaseService.getVertexRepository().getVertexMap(jobMessage.jobId);
+        this.upstreamVertices = vertex.upstreamVertexIds.map(actionId => verticesMap[actionId]);
         return Promise.resolve();
     }
 
-    public async process(action: Action): Promise<string> {
-        const currentAction = action as ConvertAction;
+    public async process(vertex: Vertex): Promise<string> {
+        const currentAction = vertex.action as ConvertAction;
         let videoFilePath = null;
         let subtitleFilePath = null;
         let audioFilePath = null;
-        for (const upstreamAction of this.upstreamActions) {
-            const actionOutputPath = upstreamAction.outputPath;
-            switch (upstreamAction.type) {
+        for (const upstreamVertex of this.upstreamVertices) {
+            const actionOutputPath = upstreamVertex.outputPath;
+            switch (upstreamVertex.actionType) {
                 case ActionType.Convert:
                     videoFilePath = actionOutputPath;
                     break;
                 case ActionType.Extract:
-                    const extractAction = upstreamAction as ExtractAction;
+                    const extractAction = upstreamVertex.action as ExtractAction;
                     switch(extractAction.extractTarget) {
                         case ExtractTarget.KeepContainer:
                             const ext = extname(actionOutputPath);
@@ -104,8 +105,8 @@ export class LocalConvertProcessor implements VideoProcessor {
             extra.subtitleFile = subtitleFilePath;
         }
         const convertProfile = this._profileFactory(currentAction.profile, currentAction, extra);
-        await this.runCommand(await convertProfile.getCommandArgs(), currentAction.outputPath);
-        return currentAction.outputPath;
+        await this.runCommand(await convertProfile.getCommandArgs(), vertex.outputPath);
+        return vertex.outputPath;
     }
 
     public async cancel(): Promise<void> {
@@ -119,7 +120,7 @@ export class LocalConvertProcessor implements VideoProcessor {
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
         const maxThreads = this._configManager.maxThreadsToProcess();
         const threadsLimit = maxThreads > 0 ? ['-threads', `${maxThreads}`] : [];
-        console.log('ffmpeg -n ' + threadsLimit.join(' ') + ' ' + cmdArgs.join(' ') + ' ' + outputFilename);
+        console.log('ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {

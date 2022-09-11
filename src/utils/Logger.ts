@@ -14,14 +14,25 @@
  * limitations under the License.
  */
 
-import { ActionType } from "./ActionType";
-import { nanoid } from 'nanoid';
+import pino from 'pino';
 
-export class Action {
-    public id: string = nanoid(4);
-    public type: ActionType;
-    // for serialization
-    public upstreamActionIds: string[] = [];
-    public downstreamIds: string[] = [];
-    public outputFilename: string;
+export function getFileLogger(filePath: string): pino.Logger {
+    const transport = pino.transport({
+        target: 'pino/file',
+        options: {
+            destination: filePath
+        }
+    });
+    return pino({
+        transport,
+        timestamp: pino.stdTimeFunctions.isoTime,
+        base: undefined
+    });
+}
+
+export function getStdLogger(base: any): pino.Logger {
+    return pino({
+        timestamp: pino.stdTimeFunctions.isoTime,
+        base
+    });
 }

@@ -102,4 +102,8 @@ export class FakeConfigManager implements ConfigManager {
             port: 8082
         };
     }
+
+    public jobLogPath(): string {
+        return '';
+    }
 }

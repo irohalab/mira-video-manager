@@ -42,6 +42,12 @@ export interface ConfigManager extends BaseConfigManager {
      * Get the app id, the id is used to identify the job message current process by the app
      */
     jobExecutorId(): Promise<string>;
+
+    /**
+     * Get the base path for job log
+     */
+    jobLogPath(): string;
+
     maxJobProcessTime(): number;
     fileRetentionDays(): number;
     failedFileRetentionDays(): number;

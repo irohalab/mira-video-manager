@@ -22,6 +22,8 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { BasicDatabaseServiceImpl, TYPES } from '@irohalab/mira-shared';
 import { Job } from '../entity/Job';
 import { VideoProcessRule } from '../entity/VideoProcessRule';
+import { VertexRepository } from '../repository/VertexRepository';
+import { Vertex } from '../entity/Vertex';
 
 @injectable()
 export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
@@ -36,5 +38,9 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
 
     public getVideoProcessRuleRepository(useRequestContext: boolean = false): VideoProcessRuleRepository {
         return this._em.fork({useContext: useRequestContext}).getRepository(VideoProcessRule);
+    }
+
+    public getVertexRepository(useRequestContext?: boolean): VertexRepository {
+        return this._em .fork({useContext: useRequestContext}).getRepository(Vertex);
     }
 }

@@ -19,6 +19,7 @@ import { ActionMap } from './ActionMap';
 
 export class JobMessage implements MQMessage {
     public id: string;
+    public jobId: string;
     public bangumiId: string;
     public videoId: string;
     public actions: ActionMap;

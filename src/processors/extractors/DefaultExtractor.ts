@@ -21,6 +21,7 @@ import { ExtractSource } from '../../domains/ExtractSource';
 import { extname } from 'path';
 import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../../domains/FilenameExtensionConstants';
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
+import { Vertex } from '../../entity/Vertex';
 
 const DEFAULT_REGEX = /(?:\.sc\.|\.tc\.|简体|繁體)/;
 
@@ -31,14 +32,16 @@ export class DefaultExtractor implements Extractor {
     public trackIdx: number;
     public inputPath: string;
     public streamsInfo: any[];
-    constructor(public action: ExtractAction) {
+    public action: ExtractAction;
+    constructor(public vertex: Vertex) {
         this.inputPath = null;
+        this.action = vertex.action as ExtractAction;
     }
 
     public async extractCMD(): Promise<string[]> {
         this.findInputAndOutputPath();
         if (this.action.extractTarget === ExtractTarget.KeepContainer
-            || this.inputPath === this.action.outputPath) {
+            || this.inputPath === this.vertex.outputPath) {
             return null;
         }
         await this.findAllStreams();
@@ -129,6 +132,6 @@ export class DefaultExtractor implements Extractor {
                 extName = this.action.outputExtname || 'vtt';
                 break;
         }
-        this.action.outputPath = this.action.outputPath + '.' + extName;
+        this.vertex.outputPath = this.vertex.outputPath + '.' + extName;
     }
 }

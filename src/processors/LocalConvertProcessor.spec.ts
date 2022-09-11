@@ -27,7 +27,7 @@ import { LocalConvertProcessor } from './LocalConvertProcessor';
 import { JobMessage } from '../domains/JobMessage';
 import { v4 as uuid4 } from 'uuid';
 import { ConvertAction } from '../domains/ConvertAction';
-import { join, resolve, basename } from 'path';
+import { basename, join, resolve } from 'path';
 import { FileManageService } from '../services/FileManageService';
 import { rm } from 'fs/promises';
 import { ActionType } from '../domains/ActionType';
@@ -38,6 +38,13 @@ import { TYPES_VM } from '../TYPES';
 import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
 import { DatabaseService } from '../services/DatabaseService';
+import { Vertex } from '../entity/Vertex';
+import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
+import { randomUUID } from 'crypto';
+import { ExtractAction } from '../domains/ExtractAction';
+import { ExtractTarget } from '../domains/ExtractTarget';
+import { ExtractSource } from '../domains/ExtractSource';
+import { VertexStatus } from '../domains/VertexStatus';
 
 type Cxt = { container: Container };
 
@@ -73,6 +80,7 @@ test('Default Profile', async (t) => {
     const context = t.context as Cxt;
     const fileManager = context.container.get<FileManageService>(FileManageService);
     const videoProcessor = context.container.get<VideoProcessor>(LocalConvertProcessor);
+    const databaseService = context.container.get<DatabaseService>(TYPES.DatabaseService);
     const remoteTempPath = resolve(__dirname, '../../tests/');
     const jobMessage = new JobMessage();
     jobMessage.id = uuid4();
@@ -80,14 +88,33 @@ test('Default Profile', async (t) => {
     jobMessage.videoFile.filename = testVideoFile;
     jobMessage.videoFile.fileLocalPath = join(remoteTempPath, testVideoFile);
     jobMessage.downloadAppId = 'test_instance';
-    const action = new ConvertAction();
-    action.type = ActionType.Convert;
-    action.index = 0;
-    jobMessage.actions = [action];
+    jobMessage.jobId = randomUUID();
     const subtitleFile = new RemoteFile();
     subtitleFile.filename = testSubtitleFile;
     subtitleFile.fileLocalPath = join(remoteTempPath, testSubtitleFile);
     jobMessage.otherFiles = [subtitleFile];
+
+    // copy files
+    const videoFilePath = await fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
+    const subtitleFilePath = await fileManager.downloadFile(jobMessage.otherFiles[0], jobMessage.downloadAppId, jobMessage.id);
+
+    const extractAction = new ExtractAction();
+    extractAction.extractTarget = ExtractTarget.KeepContainer;
+    extractAction.extractFrom = ExtractSource.VideoFile;
+    const subExtractAction = new ExtractAction();
+    subExtractAction.extractTarget = ExtractTarget.Subtitle;
+    subExtractAction.extractFrom = ExtractSource.OtherFiles;
+
+    const convertAction = new ConvertAction();
+    convertAction.type = ActionType.Convert;
+    convertAction.upstreamActionIds = [extractAction.id, subExtractAction.id];
+    extractAction.downstreamIds = [convertAction.id];
+    subExtractAction.downstreamIds = [convertAction.id];
+    jobMessage.actions = {
+        [convertAction.id]: convertAction,
+        [extractAction.id]: extractAction,
+        [subExtractAction.id]: subExtractAction
+    };
 
     videoProcessor.registerLogHandler((log, ch) => {
         if (ch === 'stderr') {
@@ -97,8 +124,36 @@ test('Default Profile', async (t) => {
         }
     });
 
-    await videoProcessor.prepare(jobMessage, jobMessage.actions[0]);
-    const outputFilename = await videoProcessor.process(jobMessage.actions[0]);
+    const vertexRepo = databaseService.getVertexRepository() as FakeVertexRepository;
+    const extractVertex = new Vertex();
+    extractVertex.actionType = ActionType.Extract;
+    extractVertex.action = extractAction;
+    extractVertex.jobId = jobMessage.jobId;
+    extractVertex.outputPath = videoFilePath;
+    const subExtractVertex = new Vertex();
+    subExtractVertex.actionType = ActionType.Extract;
+    subExtractVertex.action = subExtractAction;
+    subExtractVertex.jobId = jobMessage.jobId;
+    subExtractVertex.outputPath = subtitleFilePath;
+
+    const convertVertex = new Vertex();
+    convertVertex.action = convertAction;
+    convertVertex.jobId = jobMessage.jobId;
+    convertVertex.status = VertexStatus.Pending;
+
+    extractVertex.downstreamVertexIds = [convertVertex.id];
+    extractVertex.status = VertexStatus.Finished;
+    subExtractVertex.downstreamVertexIds = [convertVertex.id];
+    subExtractVertex.status = VertexStatus.Finished;
+
+    convertVertex.upstreamVertexIds = [extractVertex.id, subExtractVertex.id];
+    convertVertex.upstreamVertexFinished = [true, true];
+
+    vertexRepo.addVertex(convertVertex);
+    vertexRepo.addVertex(extractVertex);
+    vertexRepo.addVertex(subExtractVertex);
+    await videoProcessor.prepare(jobMessage, convertVertex);
+    const outputFilename = await videoProcessor.process(convertVertex);
     console.log('outputfile', outputFilename);
     t.true(await fileManager.checkExists(basename(outputFilename), jobMessage.id), 'output file should exists');
     await videoProcessor.dispose();

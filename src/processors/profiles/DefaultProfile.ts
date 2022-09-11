@@ -25,7 +25,7 @@ export class DefaultProfile extends BaseProfile {
     public static profileName = 'default';
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve(['-i', ...this.getInputCommandArgs(), '-strict', '-2']);
+        return Promise.resolve([...this.getInputCommandArgs(), '-strict', '-2']);
     }
 
     protected getInputCommandArgs(): string[] {
@@ -37,7 +37,7 @@ export class DefaultProfile extends BaseProfile {
             cmd = cmd.concat(['-i', this.action.audioFilePath]);
         }
         if (this.action.subtitlePath) {
-            cmd = cmd.concat(['-vf', `"subtitles='${this.action.subtitlePath}'"`]);
+            cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}'`]);
         }
         return cmd;
     }

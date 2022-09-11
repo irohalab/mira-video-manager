@@ -16,7 +16,6 @@
 
 import { JobStatus } from "../domains/JobStatus";
 import { JobMessage } from '../domains/JobMessage';
-import { JobState } from '../domains/JobState';
 import {
     DateTimeType,
     Entity,
@@ -29,7 +28,6 @@ import {
 import { JobRepository } from '../repository/JobRepository';
 import { randomUUID } from 'crypto';
 import { ActionMap } from '../domains/ActionMap';
-import { VertexMap } from '../domains/VertexMap';
 
 @Entity({customRepository: () => JobRepository})
 export class Job {
@@ -50,19 +48,13 @@ export class Job {
         type: JsonType,
         columnType: 'jsonb'
     })
-    public jobVertexMap: VertexMap;
+    public actionMap: ActionMap;
 
     /**
      * index of current action to be or being executed from actions array.
      */
     @Property()
     public progress: number;
-
-    @Property({
-        type: JsonType,
-        columnType: 'jsonb'
-    })
-    public stateHistory: JobState[];
 
     @Enum()
     public status: JobStatus = JobStatus.Queueing;

@@ -17,12 +17,14 @@
 import { Action } from './Action';
 import { ExtractSource } from './ExtractSource';
 import { ExtractTarget } from './ExtractTarget';
+import { ActionType } from './ActionType';
 
 /**
  * Action that extract files, streams or subtitles from message.
  * This action cannot have upstream action
  */
 export class ExtractAction extends Action {
+    public type = ActionType.Extract;
     public videoFilePath: string;
     public otherFilePaths: string[];
     public extractFrom: ExtractSource;

@@ -18,15 +18,20 @@ import { Extractor } from './extractors/Extractor';
 import { ExtractAction } from '../domains/ExtractAction';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
 import { interfaces } from 'inversify';
+import { Vertex } from '../entity/Vertex';
+import * as assert from 'assert';
+import { ActionType } from '../domains/ActionType';
 
-export type ExtractorInitiator = (action: ExtractAction) => Extractor;
+export type ExtractorInitiator = (vertex: Vertex) => Extractor;
 
 export function ExtractorFactory(context: interfaces.Context): ExtractorInitiator {
-    return (action: ExtractAction) => {
+    return (vertex: Vertex) => {
+        assert(vertex.actionType === ActionType.Extract, "action must be ExtractAction");
+        const action = vertex.action as ExtractAction;
         switch (action.extractorId) {
             case 'Default':
                 const extractor = context.container.get<DefaultExtractor>(DefaultExtractor);
-                extractor.action = action;
+                extractor.vertex = vertex;
                 return extractor;
             // add more extractor in the future
         }

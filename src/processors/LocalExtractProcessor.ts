@@ -16,7 +16,6 @@
 
 import { VideoProcessor } from './VideoProcessor';
 import { JobMessage } from '../domains/JobMessage';
-import { Action } from '../domains/Action';
 import { inject, injectable } from 'inversify';
 import { TYPES } from '@irohalab/mira-shared';
 import { ConfigManager } from '../utils/ConfigManager';
@@ -28,6 +27,7 @@ import { ExtractAction } from '../domains/ExtractAction';
 import pino from 'pino';
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
+import { Vertex } from '../entity/Vertex';
 
 const logger = pino();
 
@@ -47,9 +47,11 @@ export class LocalExtractProcessor implements VideoProcessor {
         return Promise.resolve(undefined);
     }
 
-    public async prepare(jobMessage: JobMessage, action: ExtractAction): Promise<void> {
+    public async prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+        const action = vertex.action as ExtractAction;
         action.videoFilePath = this._fileManager.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
-        action.outputPath = this._fileManager.getLocalPath(action.id, jobMessage.id);
+        const outputFilename = action.outputFilename || vertex.id;
+        vertex.outputPath = this._fileManager.getLocalPath(outputFilename, jobMessage.id);
         try {
             if (!await this._fileManager.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
                 await this._fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
@@ -66,17 +68,17 @@ export class LocalExtractProcessor implements VideoProcessor {
         }
     }
 
-    public async process(action: Action): Promise<string> {
-        const extractAction = action as ExtractAction;
-        const extractor = this._extractorFactory(extractAction);
+    public async process(vertex: Vertex): Promise<string> {
+        const extractAction = vertex.action as ExtractAction;
+        const extractor = this._extractorFactory(vertex);
         const cmd = await extractor.extractCMD();
         if (!cmd) {
             // if cmd is null, we only need to copy source file to our outputPath
-            await this._fileManager.localCopy(extractAction.videoFilePath, extractAction.outputPath);
+            await this._fileManager.localCopy(extractAction.videoFilePath, vertex.outputPath);
         } else {
             await this.runCommand(cmd);
         }
-        return extractAction.outputPath;
+        return vertex.outputPath;
     }
 
     public registerLogHandler(callback: (logChunk: string, ch: ("stdout" | "stderr")) => void): void {

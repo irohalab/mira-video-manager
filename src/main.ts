@@ -35,7 +35,7 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 import pino from 'pino';
-import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
+import { AmqplibImpl, RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from './TYPES';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
@@ -55,7 +55,7 @@ sentry.setup(`${startAs}_${hostname()}`, 'mira-video-manager', version);
 container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
-container.bind<RabbitMQService>(RabbitMQService).toSelf().inSingletonScope();
+container.bind<RabbitMQService>(TYPES.RabbitMQService).to(AmqplibImpl).inSingletonScope();
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 
 // factory provider

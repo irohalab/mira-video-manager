@@ -15,19 +15,14 @@
  */
 
 import { ConfigManager } from "./utils/ConfigManager";
-import { inject, injectable } from 'inversify';
+import { inject, injectable, interfaces } from 'inversify';
 import { TYPES_VM } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
-import { VideoProcessor } from './processors/VideoProcessor';
-import { mkdir, rename, stat } from 'fs/promises';
+import { mkdir, stat } from 'fs/promises';
 import { JobStatus } from './domains/JobStatus';
 import { Job } from './entity/Job';
-import { Action } from './domains/Action';
-import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
-import { JobState } from './domains/JobState';
-import { v4 as uuidv4 } from 'uuid';
-import { basename, dirname, extname, join } from "path";
+import { basename } from "path";
 import { JobApplication } from './JobApplication';
 import { promisify } from 'util';
 import { FileManageService } from './services/FileManageService';
@@ -47,7 +42,8 @@ import {
     VIDEO_MANAGER_GENERAL,
     VideoManagerMessage
 } from '@irohalab/mira-shared';
-import { findFinalActionsId, reverseTraverse } from './utils/ActionDAGUtils';
+import { JobManager } from './JobManager/JobManager';
+import { randomUUID } from 'crypto';
 
 const sleep = promisify(setTimeout);
 const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
@@ -57,16 +53,16 @@ const logger = pino();
 @injectable()
 export class JobExecutor implements JobApplication {
     public id: string;
-    private currentVideoProcessor: VideoProcessor;
+    private currentJM: JobManager;
     private isIdle: boolean;
     private _cleanUpTimer: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.Sentry) private _sentry: Sentry,
-                private _rabbitmqService: RabbitMQService,
+                @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService,
                 private _fileManageService: FileManageService,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
+                @inject(TYPES_VM.JobManagerFactory) private _jmFactory: interfaces.AutoFactory<JobManager>) {
         this.isIdle = true;
     }
 
@@ -111,9 +107,6 @@ export class JobExecutor implements JobApplication {
             const job = await jobRepo.findOne({jobMessageId: msg.id});
             console.log(msg.id + ' message received');
             if (job) {
-                job.status = JobStatus.Running;
-                job.startTime = new Date();
-                await jobRepo.save(job);
                 this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
                 return true;
             }
@@ -140,19 +133,14 @@ export class JobExecutor implements JobApplication {
     }
 
     private async cancelJob(job: Job, jobRepo: JobRepository): Promise<void> {
-        job.status = JobStatus.Canceled;
-        await jobRepo.save(job);
-        await this.currentVideoProcessor.cancel();
-        this.currentVideoProcessor = null;
+        if (this.currentJM) {
+            await this.currentJM.cancel();
+        }
     }
 
     private async pauseJob(): Promise<void> {
-        const jobRepo = this._databaseService.getJobRepository();
-        const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Running});
-        if (job) {
-            job.status = JobStatus.Pause;
-            // try cancel current processor
-            await this.currentVideoProcessor.cancel();
+        if (this.currentJM) {
+            await this.currentJM.pause();
         }
     }
 
@@ -160,12 +148,6 @@ export class JobExecutor implements JobApplication {
         const jobRepo = this._databaseService.getJobRepository();
         const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
         if (job) {
-            job.status = JobStatus.Running;
-            job.jobExecutorId = this.id;
-            if (!job.startTime) {
-                job.startTime = new Date();
-            }
-            await jobRepo.save(job);
             this.processJob(job)
                 .then(() => {
                     logger.info('job processed');
@@ -178,86 +160,49 @@ export class JobExecutor implements JobApplication {
 
     private async processJob(job: Job): Promise<void> {
         this.isIdle = false;
-        const jobRepo = this._databaseService.getJobRepository();
-        const jobMessage = job.jobMessage;
-        const actionMap = jobMessage.actions;
-        let action: Action;
-        let outputPath: string;
-        let state: JobState;
-        const finalActionIds = findFinalActionsId(actionMap);
-        for (const finalActionId of finalActionIds) {
-            const startActionIds = [];
-            reverseTraverse(finalActionId, actionMap, startActionIds);
-
-        }
-
-        // const initialProgress = job.progress;
-        // reverseTraverse(action)
-
-        if (!Array.isArray(job.stateHistory)) {
-            job.stateHistory = [];
-        }
-        for (let i = initialProgress; i < jobMessage.actions.length && job.status !== JobStatus.Canceled && job.status !== JobStatus.UnrecoverableError; i++) {
-            job.progress = i;
-            state = new JobState();
-            state.startTime = new Date();
-            action = jobMessage.actions[i];
-            action.index = i;
-            if (outputPath) {
-                action.lastOutput = outputPath;
-            }
-            this.currentVideoProcessor = this._processorFactory(action.type);
-            state.log = `preparing for action[${i}]`;
-            this.currentVideoProcessor.registerLogHandler((logChunk, ch) => {
-                // TODO: realTime logging
-                logger.info(ch + ':' + logChunk);
+        this.currentJM = this._jmFactory();
+        this.currentJM.events.on(JobManager.EVENT_JOB_FINISHED, async (finishedJobId: string) => {
+            // TODO: finish job
+            // find all output path
+            const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
+            const outputPathList = outputVertices.map(vx => {
+                return vx.outputPath;
             });
-            await this.currentVideoProcessor.prepare(jobMessage, action);
-            state.endTime = new Date();
-            job.stateHistory.push(state);
-            await jobRepo.save(job);
-            state = new JobState();
-            state.startTime = new Date();
-            state.log = `start processing action[${i}]`;
-            try {
-                outputPath = await this.currentVideoProcessor.process(action);
-            } catch (e) {
-                job.status = JobStatus.UnrecoverableError;
-                logger.warn(e);
-                this._sentry.capture(e);
-            }
-            state.endTime = new Date();
-            job.stateHistory.push(state);
-            await jobRepo.save(job);
-            await this.currentVideoProcessor.dispose();
+            await this.notifyFinished(job, outputPathList);
+        });
+
+        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, (failedJob: Job) => {
+            // TODO: notify failed
+        });
+        try {
+            await this.currentJM.start(job.id, this.id);
+        } catch (error) {
+            logger.error(error);
+            this._sentry.capture(error);
+        } finally {
+            this.isIdle = true;
         }
-        if (job.status !== JobStatus.Canceled) {
-            // Finished
-            job.status = JobStatus.Finished;
-            job.finishedTime = new Date();
-            await jobRepo.save(job);
-            outputPath = await JobExecutor.normalizeFilename(basename(jobMessage.videoFile.filename), outputPath);
-            await this.notifyFinished(job, outputPath);
-        }
-        this.isIdle = true;
     }
 
-    private static async normalizeFilename(originalFilename: string, outputPath: string): Promise<string> {
-        const ext = extname(originalFilename);
-        const originalBasename = basename(originalFilename, ext);
-        const outputPathDir = dirname(outputPath);
-        const normalizedOutputPath = join(outputPathDir, originalBasename + extname(outputPath));
-        await rename(outputPath, normalizedOutputPath);
-        return normalizedOutputPath;
-    }
+    // private static async normalizeFilename(originalFilename: string, outputPath: string): Promise<string> {
+    //     const ext = extname(originalFilename);
+    //     const originalBasename = basename(originalFilename, ext);
+    //     const outputPathDir = dirname(outputPath);
+    //     const normalizedOutputPath = join(outputPathDir, originalBasename + extname(outputPath));
+    //     await rename(outputPath, normalizedOutputPath);
+    //     return normalizedOutputPath;
+    // }
 
-    private async notifyFinished(job: Job, outputFilePath: string): Promise<void> {
+    private async notifyFinished(job: Job, outputFilePathList: string[]): Promise<void> {
         const msg = new VideoManagerMessage();
-        msg.id = uuidv4();
-        msg.processedFile = new RemoteFile();
-        msg.processedFile.filename = basename(outputFilePath);
-        msg.processedFile.fileLocalPath = outputFilePath;
-        msg.processedFile.fileUri = this._configManager.getFileUrl(msg.processedFile.filename, job.jobMessageId);
+        msg.id = randomUUID();
+        msg.processedFiles = outputFilePathList.map((outputFilePath) => {
+            const remoteFile = new RemoteFile();
+            remoteFile.filename = basename(outputFilePath);
+            remoteFile.fileLocalPath = outputFilePath;
+            remoteFile.fileUri = this._configManager.getFileUrl(remoteFile.filename, job.jobMessageId);
+            return remoteFile;
+        });
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { Action } from "../domains/Action";
 import { JobMessage } from '../domains/JobMessage';
+import { Vertex } from '../entity/Vertex';
 
 export interface VideoProcessor {
     /**
      * Prepare Action object based on jobMessage
      * @param jobMessage
-     * @param action
+     * @param vertex
      */
-    prepare(jobMessage: JobMessage, action: Action): Promise<void>;
+    prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void>;
 
     /**
      * Process the video files
-     * @param action
+     * @param vertex
      */
-    process(action: Action): Promise<string>;
+    process(vertex: Vertex): Promise<string>;
 
     /**
      * Cancel current process

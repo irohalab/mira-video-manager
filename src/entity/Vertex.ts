@@ -18,9 +18,11 @@ import { randomUUID } from 'crypto';
 import { Action } from '../domains/Action';
 import { VideoProcessor } from '../processors/VideoProcessor';
 import { VertexStatus } from '../domains/VertexStatus';
-import { Entity, Enum, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
+import { DateTimeType, Entity, EntityRepositoryType, Enum, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
+import { VertexRepository } from '../repository/VertexRepository';
+import { ActionType } from '../domains/ActionType';
 
-@Entity()
+@Entity({ customRepository: () => VertexRepository })
 export class Vertex {
     @PrimaryKey()
     public id: string = randomUUID();
@@ -58,6 +60,26 @@ export class Vertex {
     })
     public action: Action;
 
+    @Enum()
+    public actionType: ActionType;
+
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp',
+        nullable: true
+    })
+    public startTime: Date;
+
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp',
+        nullable: true
+    })
+    public finishedTime: Date;
+
+
     // not serialized
     public videoProcessor: VideoProcessor;
+
+    [EntityRepositoryType]?: VertexRepository;
 }

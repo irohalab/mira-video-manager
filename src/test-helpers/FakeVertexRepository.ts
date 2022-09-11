@@ -14,14 +14,17 @@
  * limitations under the License.
  */
 
-import { ActionType } from "./ActionType";
-import { nanoid } from 'nanoid';
+import { VertexRepository } from '../repository/VertexRepository';
+import { VertexMap } from '../domains/VertexMap';
+import { Vertex } from '../entity/Vertex';
 
-export class Action {
-    public id: string = nanoid(4);
-    public type: ActionType;
-    // for serialization
-    public upstreamActionIds: string[] = [];
-    public downstreamIds: string[] = [];
-    public outputFilename: string;
+const vertexMap: VertexMap = {};
+
+export class FakeVertexRepository extends VertexRepository {
+    public addVertex(vertex: Vertex): void {
+        vertexMap[vertex.id] = vertex;
+    }
+    public async getVertexMap(jobId: string): Promise<VertexMap> {
+        return vertexMap;
+    }
 }
