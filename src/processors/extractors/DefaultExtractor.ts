@@ -27,6 +27,7 @@ const DEFAULT_REGEX = /(?:\.sc\.|\.tc\.|简体|繁體)/;
 
 /**
  * Default extractor prefer CN/TW subtitle, for audio track use default
+ * For subtitle extraction from subtitle files, action.outputExtname must set.
  */
 export class DefaultExtractor implements Extractor {
     public trackIdx: number;
@@ -38,10 +39,17 @@ export class DefaultExtractor implements Extractor {
         this.action = vertex.action as ExtractAction;
     }
 
+    public getInputPath(): string {
+        return this.inputPath;
+    }
+
     public async extractCMD(): Promise<string[]> {
         this.findInputAndOutputPath();
-        if (this.action.extractTarget === ExtractTarget.KeepContainer
-            || this.inputPath === this.vertex.outputPath) {
+        if (this.action.extractTarget === ExtractTarget.KeepContainer) {
+            return null;
+        }
+        if (this.action.extractFrom === ExtractSource.OtherFiles && extname(this.inputPath) === extname(this.vertex.outputPath)) {
+            // the extension name is equal means we just pick files.
             return null;
         }
         await this.findAllStreams();

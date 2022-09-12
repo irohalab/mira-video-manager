@@ -28,17 +28,23 @@ import pino from 'pino';
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
 import { Vertex } from '../entity/Vertex';
+import { ExtractSource } from '../domains/ExtractSource';
 
 const logger = pino();
 
 @injectable()
 export class LocalExtractProcessor implements VideoProcessor {
+    private _controller: AbortController;
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.ExtractorFactory) private _extractorFactory: ExtractorInitiator,
                 private _fileManager: FileManageService) {
     }
-    public cancel(): Promise<void> {
+    public async cancel(): Promise<void> {
+        if (this._controller) {
+            this._controller.abort();
+        }
+        await this.dispose();
         return Promise.resolve(undefined);
     }
 
@@ -74,7 +80,11 @@ export class LocalExtractProcessor implements VideoProcessor {
         const cmd = await extractor.extractCMD();
         if (!cmd) {
             // if cmd is null, we only need to copy source file to our outputPath
-            await this._fileManager.localCopy(extractAction.videoFilePath, vertex.outputPath);
+            if (extractAction.extractFrom !== ExtractSource.VideoFile) {
+                await this._fileManager.localCopy(extractor.getInputPath(), vertex.outputPath);
+            } else {
+                await this._fileManager.localCopy(extractAction.videoFilePath, vertex.outputPath);
+            }
         } else {
             await this.runCommand(cmd);
         }
@@ -93,10 +103,13 @@ export class LocalExtractProcessor implements VideoProcessor {
     }
 
     private runCommand(cmdArgs: string[]): Promise<void> {
+        console.log('extract cmd: ffmpeg ' + cmdArgs.join(' '));
+        this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
                 // abort when output filename collision
                 const child = spawn('ffmpeg', cmdArgs, {
+                    signal: this._controller.signal,
                     stdio: 'pipe'
                 });
                 child.stdout.on('data', (data) => {

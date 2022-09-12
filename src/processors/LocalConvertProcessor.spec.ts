@@ -19,47 +19,40 @@ import 'reflect-metadata';
 import { Container } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { FakeConfigManager } from '../test-helpers/FakeConfigManager';
-import { ProcessorFactory, ProcessorFactoryInitiator } from './ProcessorFactory';
 import { VideoProcessor } from './VideoProcessor';
-import { ProfileFactory, ProfileFactoryInitiator } from './profiles/ProfileFactory';
-import { BaseProfile } from './profiles/BaseProfile';
 import { LocalConvertProcessor } from './LocalConvertProcessor';
-import { JobMessage } from '../domains/JobMessage';
-import { v4 as uuid4 } from 'uuid';
 import { ConvertAction } from '../domains/ConvertAction';
-import { basename, join, resolve } from 'path';
+import { basename, join } from 'path';
 import { FileManageService } from '../services/FileManageService';
-import { rm } from 'fs/promises';
 import { ActionType } from '../domains/ActionType';
 import { isPlayableContainer } from '../utils/VideoProber';
-import { projectRoot } from '../test-helpers/helpers';
-import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
-import { TYPES_VM } from '../TYPES';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
-import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
+import {
+    afterTestForProcessorTest,
+    bindInjectablesForProcessorTest,
+    prepareJobMessage,
+    projectRoot
+} from '../test-helpers/helpers';
+import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
 import { Vertex } from '../entity/Vertex';
 import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
-import { randomUUID } from 'crypto';
 import { ExtractAction } from '../domains/ExtractAction';
 import { ExtractTarget } from '../domains/ExtractTarget';
 import { ExtractSource } from '../domains/ExtractSource';
 import { VertexStatus } from '../domains/VertexStatus';
+import { ProfileFactory, ProfileFactoryInitiator } from './profiles/ProfileFactory';
+import { TYPES_VM } from '../TYPES';
+import { BaseProfile } from './profiles/BaseProfile';
+import { rm } from 'fs/promises';
 
 type Cxt = { container: Container };
-
-const testVideoFile = 'test-video-2.mkv';
-const testSubtitleFile = 'test-video-2.ass';
 
 test.beforeEach((t) => {
     const context = t.context as Cxt;
     const container = new Container({ autoBindInjectable: true });
     context.container = container;
-    container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager);
-    container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
-    container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+    bindInjectablesForProcessorTest(container);
     container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
-    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-convert-processor');
 });
@@ -81,19 +74,8 @@ test('Default Profile', async (t) => {
     const fileManager = context.container.get<FileManageService>(FileManageService);
     const videoProcessor = context.container.get<VideoProcessor>(LocalConvertProcessor);
     const databaseService = context.container.get<DatabaseService>(TYPES.DatabaseService);
-    const remoteTempPath = resolve(__dirname, '../../tests/');
-    const jobMessage = new JobMessage();
-    jobMessage.id = uuid4();
-    jobMessage.videoFile = new RemoteFile();
-    jobMessage.videoFile.filename = testVideoFile;
-    jobMessage.videoFile.fileLocalPath = join(remoteTempPath, testVideoFile);
-    jobMessage.downloadAppId = 'test_instance';
-    jobMessage.jobId = randomUUID();
-    const subtitleFile = new RemoteFile();
-    subtitleFile.filename = testSubtitleFile;
-    subtitleFile.fileLocalPath = join(remoteTempPath, testSubtitleFile);
-    jobMessage.otherFiles = [subtitleFile];
 
+    const jobMessage = prepareJobMessage();
     // copy files
     const videoFilePath = await fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
     const subtitleFilePath = await fileManager.downloadFile(jobMessage.otherFiles[0], jobMessage.downloadAppId, jobMessage.id);

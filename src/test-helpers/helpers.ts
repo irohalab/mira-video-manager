@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,25 @@
  */
 
 import { mkdir, rm } from 'fs/promises';
-import { resolve } from 'path';
+import { join, resolve } from 'path';
+import { Container } from 'inversify';
+import { ConfigManager } from '../utils/ConfigManager';
+import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { FakeConfigManager } from './FakeConfigManager';
+import { DatabaseService } from '../services/DatabaseService';
+import { FakeDatabaseService } from './FakeDatabaseService';
+import { ProcessorFactory, ProcessorFactoryInitiator } from '../processors/ProcessorFactory';
+import { TYPES_VM } from '../TYPES';
+import { VideoProcessor } from '../processors/VideoProcessor';
+import { ProfileFactory, ProfileFactoryInitiator } from '../processors/profiles/ProfileFactory';
+import { BaseProfile } from '../processors/profiles/BaseProfile';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { JobMessage } from '../domains/JobMessage';
+import { randomUUID } from 'crypto';
 
 export const projectRoot = resolve(__dirname, '../../');
+const testVideoFile = 'test-video-2.mkv';
+const testSubtitleFile = 'test-video-2.ass';
 
 export async function ensureTempDir(videoTempDir: string): Promise<void> {
     try {
@@ -37,4 +53,27 @@ export async function cleanDir(dirPath: string): Promise<void> {
             console.warn(e);
         }
     }
+}
+
+export function bindInjectablesForProcessorTest(container: Container): void {
+    container.bind<ConfigManager>(TYPES.ConfigManager).to(FakeConfigManager).inSingletonScope();
+    container.bind<DatabaseService>(TYPES.DatabaseService).to(FakeDatabaseService);
+    container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
+}
+
+export function prepareJobMessage(): JobMessage {
+    const remoteTempPath = resolve(__dirname, '../../tests/');
+    const jobMessage = new JobMessage();
+    jobMessage.id = randomUUID();
+    jobMessage.videoFile = new RemoteFile();
+    jobMessage.videoFile.filename = testVideoFile;
+    jobMessage.videoFile.fileLocalPath = join(remoteTempPath, testVideoFile);
+    jobMessage.downloadAppId = 'test_instance';
+    jobMessage.jobId = randomUUID();
+    const subtitleFile = new RemoteFile();
+    subtitleFile.filename = testSubtitleFile;
+    subtitleFile.fileLocalPath = join(remoteTempPath, testSubtitleFile);
+    jobMessage.otherFiles = [subtitleFile];
+    return jobMessage;
 }

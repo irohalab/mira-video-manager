@@ -29,6 +29,8 @@ export class ExtractAction extends Action {
     public otherFilePaths: string[];
     public extractFrom: ExtractSource;
     public extractTarget: ExtractTarget;
+    // If file is extracted from subtitle files, outputExtname must be provided or the outputPath extension name will
+    // be by default .vtt, this may cause an issue.
     public outputExtname: string;
     public extractRegex: string;
     public extractorId: string;

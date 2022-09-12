@@ -30,9 +30,7 @@ export function ExtractorFactory(context: interfaces.Context): ExtractorInitiato
         const action = vertex.action as ExtractAction;
         switch (action.extractorId) {
             case 'Default':
-                const extractor = context.container.get<DefaultExtractor>(DefaultExtractor);
-                extractor.vertex = vertex;
-                return extractor;
+                return new DefaultExtractor(vertex);
             // add more extractor in the future
         }
     }

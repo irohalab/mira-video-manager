@@ -16,4 +16,5 @@
 
 export interface Extractor {
     extractCMD(): Promise<string[]>;
+    getInputPath(): string;
 }
