@@ -27,7 +27,6 @@ import { FileManageService } from '../services/FileManageService';
 import { ActionType } from '../domains/ActionType';
 import { isPlayableContainer } from '../utils/VideoProber';
 import {
-    afterTestForProcessorTest,
     bindInjectablesForProcessorTest,
     prepareJobMessage,
     projectRoot
@@ -46,6 +45,9 @@ import { BaseProfile } from './profiles/BaseProfile';
 import { rm } from 'fs/promises';
 
 type Cxt = { container: Container };
+const testVideoFile = 'test-video-2.mkv';
+const testSubtitleFile = 'test-video-2.ass';
+let videoTempDir: string;
 
 test.beforeEach((t) => {
     const context = t.context as Cxt;
@@ -55,19 +57,12 @@ test.beforeEach((t) => {
     container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-convert-processor');
+    videoTempDir = configManager.videoFileTempDir();
 });
 
-test.afterEach(async (t) => {
-    try {
-        const context = t.context as Cxt;
-        const container = context.container;
-        const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
-        const videoTempPath = configManager.videoFileTempDir();
-        await rm(videoTempPath, { recursive: true });
-    } catch (err) {
-        console.warn(err);
-    }
-});
+test.after(async(t) => {
+    await rm(videoTempDir, { recursive: true });
+})
 
 test('Default Profile', async (t) => {
     const context = t.context as Cxt;
@@ -75,7 +70,7 @@ test('Default Profile', async (t) => {
     const videoProcessor = context.container.get<VideoProcessor>(LocalConvertProcessor);
     const databaseService = context.container.get<DatabaseService>(TYPES.DatabaseService);
 
-    const jobMessage = prepareJobMessage();
+    const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
     // copy files
     const videoFilePath = await fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
     const subtitleFilePath = await fileManager.downloadFile(jobMessage.otherFiles[0], jobMessage.downloadAppId, jobMessage.id);

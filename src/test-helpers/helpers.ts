@@ -32,8 +32,6 @@ import { JobMessage } from '../domains/JobMessage';
 import { randomUUID } from 'crypto';
 
 export const projectRoot = resolve(__dirname, '../../');
-const testVideoFile = 'test-video-2.mkv';
-const testSubtitleFile = 'test-video-2.ass';
 
 export async function ensureTempDir(videoTempDir: string): Promise<void> {
     try {
@@ -62,18 +60,24 @@ export function bindInjectablesForProcessorTest(container: Container): void {
     container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
 }
 
-export function prepareJobMessage(): JobMessage {
+export function prepareJobMessage(videoFilePath: string, otherFilePaths?: string[]): JobMessage {
     const remoteTempPath = resolve(__dirname, '../../tests/');
     const jobMessage = new JobMessage();
     jobMessage.id = randomUUID();
     jobMessage.videoFile = new RemoteFile();
-    jobMessage.videoFile.filename = testVideoFile;
-    jobMessage.videoFile.fileLocalPath = join(remoteTempPath, testVideoFile);
+    jobMessage.videoFile.filename = videoFilePath;
+    jobMessage.videoFile.fileLocalPath = join(remoteTempPath, videoFilePath);
     jobMessage.downloadAppId = 'test_instance';
     jobMessage.jobId = randomUUID();
-    const subtitleFile = new RemoteFile();
-    subtitleFile.filename = testSubtitleFile;
-    subtitleFile.fileLocalPath = join(remoteTempPath, testSubtitleFile);
-    jobMessage.otherFiles = [subtitleFile];
+    if (otherFilePaths && otherFilePaths.length > 0) {
+        jobMessage.otherFiles = [];
+        for (const otherFilePath of otherFilePaths) {
+            const otherFile = new RemoteFile();
+            otherFile.filename = otherFilePath;
+            otherFile.fileLocalPath = join(remoteTempPath, otherFilePath);
+            jobMessage.otherFiles.push(otherFile);
+        }
+    }
+
     return jobMessage;
 }

@@ -18,14 +18,10 @@
 import test from 'ava';
 import { Container } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '@irohalab/mira-shared';
+import { RemoteFile, TYPES } from '@irohalab/mira-shared';
 import { FakeConfigManager } from '../test-helpers/FakeConfigManager';
-import { basename, join } from 'path';
-import {
-    bindInjectablesForProcessorTest,
-    prepareJobMessage,
-    projectRoot
-} from '../test-helpers/helpers';
+import { basename, join, resolve } from 'path';
+import { bindInjectablesForProcessorTest, prepareJobMessage, projectRoot } from '../test-helpers/helpers';
 import { TYPES_VM } from '../TYPES';
 import { ExtractorFactory, ExtractorInitiator } from './ExtractorFactory';
 import { Extractor } from './extractors/Extractor';
@@ -39,9 +35,14 @@ import { Vertex } from '../entity/Vertex';
 import { ActionType } from '../domains/ActionType';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
 import { rm } from 'fs/promises';
+import { JobMessage } from '../domains/JobMessage';
+import { randomUUID } from 'crypto';
 
 type Cxt = { container: Container };
 let videoTempDir: string;
+
+const testVideoFile = 'test-video-2.mkv';
+const testSubtitleFile = 'test-video-2.ass';
 
 test.beforeEach((t) => {
     const context = t.context as Cxt;
@@ -81,7 +82,7 @@ test('DefaultExtractor', async (t) => {
         }
     });
 
-    const jobMessage = prepareJobMessage();
+    const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
 
     const videoExtractAction = new ExtractAction();
     videoExtractAction.extractorId = 'Default';
@@ -123,5 +124,34 @@ test('DefaultExtractor', async (t) => {
     await videoProcessor2.process(subExtractVertex);
     console.log(subExtractVertex.outputPath);
     t.true(await fileManager.checkExists(basename(subExtractVertex.outputPath), jobMessage.id));
+});
 
+test('DefaultExtractor extract ass from mkv', async (t) => {
+    const context = t.context as Cxt;
+    const fileManager = context.container.get<FileManageService>(FileManageService);
+    const videoProcessor = context.container.get<VideoProcessor>(LocalExtractProcessor);
+    videoProcessor.registerLogHandler((log, ch) => {
+        if (ch === 'stderr') {
+            console.error(log);
+        } else {
+            console.log(log);
+        }
+    });
+    const jobMessage = prepareJobMessage('test-video-with-sub.mkv');
+
+    const action = new ExtractAction();
+    action.extractorId = 'Default';
+    action.extractTarget = ExtractTarget.Subtitle;
+    action.extractFrom = ExtractSource.VideoFile;
+    action.outputExtname = 'ass'
+
+    const vertex = new Vertex();
+    vertex.action = action;
+    vertex.actionType = ActionType.Extract;
+    vertex.jobId = jobMessage.jobId;
+
+    await videoProcessor.prepare(jobMessage, vertex);
+    await videoProcessor.process(vertex);
+    console.log('outputPath: ' + vertex.outputPath);
+    t.true(await fileManager.checkExists(basename(vertex.outputPath), jobMessage.id), 'outputPath should exists');
 });

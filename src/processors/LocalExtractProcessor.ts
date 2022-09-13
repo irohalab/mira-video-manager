@@ -86,7 +86,7 @@ export class LocalExtractProcessor implements VideoProcessor {
                 await this._fileManager.localCopy(extractAction.videoFilePath, vertex.outputPath);
             }
         } else {
-            await this.runCommand(cmd);
+            await this.runCommand(cmd, vertex.outputPath);
         }
         return vertex.outputPath;
     }
@@ -102,13 +102,13 @@ export class LocalExtractProcessor implements VideoProcessor {
         }
     }
 
-    private runCommand(cmdArgs: string[]): Promise<void> {
-        console.log('extract cmd: ffmpeg ' + cmdArgs.join(' '));
+    private runCommand(cmdArgs: string[], outputFilename): Promise<void> {
+        console.log('extract cmd: ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
                 // abort when output filename collision
-                const child = spawn('ffmpeg', cmdArgs, {
+                const child = spawn('ffmpeg',['-n', ...cmdArgs, outputFilename], {
                     signal: this._controller.signal,
                     stdio: 'pipe'
                 });

@@ -54,7 +54,17 @@ export class DefaultExtractor implements Extractor {
         }
         await this.findAllStreams();
         await this.findTrackId();
-        let result = ['-i', this.inputPath, '-map', `0:${this.trackIdx}`];
+        let mapSelector:string;
+        if (this.trackIdx === -1) {
+            if (this.action.extractTarget === ExtractTarget.AudioStream) {
+                mapSelector = '0:a:0';
+            } else {
+                mapSelector = '0:s:0';
+            }
+        } else {
+            mapSelector = `0:${this.trackIdx}`;
+        }
+        let result = ['-i', this.inputPath, '-map', mapSelector];
         const isCopy = this.action.extractTarget === ExtractTarget.AudioStream;
         if (isCopy) {
             result = result.concat(`-c:a`, 'copy');
@@ -94,7 +104,7 @@ export class DefaultExtractor implements Extractor {
         }
     }
 
-    private async findTrackId(): Promise<number> {
+    private async findTrackId(): Promise<void> {
         let codecType: string;
         switch (this.action.extractTarget) {
             case ExtractTarget.AudioStream:
@@ -108,10 +118,12 @@ export class DefaultExtractor implements Extractor {
             const streamInfo = this.streamsInfo[i];
             const isDefault = streamInfo.disposition ? streamInfo.disposition.default === 1 : false;
             if (streamInfo.codec_type === codecType && isDefault) {
+                // note that some container has no default track of certain type.
                 this.trackIdx = i;
                 return;
             }
         }
+        // a negative track index means there is no matched index
         this.trackIdx = -1;
     }
 
