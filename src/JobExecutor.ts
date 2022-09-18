@@ -99,6 +99,9 @@ export class JobExecutor implements JobApplication {
     public async stop(): Promise<void> {
         clearTimeout(this._cleanUpTimer);
         await this.pauseJob();
+        if (this.currentJM) {
+            await this.currentJM.dispose();
+        }
     }
 
     private async onJobReceived(msg: JobMessage): Promise<boolean> {
