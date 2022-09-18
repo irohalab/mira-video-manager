@@ -16,15 +16,19 @@
 
 import pino from 'pino';
 
+/**
+ * note that filePath should be in an existed folder
+ * @param filePath
+ */
 export function getFileLogger(filePath: string): pino.Logger {
-    const transport = pino.transport({
-        target: 'pino/file',
-        options: {
-            destination: filePath
-        }
-    });
     return pino({
-        transport,
+        transport: {
+            target: 'pino/file',
+            options: {
+                destination: filePath,
+                mkdir: true
+            }
+        },
         timestamp: pino.stdTimeFunctions.isoTime,
         base: undefined
     });

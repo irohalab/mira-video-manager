@@ -20,10 +20,13 @@ import { ActionType } from '../domains/ActionType';
 import { LocalConvertProcessor } from './LocalConvertProcessor';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
+import { LocalExtractProcessor } from './LocalExtractProcessor';
 
 export function ProcessorFactory(context: interfaces.Context): ProcessorFactoryInitiator {
     return (actionType: ActionType) => {
         switch (actionType) {
+            case ActionType.Extract:
+                return context.container.get<LocalExtractProcessor>(TYPES_VM.LocalExtractProcessor);
             case ActionType.Copy:
                 throw new NotImplementException();
             case ActionType.Convert:

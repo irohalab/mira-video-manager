@@ -24,17 +24,12 @@ import { ActionType } from '../domains/ActionType';
 
 @Entity({ customRepository: () => VertexRepository })
 export class Vertex {
+
     @PrimaryKey()
     public id: string = randomUUID();
 
     @Property()
     public jobId: string;
-
-    @Property({
-        type: JsonType,
-        columnType: 'jsonb'
-    })
-    public upstreamVertexFinished?: boolean[] = [];
 
     @Enum()
     public status: VertexStatus;
@@ -80,6 +75,7 @@ export class Vertex {
 
     // not serialized
     public videoProcessor: VideoProcessor;
+    public upstreamVertexFinished?: boolean[] = [];
 
     [EntityRepositoryType]?: VertexRepository;
 }

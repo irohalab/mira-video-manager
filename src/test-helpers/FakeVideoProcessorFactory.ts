@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-import { Job } from '../entity/Job';
-import { EventEmitter } from 'events';
+import { interfaces } from 'inversify';
+import { ProcessorFactoryInitiator } from '../processors/ProcessorFactory';
+import { VideoProcessor } from '../processors/VideoProcessor';
+import { FakeVideoProcessor } from './FakeVideoProcessor';
 
-export interface VertexManager {
-    events: EventEmitter;
-    createAllVertices(job: Job): Promise<void>;
-    start(job: Job, jobLogPath: string): Promise<void>;
-    stop(): Promise<void>;
-    cancelVertices(): Promise<void>;
+export function FakeVideoProcessorFactory(context: interfaces.Context): ProcessorFactoryInitiator {
+    return () => context.container.get<VideoProcessor>(FakeVideoProcessor);
 }
-
-export const EVENT_VERTEX_FAIL = 'vertex_fail';
-export const TERMINAL_VERTEX_FINISHED = 'terminal_vertex_finished';

@@ -17,14 +17,50 @@
 import { VertexRepository } from '../repository/VertexRepository';
 import { VertexMap } from '../domains/VertexMap';
 import { Vertex } from '../entity/Vertex';
+import { FilterQuery, FindOneOptions } from '@mikro-orm/core';
+import { Loaded } from '@mikro-orm/core/typings';
 
-const vertexMap: VertexMap = {};
+let vertexMap: {[jobId: string]:VertexMap} = {};
+let dbDict: VertexMap = {};
 
 export class FakeVertexRepository extends VertexRepository {
+
     public addVertex(vertex: Vertex): void {
-        vertexMap[vertex.id] = vertex;
+        if (!vertexMap[vertex.jobId]) {
+            vertexMap[vertex.jobId] = {};
+        }
+        vertexMap[vertex.jobId][vertex.id] = vertex;
     }
-    public async getVertexMap(jobId: string): Promise<VertexMap> {
-        return vertexMap;
+
+    public getVertexMap(jobId: string): Promise<VertexMap> {
+        return Promise.resolve(vertexMap[jobId] || {});
+    }
+
+    public async findOne<P extends string = never>(where: FilterQuery<Vertex>, options?: FindOneOptions<Vertex, P>): Promise<Loaded<Vertex, P> | null> {
+        // tslint:disable-next-line:no-string-literal
+        const id = where['id'] as string;
+        const vx = dbDict[id];
+        if (vx) {
+            return vx as Loaded<Vertex, P>;
+        } else {
+            return null;
+        }
+    }
+    public async save(vertex: Vertex|Vertex[]): Promise<Vertex|Vertex[]> {
+        if (Array.isArray(vertex)) {
+            for (const v of vertex) {
+                dbDict[v.id] = v;
+                this.addVertex(v);
+            }
+        } else {
+            dbDict[vertex.id] = vertex;
+            this.addVertex(vertex);
+        }
+        return vertex;
+    }
+
+    public reset(): void {
+        vertexMap = {};
+        dbDict = {};
     }
 }

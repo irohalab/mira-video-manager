@@ -18,9 +18,13 @@ import { JobRepository } from '../repository/JobRepository';
 import { Job } from '../entity/Job';
 import { JobStatus } from '../domains/JobStatus';
 import { NotImplementException } from '@irohalab/mira-shared';
+import { FilterQuery, FindOneOptions } from '@mikro-orm/core';
+import { Loaded } from '@mikro-orm/core/typings';
+
+let _jobs = [];
 
 export class FakeJobRepository extends JobRepository {
-    // private _jobs = [];
+
     public async getUncleanedFinishedJobs(days: number): Promise<Job[]> {
         throw new NotImplementException();
     }
@@ -39,5 +43,38 @@ export class FakeJobRepository extends JobRepository {
 
     public async getJobsByStatus(status: JobStatus): Promise<Job[]> {
         throw new NotImplementException();
+    }
+
+    public async findOne<P extends string = never>(where: FilterQuery<Job>, options?: FindOneOptions<Job, P>): Promise<Loaded<Job, P> | null> {
+        return Promise.resolve(_jobs.find(job => {
+            // tslint:disable-next-line:no-string-literal
+            return job.id === where['id'];
+        }));
+    }
+
+    public async save(job: Job|Job[]): Promise<Job|Job[]> {
+        let incomingData: Job[];
+        if (!Array.isArray(job)) {
+            incomingData = [job];
+        } else {
+            incomingData = job;
+        }
+        const newIdx = [];
+        for (let i = 0; i < incomingData.length; i++) {
+            const idx = _jobs.findIndex(j => incomingData[i].id === j.id);
+            if (idx !== -1) {
+                _jobs[idx] = incomingData[i];
+            } else {
+                newIdx.push(i);
+            }
+        }
+        for(const idx of newIdx) {
+            _jobs.push(incomingData[idx]);
+        }
+        return job;
+    }
+
+    public reset(): void {
+        _jobs = [];
     }
 }

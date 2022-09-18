@@ -30,6 +30,9 @@ import { BaseProfile } from '../processors/profiles/BaseProfile';
 import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { JobMessage } from '../domains/JobMessage';
 import { randomUUID } from 'crypto';
+import { Job } from '../entity/Job';
+import { JobStatus } from '../domains/JobStatus';
+import { Action } from '../domains/Action';
 
 export const projectRoot = resolve(__dirname, '../../');
 
@@ -80,4 +83,27 @@ export function prepareJobMessage(videoFilePath: string, otherFilePaths?: string
     }
 
     return jobMessage;
+}
+
+export function createJob(jobExecutorId: string, jobStatus: JobStatus): Job {
+    const job = new Job();
+    job.status = jobStatus;
+    job.jobMessage = prepareJobMessage('test-video-2.mkv', ['test-video-2.ass']);
+    job.jobMessage.jobId = job.id;
+    job.jobExecutorId = jobExecutorId
+    job.jobMessageId = job.jobMessage.id;
+    job.createTime = new Date();
+
+    const a1 = new Action();
+    const a2 = new Action();
+    const a3 = new Action();
+    a1.downstreamIds = [a3.id];
+    a2.downstreamIds = [a3.id];
+    a3.upstreamActionIds = [a1.id, a2.id];
+    job.actionMap = {
+        [a1.id]: a1,
+        [a2.id]: a2,
+        [a3.id]: a3
+    };
+    return job;
 }

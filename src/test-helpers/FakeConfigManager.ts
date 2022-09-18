@@ -22,6 +22,7 @@ import { WebServerConfig } from '../TYPES';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { MikroORMOptions } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { nanoid } from 'nanoid';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
@@ -72,7 +73,7 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     jobExecutorId(): Promise<string> {
-        return Promise.resolve('');
+        return Promise.resolve(`JobManager${nanoid(4)}`);
     }
 
     jobProfileDirPath(): string {
@@ -104,6 +105,6 @@ export class FakeConfigManager implements ConfigManager {
     }
 
     public jobLogPath(): string {
-        return '';
+        return join(this.jobProfileDirPath(), 'log');
     }
 }

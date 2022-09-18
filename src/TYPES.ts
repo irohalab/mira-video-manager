@@ -19,6 +19,7 @@ export const TYPES_VM = {
     ProcessorFactory: Symbol.for('Factory<VideoProcessor>'),
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
+    LocalExtractProcessor: Symbol.for('LocalExtractProcessor'),
     JobApplication: Symbol.for('JobApplication'),
     ExtractorFactory: Symbol.for('Factory<Extractor>'),
     VertexManager: Symbol.for('VertexManager'),

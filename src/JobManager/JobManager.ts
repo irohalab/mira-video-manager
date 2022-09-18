@@ -23,11 +23,11 @@ import { JobStatus } from '../domains/JobStatus';
 import { join } from 'path';
 import { getFileLogger } from '../utils/Logger';
 import pino from 'pino';
-import { VertexManager } from './VertexManager';
 import { TYPES_VM } from '../TYPES';
 import { Vertex } from '../entity/Vertex';
 import { VertexStatus } from '../domains/VertexStatus';
 import { EventEmitter } from 'events';
+import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VertexManager } from './VertexManager';
 
 @injectable()
 export class JobManager {
@@ -55,7 +55,7 @@ export class JobManager {
 
         if (this._job.status === JobStatus.Queueing) {
             this._jobLogger.info('creating vertices');
-            await this.createAllVertices();
+            await this._vm.createAllVertices(this._job);
         }
 
         if (!this._job.startTime) {
@@ -66,14 +66,14 @@ export class JobManager {
         this._job = await jobRepo.save(this._job) as Job;
 
         // register event listeners
-        this._vm.events.on(VertexManager.EVENT_VERTEX_FAIL, async (error) => {
+        this._vm.events.on(EVENT_VERTEX_FAIL, async (error) => {
             this._jobLogger.error(error);
             this._job.status = JobStatus.UnrecoverableError;
             this._job = await jobRepo.save(this._job) as Job;
             this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
         });
 
-        this._vm.events.on(VertexManager.TERMINAL_VERTEX_FINISHED, async () => {
+        this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
             const vertexRepo = this._databaseService.getVertexRepository();
             const vertexMap = await vertexRepo.getVertexMap(this._job.id);
             const allVerticesFinished = Object.keys(vertexMap).every((vertexId: string) => {
@@ -118,35 +118,10 @@ export class JobManager {
     }
 
     public async dispose(): Promise<void> {
+        if (this._vm) {
+            await this._vm.stop();
+            this._vm.events.removeAllListeners();
+        }
         // clean up
-    }
-
-    private async createAllVertices(): Promise<void> {
-        const vertexRepo = this._databaseService.getVertexRepository();
-        const actionIdToVertexIdMap: {[idx: string]: string} = {};
-        const vertices = Object.keys(this._job.actionMap).map((actionId: string) => {
-            const action = this._job.actionMap[actionId];
-            const vertex = new Vertex();
-            vertex.jobId = this._job.id;
-            vertex.action = action;
-            vertex.actionType = action.type;
-            vertex.status = VertexStatus.Pending;
-            actionIdToVertexIdMap[action.id] = vertex.id;
-            return vertex;
-        });
-
-        vertices.forEach((vertex: Vertex) => {
-            if (vertex.action.upstreamActionIds.length > 0) {
-                vertex.action.upstreamActionIds.forEach((actionId: string) => {
-                    vertex.upstreamVertexIds.push(actionIdToVertexIdMap[actionId]);
-                });
-            }
-            if (vertex.action.downstreamIds.length > 0) {
-                vertex.action.downstreamIds.forEach((actionId: string) => {
-                    vertex.downstreamVertexIds.push(actionIdToVertexIdMap[actionId]);
-                });
-            }
-        });
-        await vertexRepo.save(vertices);
     }
 }
