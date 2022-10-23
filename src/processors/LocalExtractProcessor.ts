@@ -120,7 +120,7 @@ export class LocalExtractProcessor implements VideoProcessor {
                 });
                 child.on('close', (code) => {
                     if (code !== 0) {
-                        reject('ffmpeg exited with non 0 code');
+                        reject(new Error('ffmpeg exited with non 0 code'));
                         return;
                     }
                     resolve();

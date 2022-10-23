@@ -18,12 +18,13 @@
 import { Container } from 'inversify';
 import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
-import { Server } from 'http';
+import { createServer, Server as HttpServer } from 'http';
 import * as bodyParser from 'body-parser';
 import * as cors from 'cors';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
+import { Server as SocketIOServer } from 'socket.io';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';
@@ -32,7 +33,7 @@ const DEBUG = process.env.DEBUG === 'true';
 
 const logger = pino();
 
-export function bootstrap(container: Container, startAs: string): Server {
+export function bootstrap(container: Container, startAs: string): HttpServer {
     if (startAs === JOB_EXECUTOR) {
         // tslint:disable-next-line:no-var-requires
         require('./controller/VideoController');
@@ -49,7 +50,6 @@ export function bootstrap(container: Container, startAs: string): Server {
     const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
 
     expressServer.setConfig((theApp) => {
-        theApp.use(databaseService.requestContextMiddleware());
         theApp.use(bodyParser.urlencoded({
             extended: true
         }))
@@ -57,6 +57,8 @@ export function bootstrap(container: Container, startAs: string): Server {
         if (DEBUG) {
             theApp.use(cors());
         }
+        // register this middleware after bodyParser or queryParser but just before any handler that access database.
+        theApp.use(databaseService.requestContextMiddleware());
     });
 
     const app = expressServer.build();
@@ -67,7 +69,19 @@ export function bootstrap(container: Container, startAs: string): Server {
     } else {
         port = configManager.ApiWebServerConfig().port;
     }
-    const server = app.listen(port, '0.0.0.0');
+    const server = createServer(app);
+    const io = new SocketIOServer(server, {
+        cors: {
+            origin: 'http://localhost:3000'
+        }
+    });
+    io.on('connection', (socket) => {
+        // TODO: logic
+        socket.on('chat_message', (msg) => {
+            console.log('chat message: ' + msg);
+        });
+    });
+    server.listen(port, '0.0.0.0');
     logger.info('Server started on port ' + port);
     return server;
 }

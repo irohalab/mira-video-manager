@@ -28,10 +28,11 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { EventEmitter } from 'events';
 import { getFileLogger } from '../utils/Logger';
 import { join } from 'path';
-import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VertexManager } from './VertexManager';
+import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
 import { VertexMap } from '../domains/VertexMap';
 import { TaskQueue } from '../domains/TaskQueue';
 import { clearTimeout } from 'timers';
+import { VertexRepository } from '../repository/VertexRepository';
 
 const CHECK_QUEUE_INTERVAL = 500;
 
@@ -40,7 +41,6 @@ export class VertexManagerImpl implements VertexManager {
     public events = new EventEmitter();
     private _logPath: string;
     private _vertexLoggerDict: {[vxId: string]: pino.Logger} = {};
-    private _vmRootLogger: pino.Logger;
     private _job: Job;
     private _pendingExecutingVertexQueue = new TaskQueue<string>();
     private _checkQueueTimer: NodeJS.Timeout;
@@ -54,7 +54,6 @@ export class VertexManagerImpl implements VertexManager {
     public async start(job: Job, jobLogPath: string): Promise<void> {
         this._job = job;
         this._logPath = jobLogPath;
-        this._vmRootLogger = getFileLogger(join(jobLogPath, 'vm-log.json'));
         const vertexRepo = this._databaseService.getVertexRepository();
         const vertexMap = await vertexRepo.getVertexMap(this._job.id);
         // Start executing vertex from all initiator vertices
@@ -75,7 +74,7 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     /**
-     * An utility method which creates all vertices of a job base on action map.
+     * A utility method which creates all vertices of a job base on action map.
      * The job is passed from argument because this method usually called before start() method
      * @param job
      */
@@ -156,7 +155,7 @@ export class VertexManagerImpl implements VertexManager {
                     this.executeVertex(vertex);
                 }
             } catch (err) {
-                this._vmRootLogger.error(err);
+                this.events.emit(VERTEX_MANAGER_LOG, {level: 'error', message: err});
                 this._sentry.capture(err);
             }
         }
@@ -171,30 +170,46 @@ export class VertexManagerImpl implements VertexManager {
     private executeVertex(vertex: Vertex): void {
         if (vertex.status === VertexStatus.Finished) {
             this.onVertexFinished(vertex.id);
+            return;
         }
+        this.events.emit(VERTEX_MANAGER_LOG, { level: 'info', message: 'start executing vertex ( ' + vertex.id + ' )' });
         const vertexLogger = this._vertexLoggerDict[vertex.id];
         const vertexRepo = this._databaseService.getVertexRepository();
-        const jobMessage = this._job.jobMessage;
         vertex.videoProcessor = this._processorFactory(vertex.actionType);
+        vertex.videoProcessor.registerLogHandler((logChunk, ch) => {
+            if (ch === 'stderr') {
+                vertexLogger.error(logChunk);
+            } else {
+                vertexLogger.info(logChunk);
+            }
+        });
         vertex.status = VertexStatus.Running;
         vertex.startTime = new Date();
         vertexRepo.save(vertex)
             .then(() => {
-                vertexLogger.info('prepare for processing');
-                return vertex.videoProcessor.prepare(jobMessage, vertex);
-            })
-            .then(() => {
-                vertexLogger.info('start processing');
-                return vertex.videoProcessor.process(vertex);
-            })
-            .then((output) => {
-                vertexLogger.info(`vertex finished, output: ${output}`);
-                this.onVertexFinished(vertex.id);
-            })
-            .catch((error) => {
-                vertexLogger.error(error);
-                this.onVertexError(vertex.id, error);
+                return this.executeVertexAsync(vertex, vertexLogger, vertexRepo);
             });
+    }
+
+    private async executeVertexAsync(vertex: Vertex, vertexLogger: pino.Logger, vertexRepo: VertexRepository): Promise<void> {
+        const jobMessage = this._job.jobMessage;
+        try {
+            vertexLogger.info('prepare for processing');
+            await vertex.videoProcessor.prepare(jobMessage, vertex);
+            vertexLogger.info('start processing');
+            vertex.outputPath = await vertex.videoProcessor.process(vertex);
+            vertexLogger.info(`vertex finished, output: ${vertex.outputPath}`);
+            await vertexRepo.save(vertex);
+            await vertex.videoProcessor.dispose();
+            this.onVertexFinished(vertex.id);
+            vertexLogger.info(`vertex finalized`);
+        } catch (error) {
+            vertexLogger.error(error);
+            this.onVertexError(vertex.id, error);
+            await vertex.videoProcessor.dispose();
+        } finally {
+            vertex.videoProcessor = null;
+        }
     }
 
     private onVertexFinished(vertexId: string): void {
@@ -210,16 +225,13 @@ export class VertexManagerImpl implements VertexManager {
                             // this vertex is terminal vertex
                             this.events.emit(TERMINAL_VERTEX_FINISHED);
                         } else {
-                            // find downstream vertices and execute if its all upstream vertices is finished.
+                            // find downstream vertices and execute them if all their upstream vertices are finished.
                             for (const vxId of vertex.downstreamVertexIds) {
                                 this.addVertexToQueue(vxId);
                             }
                         }
-                        // clean up videoProcessor
-                        return vertex.videoProcessor.dispose();
                     })
                     .catch((error) => {
-                        vertex.videoProcessor = null;
                         this._vertexLoggerDict[vertexId].error(error);
                     });
             });
@@ -229,9 +241,10 @@ export class VertexManagerImpl implements VertexManager {
         const vertexRepo = this._databaseService.getVertexRepository();
         vertexRepo.findOne({id: vertexId})
             .then((vertex: Vertex) => {
-                vertex.status = VertexStatus.Error;
                 error.vertexId = vertexId;
                 error.errorType = 'ERR_VERTEX_FAIL';
+                vertex.status = VertexStatus.Error;
+                vertex.error = error;
                 this.events.emit(EVENT_VERTEX_FAIL, error);
                 return vertexRepo.save(vertex);
             })

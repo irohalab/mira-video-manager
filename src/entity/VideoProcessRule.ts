@@ -23,7 +23,7 @@ import { ActionMap } from '../domains/ActionMap';
 @Entity({customRepository: () => VideoProcessRuleRepository})
 export class VideoProcessRule {
 
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
     public id: string = randomUUID();
 
     @Property({

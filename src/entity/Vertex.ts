@@ -25,13 +25,13 @@ import { ActionType } from '../domains/ActionType';
 @Entity({ customRepository: () => VertexRepository })
 export class Vertex {
 
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
     public id: string = randomUUID();
 
     @Property()
     public jobId: string;
 
-    @Enum()
+    @Enum(() => VertexStatus)
     public status: VertexStatus;
 
     @Property({
@@ -46,7 +46,13 @@ export class Vertex {
     })
     public downstreamVertexIds: string[] = [];
 
-    @Property()
+    /**
+     * Result of the vertex
+     */
+    @Property({
+        type: 'text',
+        nullable: true
+    })
     public outputPath: string;
 
     @Property({
@@ -55,7 +61,7 @@ export class Vertex {
     })
     public action: Action;
 
-    @Enum()
+    @Enum(() => ActionType)
     public actionType: ActionType;
 
     @Property({
@@ -72,6 +78,12 @@ export class Vertex {
     })
     public finishedTime: Date;
 
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb',
+        nullable: true
+    })
+    public error: any;
 
     // not serialized
     public videoProcessor: VideoProcessor;

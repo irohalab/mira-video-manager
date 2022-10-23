@@ -14,17 +14,11 @@
  * limitations under the License.
  */
 
-import { Job } from '../entity/Job';
-import { EventEmitter } from 'events';
+import { DatabaseService } from '../services/DatabaseService';
 
-export interface VertexManager {
-    events: EventEmitter;
-    createAllVertices(job: Job): Promise<void>;
-    start(job: Job, jobLogPath: string): Promise<void>;
-    stop(): Promise<void>;
-    cancelVertices(): Promise<void>;
+export async function verifySession(payload: any, dbService: DatabaseService): Promise<boolean> {
+    if (!payload || !payload.sessionid) {
+        return false;
+    }
+    return await dbService.getSessionRepository().verify(payload.sessionid);
 }
-
-export const EVENT_VERTEX_FAIL = 'vertex_fail';
-export const TERMINAL_VERTEX_FINISHED = 'terminal_vertex_finished';
-export const VERTEX_MANAGER_LOG = 'vertex_manager_log';

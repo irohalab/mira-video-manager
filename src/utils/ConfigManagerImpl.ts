@@ -228,6 +228,6 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public jobLogPath(): string {
-        return this._config.jobLogPath;
+        return ConfigManagerImpl.processPath(this._config.jobLogPath);
     }
 }

@@ -64,29 +64,29 @@ export class LocalConvertProcessor implements VideoProcessor {
         let subtitleFilePath = null;
         let audioFilePath = null;
         for (const upstreamVertex of this.upstreamVertices) {
-            const actionOutputPath = upstreamVertex.outputPath;
+            const vertexOutputPath = upstreamVertex.outputPath;
             switch (upstreamVertex.actionType) {
                 case ActionType.Convert:
-                    videoFilePath = actionOutputPath;
+                    videoFilePath = vertexOutputPath;
                     break;
                 case ActionType.Extract:
                     const extractAction = upstreamVertex.action as ExtractAction;
                     switch(extractAction.extractTarget) {
                         case ExtractTarget.KeepContainer:
-                            const ext = extname(actionOutputPath);
+                            const ext = extname(vertexOutputPath);
                             if (!videoFilePath && VIDEO_FILE_EXT.includes(ext)) {
-                                videoFilePath = actionOutputPath;
+                                videoFilePath = vertexOutputPath;
                             } else if (!audioFilePath && AUDIO_FILE_EXT.includes(ext)) {
-                                audioFilePath = actionOutputPath;
+                                audioFilePath = vertexOutputPath;
                             } else if (!subtitleFilePath && SUBTITLE_EXT.includes(ext)) {
-                                subtitleFilePath = actionOutputPath;
+                                subtitleFilePath = vertexOutputPath;
                             }
                             break;
                         case ExtractTarget.AudioStream:
-                            audioFilePath = actionOutputPath;
+                            audioFilePath = vertexOutputPath;
                             break;
                         case ExtractTarget.Subtitle:
-                            subtitleFilePath = actionOutputPath;
+                            subtitleFilePath = vertexOutputPath;
                             break;
                     }
                     break;
@@ -137,7 +137,7 @@ export class LocalConvertProcessor implements VideoProcessor {
                 });
                 child.on('close', (code) => {
                     if (code !== 0) {
-                        reject('ffmpeg exited with non 0 code');
+                        reject(new Error('ffmpeg exited with non 0 code'));
                         return;
                     }
                     resolve();

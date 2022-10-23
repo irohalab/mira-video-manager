@@ -20,7 +20,7 @@
 
 import 'reflect-metadata';
 import { hostname } from 'os';
-import { Container } from 'inversify';
+import { Container, interfaces } from 'inversify';
 import { LocalConvertProcessor } from './processors/LocalConvertProcessor';
 import { ConfigManager } from './utils/ConfigManager';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
@@ -35,8 +35,15 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 import pino from 'pino';
-import { AmqplibImpl, RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
+import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from './TYPES';
+import { JobManager } from './JobManager/JobManager';
+import { VertexManager } from './JobManager/VertexManager';
+import { VertexManagerImpl } from './JobManager/VertexManagerImpl';
+import { LocalExtractProcessor } from './processors/LocalExtractProcessor';
+import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { Extractor } from './processors/extractors/Extractor';
+import { ExtractorFactory, ExtractorInitiator } from './processors/ExtractorFactory';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
@@ -51,18 +58,26 @@ container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
 const sentry = container.get<Sentry>(TYPES.Sentry);
 sentry.setup(`${startAs}_${hostname()}`, 'mira-video-manager', version);
 
-
-container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
-container.bind<RabbitMQService>(TYPES.RabbitMQService).to(AmqplibImpl).inSingletonScope();
+container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 
-// factory provider
-container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
-container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
-
 if (startAs === JOB_EXECUTOR) {
+    // VideoProcessor
+    container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
+    container.bind<LocalExtractProcessor>(TYPES_VM.LocalExtractProcessor).to(LocalExtractProcessor);
+    // factory provider
+    container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+    container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+    container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
+    // JobManager and Auto factory
+    container.bind<JobManager>(TYPES_VM.JobManager).to(JobManager);
+    container.bind<interfaces.Factory<JobManager>>(TYPES_VM.JobManagerFactory).toAutoFactory<JobManager>(TYPES_VM.JobManager);
+    // VertexManager and Auto factory
+    container.bind<VertexManager>(TYPES_VM.VertexManager).to(VertexManagerImpl);
+    container.bind<interfaces.Factory<VertexManager>>(TYPES_VM.VertexManagerFactory).toAutoFactory<VertexManager>(TYPES_VM.VertexManager);
+    // JobExecutor
     container.bind<JobExecutor>(TYPES_VM.JobApplication).to(JobExecutor);
 } else if (startAs === JOB_SCHEDULER) {
     container.bind<JobScheduler>(TYPES_VM.JobApplication).to(JobScheduler);

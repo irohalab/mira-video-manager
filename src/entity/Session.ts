@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-import { Job } from '../entity/Job';
-import { EventEmitter } from 'events';
+import { randomUUID } from 'crypto';
+import { DateTimeType, Entity, EntityRepositoryType, PrimaryKey, Property } from '@mikro-orm/core';
+import { SessionRepository } from '../repository/SessionRepository';
 
-export interface VertexManager {
-    events: EventEmitter;
-    createAllVertices(job: Job): Promise<void>;
-    start(job: Job, jobLogPath: string): Promise<void>;
-    stop(): Promise<void>;
-    cancelVertices(): Promise<void>;
+@Entity({customRepository: () => SessionRepository})
+export class Session {
+
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
+    public id: string = randomUUID();
+
+    @Property({
+        type: DateTimeType,
+        columnType: 'timestamp',
+        nullable: false
+    })
+    public expire: Date;
+
+    [EntityRepositoryType]?: SessionRepository;
 }
-
-export const EVENT_VERTEX_FAIL = 'vertex_fail';
-export const TERMINAL_VERTEX_FINISHED = 'terminal_vertex_finished';
-export const VERTEX_MANAGER_LOG = 'vertex_manager_log';

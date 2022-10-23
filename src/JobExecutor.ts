@@ -86,14 +86,14 @@ export class JobExecutor implements JobApplication {
 
         this.id = await this._configManager.jobExecutorId();
 
-        await this.resumeJob();
         this.removeOldFiles();
 
-        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
         await this._rabbitmqService.consume(JOB_QUEUE, this.onJobReceived.bind(this));
         await this._rabbitmqService.consume(COMMAND_QUEUE, this.onCommandReceived.bind(this));
+        await this.resumeJob();
     }
 
     public async stop(): Promise<void> {
@@ -172,18 +172,18 @@ export class JobExecutor implements JobApplication {
                 return vx.outputPath;
             });
             await this.notifyFinished(job, outputPathList);
+            this.isIdle = true;
         });
 
         this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, (failedJob: Job) => {
             // TODO: notify failed
+            this.isIdle = true;
         });
         try {
             await this.currentJM.start(job.id, this.id);
         } catch (error) {
             logger.error(error);
             this._sentry.capture(error);
-        } finally {
-            this.isIdle = true;
         }
     }
 

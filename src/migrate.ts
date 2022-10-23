@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import 'reflect-metadata';
 
 import { Container } from 'inversify';
 import { ConfigManager } from './utils/ConfigManager';
@@ -21,11 +22,17 @@ import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { MikroORM } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import * as util from 'util';
+import { DatabaseService } from './services/DatabaseService';
+import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
+import { createInterface } from 'readline';
+import { stdin, stdout } from 'node:process';
 
 const container = new Container();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl);
+container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl);
 
 const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+const dbService= container.get<DatabaseService>(TYPES.DatabaseService);
 
 function showHelpText() {
     console.log(`
@@ -34,6 +41,7 @@ function showHelpText() {
                 --generate -i    generate a migration file
                 --init     -i    generate and complete init migration
                 --upgrade  -u    upgrade to latest migration.
+                --sync     -s    drop current schema and sync schema with current entities. to bypass prompt, combine with --silent
         `);
 }
 
@@ -43,7 +51,7 @@ function showHelpText() {
     const cmdArgs = process.argv.slice(2);
     let operation: string;
     let result: any;
-    if (cmdArgs && cmdArgs.length === 1) {
+    if (cmdArgs && cmdArgs.length >= 1) {
         operation = cmdArgs[0];
         switch (operation) {
             case '--generate':
@@ -58,6 +66,34 @@ function showHelpText() {
             case '-u':
                 result = await migrator.up();
                 break;
+            case '--sync':
+            case '-s':
+                const rl = createInterface({
+                    input: stdin,
+                    output: stdout
+                });
+                let answer;
+                if (cmdArgs.length === 2 && cmdArgs[1] === '--silent') {
+                    answer = 'y';
+                } else {
+                    answer = await new Promise((resolve, reject) => {
+                        rl.question('This will drop all tables and you will lose data, do you want to proceeed? (y/n)', (ans) => {
+                            if (ans === 'y' || ans === 'n') {
+                                resolve(ans);
+                            } else {
+                                reject('invalid answer, must be y or n');
+                            }
+                        });
+                    });
+                }
+                if (answer === 'y') {
+                    await dbService.start();
+                    result = await dbService.initSchema();
+                    console.log('schema synced!');
+                    process.exit(0);
+                    return;
+                }
+                break;
             default:
                 showHelpText();
         }
@@ -65,5 +101,5 @@ function showHelpText() {
         showHelpText();
     }
     console.log(util.inspect(result, {depth: 2}));
-
+    process.exit(0);
 })();

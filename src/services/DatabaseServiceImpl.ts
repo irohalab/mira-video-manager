@@ -24,6 +24,11 @@ import { Job } from '../entity/Job';
 import { VideoProcessRule } from '../entity/VideoProcessRule';
 import { VertexRepository } from '../repository/VertexRepository';
 import { Vertex } from '../entity/Vertex';
+import { SessionRepository } from '../repository/SessionRepository';
+import { Session } from '../entity/Session';
+import { getStdLogger } from '../utils/Logger';
+
+const logger = getStdLogger();
 
 @injectable()
 export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements DatabaseService {
@@ -42,5 +47,17 @@ export class DatabaseServiceImpl extends BasicDatabaseServiceImpl implements Dat
 
     public getVertexRepository(useRequestContext?: boolean): VertexRepository {
         return this._em .fork({useContext: useRequestContext}).getRepository(Vertex);
+    }
+
+    public getSessionRepository(useRequestContext?: boolean): SessionRepository {
+        return this._em.fork({useContext: useRequestContext}).getRepository(Session);
+    }
+
+    public async initSchema(): Promise<void> {
+        try {
+            await this.syncSchema();
+        } catch (e) {
+            logger.error(e);
+        }
     }
 }

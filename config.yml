@@ -51,4 +51,4 @@ ApiWebServer:
   port: 8083
 
 # base path for job log.
-jobLogPath: '/var/log/mira-video-manager/jobs'
+jobLogPath: '${project_root}/log/jobs'

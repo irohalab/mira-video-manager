@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-import {
-    controller,
-    httpDelete,
-    httpGet,
-    httpPost,
-    httpPut,
-    interfaces,
-    requestParam
-} from 'inversify-express-utils';
+import { controller, httpDelete, httpGet, httpPost, httpPut, interfaces, requestParam } from 'inversify-express-utils';
 import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { VideoProcessRuleService } from '../../services/VideoProcessRuleService';
 import { ConditionParser } from '../../utils/ConditionParser';
 import { ResponseWrapper, TokenCheckException } from '@irohalab/mira-shared';
+import { ActionType } from '../../domains/ActionType';
+import { ExtractAction } from '../../domains/ExtractAction';
 
 @controller('/rule')
 export class RuleController implements interfaces.Controller {
@@ -57,18 +51,27 @@ export class RuleController implements interfaces.Controller {
     public async addRule(request: Request): Promise<ResponseWrapper<VideoProcessRule>> {
         const rule = request.body as VideoProcessRule;
 
-        try {
-            if (rule.condition) {
-                const conditionParser = new ConditionParser(rule.condition, null, null);
-                conditionParser.tokenCheck();
-            }
-            return {
-                data: await this._videoProcessRuleService.addRule(rule),
-                status: 0
-            };
-        } catch (ex) {
-            throw ex;
+        if (rule.condition) {
+            const conditionParser = new ConditionParser(rule.condition, null, null);
+            conditionParser.tokenCheck();
         }
+
+        if (rule.actions) {
+            Object.keys(rule.actions).forEach(actId => {
+                const action = rule.actions[actId];
+                // auto correction for extractId
+                if (action && action.type === ActionType.Extract) {
+                    (action as ExtractAction).extractorId = 'Default';
+                }
+            });
+        } else {
+            throw new Error('No Actions');
+        }
+
+        return {
+            data: await this._videoProcessRuleService.addRule(rule),
+            status: 0
+        };
     }
 
     @httpPut('/:id')

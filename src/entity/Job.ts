@@ -32,7 +32,7 @@ import { ActionMap } from '../domains/ActionMap';
 @Entity({customRepository: () => JobRepository})
 export class Job {
 
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
     public id: string = randomUUID();
 
     @Property()
@@ -50,13 +50,7 @@ export class Job {
     })
     public actionMap: ActionMap;
 
-    /**
-     * index of current action to be or being executed from actions array.
-     */
-    @Property()
-    public progress: number;
-
-    @Enum()
+    @Enum(() => JobStatus)
     public status: JobStatus = JobStatus.Queueing;
 
     @Property({

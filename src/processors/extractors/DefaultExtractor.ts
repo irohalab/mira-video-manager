@@ -128,15 +128,19 @@ export class DefaultExtractor implements Extractor {
     }
 
     private findInputAndOutputPath(): void {
-        let extName: string;
+        let extensionName: string;
         switch(this.action.extractTarget) {
             case ExtractTarget.KeepContainer:
                 if (this.action.extractFrom === ExtractSource.OtherFiles) {
                     this.inputPath = this.findFile(this.action.otherFilePaths, 'video');
+                } else {
+                    this.inputPath = this.action.videoFilePath;
                 }
-                return;
+                extensionName = extname(this.inputPath);
+                extensionName = extensionName.startsWith('.') ? extensionName.substring(1) : extensionName;
+                break;
             case ExtractTarget.AudioStream:
-                extName = this.action.outputExtname || 'aac';
+                extensionName = this.action.outputExtname || 'aac';
                 if (this.action.extractFrom === ExtractSource.VideoFile) {
                     this.inputPath = this.action.videoFilePath;
                 } else {
@@ -149,9 +153,9 @@ export class DefaultExtractor implements Extractor {
                 } else {
                     this.inputPath = this.action.videoFilePath;
                 }
-                extName = this.action.outputExtname || 'vtt';
+                extensionName = this.action.outputExtname || 'vtt';
                 break;
         }
-        this.vertex.outputPath = this.vertex.outputPath + '.' + extName;
+        this.vertex.outputPath = this.vertex.outputPath + '.' + extensionName;
     }
 }

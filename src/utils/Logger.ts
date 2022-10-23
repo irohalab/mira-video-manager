@@ -22,21 +22,19 @@ import pino from 'pino';
  */
 export function getFileLogger(filePath: string): pino.Logger {
     return pino({
-        transport: {
-            target: 'pino/file',
-            options: {
-                destination: filePath,
-                mkdir: true
-            }
-        },
-        timestamp: pino.stdTimeFunctions.isoTime,
-        base: undefined
-    });
+        timestamp: pino.stdTimeFunctions.isoTime
+    }, pino.destination({
+        dest: filePath,
+        sync: true,
+        mkdir: true
+    }));
 }
 
-export function getStdLogger(base: any): pino.Logger {
+export function getStdLogger(base?: any): pino.Logger {
     return pino({
         timestamp: pino.stdTimeFunctions.isoTime,
         base
     });
 }
+
+export const LOG_END_FLAG = 'LOG_END';

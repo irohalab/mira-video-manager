@@ -31,3 +31,5 @@ export class CommandMessage implements MQMessage {
 }
 
 export const CMD_CANCEL  = 'cancel';
+export const CMD_PAUSE = 'pause';
+export const CMD_RESUME = 'resume';

@@ -21,13 +21,13 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Job } from '../entity/Job';
 import { JobStatus } from '../domains/JobStatus';
 import { join } from 'path';
-import { getFileLogger } from '../utils/Logger';
+import { getFileLogger, LOG_END_FLAG } from '../utils/Logger';
 import pino from 'pino';
 import { TYPES_VM } from '../TYPES';
 import { Vertex } from '../entity/Vertex';
 import { VertexStatus } from '../domains/VertexStatus';
 import { EventEmitter } from 'events';
-import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VertexManager } from './VertexManager';
+import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
 
 @injectable()
 export class JobManager {
@@ -66,11 +66,23 @@ export class JobManager {
         this._job = await jobRepo.save(this._job) as Job;
 
         // register event listeners
+        this._vm.events.on(VERTEX_MANAGER_LOG, ({level, message}: {level: string, message: any}) => {
+            if (level === 'error') {
+                this._jobLogger.error(message);
+            } else if (level === 'info') {
+                this._jobLogger.info(message);
+            } else if (level === 'warn') {
+                this._jobLogger.warn(message);
+            }
+        });
+
         this._vm.events.on(EVENT_VERTEX_FAIL, async (error) => {
             this._jobLogger.error(error);
             this._job.status = JobStatus.UnrecoverableError;
             this._job = await jobRepo.save(this._job) as Job;
             this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+            this._jobLogger.error('Job failed with vertex failure');
+            this._jobLogger.info(LOG_END_FLAG);
         });
 
         this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
@@ -83,6 +95,8 @@ export class JobManager {
                 this._job.status = JobStatus.Finished;
                 this._job.finishedTime = new Date();
                 this.events.emit(JobManager.EVENT_JOB_FINISHED, this._job.id);
+                this._jobLogger.info('Job finished successfully!');
+                this._jobLogger.info(LOG_END_FLAG);
             }
         });
 
@@ -99,6 +113,8 @@ export class JobManager {
             this._job.status = JobStatus.Canceled;
             this._job = await jobRepo.save(this._job) as Job;
             await this._vm.cancelVertices();
+            this._jobLogger.warn('job canceled');
+            this._jobLogger.info(LOG_END_FLAG);
         }
     }
 
@@ -113,6 +129,7 @@ export class JobManager {
             this._job = await jobRepo.save(this._job) as Job;
             await this._vm.cancelVertices();
             this._jobLogger.info('job paused.');
+            this._jobLogger.info(LOG_END_FLAG);
         }
         return null;
     }
