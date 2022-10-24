@@ -15,7 +15,7 @@
  */
 
 import { inject, injectable, interfaces } from 'inversify';
-import { TYPES } from '@irohalab/mira-shared';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
 import { ConfigManager } from '../utils/ConfigManager';
 import { Job } from '../entity/Job';
@@ -41,7 +41,8 @@ export class JobManager {
 
     constructor(@inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES_VM.VertexManagerFactory) private _vmFactory: interfaces.AutoFactory<VertexManager>) {
+                @inject(TYPES_VM.VertexManagerFactory) private _vmFactory: interfaces.AutoFactory<VertexManager>,
+                @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
     public async start(jobId: string, jobExecutorId: string): Promise<void> {
@@ -77,27 +78,39 @@ export class JobManager {
         });
 
         this._vm.events.on(EVENT_VERTEX_FAIL, async (error) => {
-            this._jobLogger.error(error);
-            this._job.status = JobStatus.UnrecoverableError;
-            this._job = await jobRepo.save(this._job) as Job;
-            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-            this._jobLogger.error('Job failed with vertex failure');
-            this._jobLogger.info(LOG_END_FLAG);
+            try {
+                this._jobLogger.error(error);
+                this._job.status = JobStatus.UnrecoverableError;
+                this._job = await jobRepo.save(this._job) as Job;
+                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+                this._jobLogger.error('Job failed with vertex failure');
+                this._jobLogger.info(LOG_END_FLAG);
+            } catch (err) {
+                this._jobLogger.error(err);
+                this._jobLogger.info(LOG_END_FLAG);
+                this._sentry.capture(err);
+            }
         });
 
         this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
-            const vertexRepo = this._databaseService.getVertexRepository();
-            const vertexMap = await vertexRepo.getVertexMap(this._job.id);
-            const allVerticesFinished = Object.keys(vertexMap).every((vertexId: string) => {
-                return vertexMap[vertexId].status === VertexStatus.Finished;
-            });
-            if (allVerticesFinished) {
-                this._job.status = JobStatus.Finished;
-                this._job.finishedTime = new Date();
-                this._job = await jobRepo.save(this._job) as Job;
-                this.events.emit(JobManager.EVENT_JOB_FINISHED, this._job.id);
-                this._jobLogger.info('Job finished successfully!');
+            try {
+                const vertexRepo = this._databaseService.getVertexRepository();
+                const vertexMap = await vertexRepo.getVertexMap(this._job.id);
+                const allVerticesFinished = Object.keys(vertexMap).every((vertexId: string) => {
+                    return vertexMap[vertexId].status === VertexStatus.Finished;
+                });
+                if (allVerticesFinished) {
+                    this._job.status = JobStatus.Finished;
+                    this._job.finishedTime = new Date();
+                    this._job = await jobRepo.save(this._job) as Job;
+                    this.events.emit(JobManager.EVENT_JOB_FINISHED, this._job.id);
+                    this._jobLogger.info('Job finished successfully!');
+                    this._jobLogger.info(LOG_END_FLAG);
+                }
+            } catch (error) {
+                this._jobLogger.error(error);
                 this._jobLogger.info(LOG_END_FLAG);
+                this._sentry.capture(error);
             }
         });
 
@@ -139,6 +152,7 @@ export class JobManager {
         if (this._vm) {
             await this._vm.stop();
             this._vm.events.removeAllListeners();
+            this._vm = null;
         }
         // clean up
     }

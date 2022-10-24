@@ -44,11 +44,12 @@ import {
 } from '@irohalab/mira-shared';
 import { JobManager } from './JobManager/JobManager';
 import { randomUUID } from 'crypto';
+import { getStdLogger } from './utils/Logger';
 
 const sleep = promisify(setTimeout);
 const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class JobExecutor implements JobApplication {
@@ -108,12 +109,22 @@ export class JobExecutor implements JobApplication {
         if (this.isIdle) {
             const jobRepo = this._databaseService.getJobRepository();
             const job = await jobRepo.findOne({jobMessageId: msg.id});
-            console.log(msg.id + ' message received');
+            logger.info(msg.id + ' message received');
             if (job) {
-                this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
-                return true;
+                try {
+                    await this.processJob(job);
+                    logger.info('job processed');
+                } catch (err) {
+                    logger.error(err);
+                    this._sentry.capture(err);
+                }
+            } else {
+                // In this case, just do nothing and log error.
+                const error = new Error('no job found in database');
+                logger.error(error);
+                this._sentry.capture(error);
             }
-            throw new Error('no job found in database');
+            return true;
         } else {
             await sleep(3000);
             return false;
@@ -137,27 +148,37 @@ export class JobExecutor implements JobApplication {
 
     private async cancelJob(job: Job, jobRepo: JobRepository): Promise<void> {
         if (this.currentJM) {
-            await this.currentJM.cancel();
+            try {
+                await this.currentJM.cancel();
+            } catch (error) {
+                logger.error(error);
+                this._sentry.capture(error);
+            }
         }
     }
 
     private async pauseJob(): Promise<void> {
         if (this.currentJM) {
-            await this.currentJM.pause();
+            try {
+                await this.currentJM.pause();
+            } catch (error) {
+                logger.error(error);
+                this._sentry.capture(error);
+            }
         }
     }
 
     private async resumeJob(): Promise<void> {
-        const jobRepo = this._databaseService.getJobRepository();
-        const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
-        if (job) {
-            this.processJob(job)
-                .then(() => {
-                    logger.info('job processed');
-                }, (error) => {
-                    logger.error(error);
-                    this._sentry.capture(error);
-                });
+        try {
+            const jobRepo = this._databaseService.getJobRepository();
+            const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
+            if (job) {
+                await this.processJob(job);
+                logger.info('job processed');
+            }
+        } catch (err) {
+            logger.error(err);
+            this._sentry.capture(err);
         }
     }
 
@@ -165,19 +186,28 @@ export class JobExecutor implements JobApplication {
         this.isIdle = false;
         this.currentJM = this._jmFactory();
         this.currentJM.events.on(JobManager.EVENT_JOB_FINISHED, async (finishedJobId: string) => {
-            // TODO: finish job
             // find all output path
-            const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
-            const outputPathList = outputVertices.map(vx => {
-                return vx.outputPath;
-            });
-            await this.notifyFinished(job, outputPathList);
-            this.isIdle = true;
+            try {
+                const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
+                const outputPathList = outputVertices.map(vx => {
+                    return vx.outputPath;
+                });
+                await this.notifyFinished(job, outputPathList);
+                await this.finalizeJM();
+            } catch (err) {
+                logger.error(err);
+                this._sentry.capture(err);
+            }
         });
 
-        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, (failedJob: Job) => {
+        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, async (failedJob: Job) => {
             // TODO: notify failed
-            this.isIdle = true;
+            try {
+                await this.finalizeJM();
+            } catch (err) {
+                logger.error(err);
+                this._sentry.capture(err);
+            }
         });
         try {
             await this.currentJM.start(job.id, this.id);
@@ -237,5 +267,14 @@ export class JobExecutor implements JobApplication {
             await this._fileManageService.cleanUpFiles(job.jobMessageId);
             logger.info(`cleaned failed job ${job.id} files`);
         }
+    }
+
+    private async finalizeJM(): Promise<void> {
+        if (this.currentJM) {
+            this.currentJM.events.removeAllListeners();
+            await this.currentJM.dispose();
+            this.currentJM = null;
+        }
+        this.isIdle = true;
     }
 }
