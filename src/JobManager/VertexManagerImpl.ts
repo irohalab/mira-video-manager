@@ -26,7 +26,7 @@ import { DatabaseService } from '../services/DatabaseService';
 import { VertexStatus } from '../domains/VertexStatus';
 import { ConfigManager } from '../utils/ConfigManager';
 import { EventEmitter } from 'events';
-import { getFileLogger } from '../utils/Logger';
+import { getFileLogger, LOG_END_FLAG } from '../utils/Logger';
 import { join } from 'path';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
 import { VertexMap } from '../domains/VertexMap';
@@ -202,7 +202,6 @@ export class VertexManagerImpl implements VertexManager {
             await vertexRepo.save(vertex);
             await vertex.videoProcessor.dispose();
             this.onVertexFinished(vertex.id);
-            vertexLogger.info(`vertex finalized`);
         } catch (error) {
             vertexLogger.error(error);
             this.onVertexError(vertex.id, error);
@@ -230,9 +229,12 @@ export class VertexManagerImpl implements VertexManager {
                                 this.addVertexToQueue(vxId);
                             }
                         }
+                        this._vertexLoggerDict[vertexId].info(`vertex finalized`);
+                        this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
                     })
                     .catch((error) => {
-                        this._vertexLoggerDict[vertexId].error(error);
+                        this._vertexLoggerDict[vertexId].info(error);
+                        this.onVertexError(vertexId, error);
                     });
             });
     }
@@ -248,10 +250,14 @@ export class VertexManagerImpl implements VertexManager {
                 this.events.emit(EVENT_VERTEX_FAIL, error);
                 return vertexRepo.save(vertex);
             })
+            .then(() => {
+                this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+            })
             .catch((err) => {
                 // save error
                 this._sentry.capture(err);
                 this._vertexLoggerDict[vertexId].error(err);
+                this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
             });
     }
 }

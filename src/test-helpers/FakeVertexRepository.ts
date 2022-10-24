@@ -22,6 +22,7 @@ import { Loaded } from '@mikro-orm/core/typings';
 
 let vertexMap: {[jobId: string]:VertexMap} = {};
 let dbDict: VertexMap = {};
+let visited: {[vxId: string]: boolean} = {};
 
 export class FakeVertexRepository extends VertexRepository {
 
@@ -62,5 +63,14 @@ export class FakeVertexRepository extends VertexRepository {
     public reset(): void {
         vertexMap = {};
         dbDict = {};
+        visited = {};
+    }
+
+    public markVisited(vertexId: string): void {
+        visited[vertexId] = true;
+    }
+
+    public isVisited(vertexId: string): boolean {
+        return visited[vertexId] === true;
     }
 }

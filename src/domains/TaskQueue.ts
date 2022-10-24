@@ -32,10 +32,14 @@ export class TaskQueue<T> {
             this.head = new TaskQueue<T>();
             this.head.value = v;
             this.tail = this.head;
+            return;
         }
         let curr = this.head;
+        if (curr.value === v) {
+            return;
+        }
         while(curr.next) {
-            if (curr.value === v) {
+            if (curr.next.value === v) {
                 return;
             }
             curr = curr.next;

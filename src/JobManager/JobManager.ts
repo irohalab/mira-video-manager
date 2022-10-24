@@ -94,6 +94,7 @@ export class JobManager {
             if (allVerticesFinished) {
                 this._job.status = JobStatus.Finished;
                 this._job.finishedTime = new Date();
+                this._job = await jobRepo.save(this._job) as Job;
                 this.events.emit(JobManager.EVENT_JOB_FINISHED, this._job.id);
                 this._jobLogger.info('Job finished successfully!');
                 this._jobLogger.info(LOG_END_FLAG);

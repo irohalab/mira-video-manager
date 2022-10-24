@@ -21,6 +21,7 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
 import { VertexStatus } from '../domains/VertexStatus';
+import { FakeVertexRepository } from './FakeVertexRepository';
 
 @injectable()
 export class FakeVideoProcessor implements VideoProcessor {
@@ -37,6 +38,11 @@ export class FakeVideoProcessor implements VideoProcessor {
     }
 
     public async prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+        const vertexRepo = this._databaseService.getVertexRepository();
+        if ((vertexRepo as FakeVertexRepository).isVisited(vertex.id)) {
+            throw new Error(`Vertex ${vertex.id}  have been visited twice!`);
+        }
+        (vertexRepo as FakeVertexRepository).markVisited(vertex.id);
         const actionMap = jobMessage.actions;
         const allUpstreamActionIds = vertex.action.upstreamActionIds;
         if (allUpstreamActionIds.length === 0) {
@@ -46,7 +52,7 @@ export class FakeVideoProcessor implements VideoProcessor {
         if (vertex.upstreamVertexIds.length !== allUpstreamActionIds.length) {
             throw new Error('Vertex UpstreamIds\' count unmatched the action UpstreamIds\'');
         }
-        const vertexRepo = this._databaseService.getVertexRepository();
+
         const vertexMap = await vertexRepo.getVertexMap(jobMessage.jobId);
 
         for(const vtxId of vertex.upstreamVertexIds) {

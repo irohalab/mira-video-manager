@@ -59,7 +59,7 @@ test.afterEach((t) => {
     vxRepo.reset();
 });
 
-test.serial('execute vertices by its order defined with a graph', async(t) => {
+test.serial('execute vertices by their order defined by a graph', async(t) => {
     const context = t.context as Cxt;
     const container = context.container;
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
