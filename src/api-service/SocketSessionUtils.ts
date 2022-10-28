@@ -17,8 +17,8 @@
 import { DatabaseService } from '../services/DatabaseService';
 
 export async function verifySession(payload: any, dbService: DatabaseService): Promise<boolean> {
-    if (!payload || !payload.sessionid) {
+    if (!payload || !payload.sessionId) {
         return false;
     }
-    return await dbService.getSessionRepository().verify(payload.sessionid);
+    return await dbService.getSessionRepository().verify(payload.sessionId);
 }

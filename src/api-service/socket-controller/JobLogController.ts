@@ -23,33 +23,40 @@ import { verifySession } from '../SocketSessionUtils';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join } from 'path';
 import { JobStatus } from '../../domains/JobStatus';
-import { LogControllerBase } from './LogControllerBase';
+import { closeSocketWithError, isFileExists, readToEnd, tailing } from '../log-streaming-helper';
 
 @injectable()
 @controller('/job-log')
-export class JobLogController extends LogControllerBase {
+export class JobLogController {
     constructor(@inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
-        super();
     }
-    @onMessage('get_jm_log')
+
+    @onMessage('log_stream')
     public async message(@connectedSocket() socket: Socket, @payload() msg: any): Promise<void> {
         const jobId = msg.jobId;
-        const jobLogPath = join(this._configManager.jobLogPath(), jobId);
+        const jobLogPath = join(this._configManager.jobLogPath(), jobId, 'job-log.json');
         if (!jobId) {
-            this.closeSocketWithError(socket, 'no job id');
+            closeSocketWithError(socket, 'no job id');
+            return;
         }
         if (!await verifySession(msg, this._databaseService)) {
-            this.closeSocketWithError(socket, 'no valid session');
+            closeSocketWithError(socket, 'no valid session');
+            return;
         }
-        if (!await this.isFileExists(jobLogPath)) {
-            this.closeSocketWithError(socket, 'log file does not exist');
+        if (!await isFileExists(jobLogPath)) {
+            closeSocketWithError(socket, 'log file does not exist');
+            return;
         }
         const job = await this._databaseService.getJobRepository(true).findOne({ id: jobId });
+        if (!job) {
+            closeSocketWithError(socket, 'job not exists');
+            return;
+        }
         if (job.status === JobStatus.Queueing || job.status === JobStatus.Running) {
-            this.tail(jobLogPath, socket);
+            tailing(jobLogPath, socket);
         } else {
-            this.readToEnd(jobLogPath, socket);
+            readToEnd(jobLogPath, socket);
         }
     }
 }

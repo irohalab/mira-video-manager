@@ -26,7 +26,6 @@ import { JobApplication } from './JobApplication';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
-import pino from 'pino';
 import {
     DOWNLOAD_MESSAGE_EXCHANGE,
     DOWNLOAD_MESSAGE_QUEUE,
@@ -41,11 +40,12 @@ import {
     VideoManagerMessage
 } from '@irohalab/mira-shared';
 import { randomUUID } from 'crypto';
+import { getStdLogger } from './utils/Logger';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class JobScheduler implements JobApplication {

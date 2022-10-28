@@ -20,11 +20,10 @@ import { ConfigManager } from './utils/ConfigManager';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './services/DatabaseService';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
-import { API_SERVER, bootstrap } from './api-service/bootstrap';
+import { bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
-import pino from 'pino';
 import {
     RabbitMQService,
     Sentry,
@@ -33,12 +32,12 @@ import {
     VIDEO_MANAGER_COMMAND,
     VIDEO_MANAGER_EXCHANGE
 } from '@irohalab/mira-shared';
-import { AmqpClientJSImpl } from '@irohalab/mira-shared/services/AmqpClientJSImpl';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { getStdLogger } from './utils/Logger';
 
 const startAs = process.env.START_AS;
 
-const logger = pino();
+const logger = getStdLogger();
 
 const container = new Container();
 container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
@@ -62,6 +61,7 @@ databaseService.start()
         return rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
     })
     .then(() => {
+        databaseService.clearExpiredSession();
         webServer = bootstrap(container, startAs);
     });
 

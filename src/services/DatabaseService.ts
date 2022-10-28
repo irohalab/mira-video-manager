@@ -26,4 +26,5 @@ export interface DatabaseService extends BaseDatabaseService {
     getVertexRepository(useRequestContext?: boolean): VertexRepository;
     getSessionRepository(useRequestContext?: boolean): SessionRepository;
     initSchema(): Promise<void>;
+    clearExpiredSession(): void;
 }

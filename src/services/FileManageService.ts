@@ -17,15 +17,15 @@
 import { inject, injectable } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { URL } from 'url';
-import { copyFile, readdir, unlink, stat, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
+import { dirname, join } from 'path';
 import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
 import axios from 'axios';
-import pino from 'pino';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class FileManageService {

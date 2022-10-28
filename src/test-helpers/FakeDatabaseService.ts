@@ -80,4 +80,8 @@ export class FakeDatabaseService implements DatabaseService {
     public syncSchema(): Promise<void> {
         throw new Error('Method not implemented.');
     }
+
+    public clearExpiredSession(): void {
+        throw new Error('Method not implemented.');
+    }
 }

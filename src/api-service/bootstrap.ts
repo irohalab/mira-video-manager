@@ -25,6 +25,9 @@ import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
 import { Server as SocketIOServer } from 'socket.io';
+import { interfaces, InversifySocketServer, TYPE } from 'inversify-socket-utils';
+import { JobLogController } from './socket-controller/JobLogController';
+import { VertexLogController } from './socket-controller/VertexLogController';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';
@@ -42,6 +45,9 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
         require('./controller/RuleController');
         // tslint:disable-next-line:no-var-requires
         require('./controller/JobController');
+
+        container.bind<interfaces.Controller>(TYPE.Controller).to(JobLogController).whenTargetNamed('JobLogController');
+        container.bind<interfaces.Controller>(TYPE.Controller).to(VertexLogController).whenTargetNamed('VertexLogController');
     } else {
         throw new Error('START_AS env not correct');
     }
@@ -70,17 +76,16 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
         port = configManager.ApiWebServerConfig().port;
     }
     const server = createServer(app);
-    const io = new SocketIOServer(server, {
-        cors: {
-            origin: 'http://localhost:3000'
-        }
-    });
-    io.on('connection', (socket) => {
-        // TODO: logic
-        socket.on('chat_message', (msg) => {
-            console.log('chat message: ' + msg);
+    if (startAs === API_SERVER) {
+        const io = new SocketIOServer(server, {
+            cors: {
+                origin: 'http://localhost:3000'
+            }
         });
-    });
+        const iss = new InversifySocketServer(container, io);
+        iss.build();
+    }
+
     server.listen(port, '0.0.0.0');
     logger.info('Server started on port ' + port);
     return server;

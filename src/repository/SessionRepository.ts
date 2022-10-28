@@ -37,4 +37,9 @@ export class SessionRepository extends BaseEntityRepository<Session> {
         }
         return false;
     }
+
+    public async cleanExpiredSession(): Promise<number> {
+        const currentTime = new Date();
+        return await this.nativeDelete({expire: {$lt: currentTime}});
+    }
 }

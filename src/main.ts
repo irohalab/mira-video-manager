@@ -34,7 +34,6 @@ import { JobScheduler } from './JobScheduler';
 import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
-import pino from 'pino';
 import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from './TYPES';
 import { JobManager } from './JobManager/JobManager';
@@ -44,12 +43,13 @@ import { LocalExtractProcessor } from './processors/LocalExtractProcessor';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { Extractor } from './processors/extractors/Extractor';
 import { ExtractorFactory, ExtractorInitiator } from './processors/ExtractorFactory';
+import { getStdLogger } from './utils/Logger';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
 const startAs = process.env.START_AS;
 
-const logger = pino();
+const logger = getStdLogger();
 
 const container = new Container();
 // tslint:disable-next-line

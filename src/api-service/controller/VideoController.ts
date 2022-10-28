@@ -20,10 +20,10 @@ import { inject } from 'inversify';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { join } from 'path';
 import { stat } from 'fs/promises';
-import pino from 'pino';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @controller('/video')
 export class VideoController implements interfaces.Controller {

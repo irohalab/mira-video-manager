@@ -23,14 +23,13 @@ import { FileManageService } from '../services/FileManageService';
 import { TYPES_VM } from '../TYPES';
 import { ExtractorInitiator } from './ExtractorFactory';
 import { ExtractAction } from '../domains/ExtractAction';
-
-import pino from 'pino';
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
 import { Vertex } from '../entity/Vertex';
 import { ExtractSource } from '../domains/ExtractSource';
+import { getStdLogger } from '../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class LocalExtractProcessor implements VideoProcessor {
