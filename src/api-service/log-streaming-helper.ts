@@ -23,7 +23,7 @@ import { stat } from 'fs/promises';
 
 const logger = getStdLogger();
 
-export function tailing(logPath: string, socket: Socket): void {
+export function tailing(logPath: string, socket: Socket, breakAtEndFlag: boolean): void {
     const tail = new Tail(logPath, {
         fromBeginning: true,
         flushAtEOF: true
@@ -34,7 +34,9 @@ export function tailing(logPath: string, socket: Socket): void {
                 const lineDict = JSON.parse(line);
                 if (lineDict.msg === LOG_END_FLAG) {
                     socket.emit('log:line_end', 'end of the log');
-                    tail.unwatch();
+                    if (breakAtEndFlag) {
+                        tail.unwatch();
+                    }
                     // socket.disconnect();
                     return;
                 }
@@ -63,7 +65,6 @@ export function readToEnd(logPath: string, socket: Socket): void {
         input: createReadStream(logPath, {encoding: 'utf-8'})
     });
     rl.on('line', (line) => {
-        console.log(line);
         socket.emit('log:line', line);
     });
     rl.on('close', () => {

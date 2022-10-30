@@ -111,6 +111,17 @@ export class FileManageService {
         }
     }
 
+    public async localRemove(filePath: string): Promise<boolean> {
+        try {
+            await unlink(filePath);
+            return true;
+        } catch (err) {
+            this._sentry.capture(err);
+            logger.error(err);
+            return false;
+        }
+    }
+
     public async localCopy(src: string, dest: string): Promise<void> {
         try {
             await copyFile(src, dest);

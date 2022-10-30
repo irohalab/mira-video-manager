@@ -117,6 +117,13 @@ export class LocalExtractProcessor implements VideoProcessor {
                 child.stderr.on('data', (data) => {
                     this.handleLog(data, 'stderr');
                 });
+                child.on('error', (error) => {
+                    if (error && (error as any).type === 'AbortError') {
+                        // ignore AbortError
+                        return;
+                    }
+                    logger.warn(error);
+                })
                 child.on('close', (code) => {
                     if (code !== 0) {
                         reject(new Error('ffmpeg exited with non 0 code'));

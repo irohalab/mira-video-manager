@@ -54,7 +54,7 @@ export class JobLogController {
             return;
         }
         if (job.status === JobStatus.Queueing || job.status === JobStatus.Running) {
-            tailing(jobLogPath, socket);
+            tailing(jobLogPath, socket, false);
         } else {
             readToEnd(jobLogPath, socket);
         }

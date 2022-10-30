@@ -24,13 +24,15 @@ import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
 import { FileManageService } from './services/FileManageService';
-import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { CMD_CANCEL, CMD_RESUME, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
 import {
+    COMMAND_QUEUE,
     DOWNLOAD_MESSAGE_EXCHANGE,
     DOWNLOAD_MESSAGE_QUEUE,
     DownloadMQMessage,
     JOB_EXCHANGE,
+    JOB_QUEUE,
     RabbitMQService,
     Sentry,
     TYPES,
@@ -50,6 +52,8 @@ const logger = getStdLogger();
 @injectable()
 export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
+    private _commandMessageConsumeTag: string;
+    private _jobMessageConsumeTag: string;
     private _jobStatusCheckerTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -63,6 +67,8 @@ export class JobScheduler implements JobApplication {
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', '');
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND, true);
+        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
         this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, async (msg) => {
             try {
@@ -73,6 +79,30 @@ export class JobScheduler implements JobApplication {
                 this._sentry.capture(ex);
                 return false;
             }
+        });
+        this._commandMessageConsumeTag = await this._rabbitmqService.consume(COMMAND_QUEUE, async (msg) => {
+            try {
+                return await this.onCommandMessage(msg as CommandMessage);
+            } catch (ex) {
+                logger.error(ex);
+                this._sentry.capture(ex);
+                return false;
+            }
+        });
+        this._jobMessageConsumeTag = await this._rabbitmqService.consume(JOB_QUEUE, async (msg) => {
+            try {
+                const jobMessage = msg as JobMessage;
+                const job = await this._databaseService.getJobRepository().findOne({ id: jobMessage.jobId });
+                if (job.status === JobStatus.Canceled) {
+                    logger.info('remove canceled job (' + job.id +') from message queue');
+                    // remove from Message Queue
+                    return true;
+                }
+            } catch (ex) {
+                logger.error(ex);
+                this._sentry.capture(ex);
+            }
+            return false;
         });
         this.checkJobStatus();
     }
@@ -111,6 +141,32 @@ export class JobScheduler implements JobApplication {
             logger.info({message: 'no condition matched', video_id: msg.videoId, video_file: msg.videoFile});
             await this.sendNoNeedToProcessMessage(msg);
         }
+    }
+
+    private async onCommandMessage(msg: CommandMessage): Promise<boolean> {
+        let job: Job;
+        const jobRepo = this._databaseService.getJobRepository();
+        switch (msg.command) {
+            case CMD_CANCEL:
+                job = await jobRepo.findOne({ id: msg.jobId });
+                if (job && job.status === JobStatus.Queueing || job.status === JobStatus.Pause) {
+                    job.status = JobStatus.Canceled;
+                    await jobRepo.save(job);
+                    return true;
+                }
+                break;
+            case CMD_RESUME:
+                job = await jobRepo.findOne({ id: msg.jobId });
+                if (job && job.status === JobStatus.Pause) {
+                    job.status = JobStatus.Queueing;
+                    await jobRepo.save(job);
+                    await this._rabbitmqService.publish(JOB_EXCHANGE, '', job.jobMessage);
+                    return true;
+                }
+                break;
+            // no default
+        }
+        return false;
     }
 
     private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {

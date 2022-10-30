@@ -51,6 +51,10 @@ export class JobRepository extends BaseEntityRepository<Job> {
         });
     }
 
+    public async getCurrentJobExecutorRunningJob(jobExecutorId: string, jobId: string): Promise<Job> {
+        return await this.findOne({ jobExecutorId, id: jobId, status: JobStatus.Running});
+    }
+
     public async getPausedAndQueuedJobs(maxTime: number): Promise<Job[]> {
         const tolerantTime = new Date(Date.now() - (maxTime * 60 * 1000));
         return await this.find({

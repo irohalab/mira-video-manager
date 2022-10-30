@@ -26,15 +26,18 @@ import { DatabaseService } from '../services/DatabaseService';
 import { VertexStatus } from '../domains/VertexStatus';
 import { ConfigManager } from '../utils/ConfigManager';
 import { EventEmitter } from 'events';
-import { getFileLogger, LOG_END_FLAG } from '../utils/Logger';
+import { getFileLogger, getStdLogger, LOG_END_FLAG } from '../utils/Logger';
 import { join } from 'path';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
 import { VertexMap } from '../domains/VertexMap';
 import { TaskQueue } from '../domains/TaskQueue';
 import { clearTimeout } from 'timers';
 import { VertexRepository } from '../repository/VertexRepository';
+import { FileManageService } from '../services/FileManageService';
+import { Action } from '../domains/Action';
 
 const CHECK_QUEUE_INTERVAL = 500;
+const logger = getStdLogger();
 
 @injectable()
 export class VertexManagerImpl implements VertexManager {
@@ -44,11 +47,13 @@ export class VertexManagerImpl implements VertexManager {
     private _job: Job;
     private _pendingExecutingVertexQueue = new TaskQueue<string>();
     private _checkQueueTimer: NodeJS.Timeout;
+    private _runningVertexDict: {[vxId: string]: Vertex} = {};
 
     constructor(@inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
-                @inject(TYPES.Sentry) private _sentry: Sentry) {
+                @inject(TYPES.Sentry) private _sentry: Sentry,
+                private _fileManagerService: FileManageService) {
     }
 
     public async start(job: Job, jobLogPath: string): Promise<void> {
@@ -73,6 +78,67 @@ export class VertexManagerImpl implements VertexManager {
         }
     }
 
+    private static createVertex(jobId: string,action: Action): Vertex {
+        const vertex = new Vertex();
+        vertex.status = VertexStatus.Pending;
+        vertex.action = action;
+        vertex.actionType = action.type;
+        vertex.jobId = jobId;
+        return vertex;
+    }
+
+    public async recreateCanceledVertices(job: Job): Promise<void> {
+        const vertexRepo = this._databaseService.getVertexRepository();
+        const vertexMap = await vertexRepo.getVertexMap(job.id);
+        const actionIdToVertexIdDict: {[actId: string]: string} = {};
+        if (!vertexMap || Object.keys(vertexMap).length === 0) {
+            this._sentry.capture(new Error('no vertices found for this job ' + job.id));
+        }
+
+        Object.values(vertexMap).forEach((vertex: Vertex) => {
+            actionIdToVertexIdDict[vertex.action.id] = vertex.id;
+        });
+
+        const actionIdList = Object.keys(job.actionMap);
+        for(const actionId of actionIdList) {
+            const vertexId = actionIdToVertexIdDict[actionId];
+            let vertex: Vertex;
+            if (vertexId) {
+                vertex = vertexMap[vertexId];
+            } else {
+                vertex = VertexManagerImpl.createVertex(job.id, job.actionMap[actionId]);
+                vertexMap[vertex.id] = vertex;
+                actionIdToVertexIdDict[actionId] = vertex.id;
+            }
+
+            if (vertex.status === VertexStatus.Canceled) {
+                await this.removeVertexAndCleanVertexWD(vertexId);
+                delete vertexMap[vertexId];
+                vertex = VertexManagerImpl.createVertex(job.id, job.actionMap[actionId]);
+                vertexMap[vertex.id] = vertex;
+                actionIdToVertexIdDict[actionId] = vertex.id;
+            } else {
+                vertex.upstreamVertexIds = [];
+                vertex.downstreamVertexIds = [];
+            }
+        }
+        // recreate graph from action
+        const vxList = Object.values(vertexMap);
+        for(const vertex of vxList) {
+            if (vertex.action.upstreamActionIds.length > 0) {
+                vertex.action.upstreamActionIds.forEach((actionId) => {
+                    vertex.upstreamVertexIds.push(actionIdToVertexIdDict[actionId]);
+                });
+            }
+            if (vertex.action.downstreamIds.length > 0) {
+                vertex.action.downstreamIds.forEach((actionId) => {
+                    vertex.downstreamVertexIds.push(actionIdToVertexIdDict[actionId]);
+                });
+            }
+        }
+        await vertexRepo.save(vxList);
+    }
+
     /**
      * A utility method which creates all vertices of a job base on action map.
      * The job is passed from argument because this method usually called before start() method
@@ -83,11 +149,7 @@ export class VertexManagerImpl implements VertexManager {
         const actionIdToVertexIdMap: {[idx: string]: string} = {};
         const vertices = Object.keys(job.actionMap).map((actionId: string) => {
             const action = job.actionMap[actionId];
-            const vertex = new Vertex();
-            vertex.jobId = job.id;
-            vertex.action = action;
-            vertex.actionType = action.type;
-            vertex.status = VertexStatus.Pending;
+            const vertex = VertexManagerImpl.createVertex(job.id, action);
             actionIdToVertexIdMap[action.id] = vertex.id;
             return vertex;
         });
@@ -118,11 +180,12 @@ export class VertexManagerImpl implements VertexManager {
         Object.keys(vertexMap).forEach(vertexId => {
             const vertex = vertexMap[vertexId];
             const vertexLogger = this._vertexLoggerDict[vertexId];
-            if (vertex.status === VertexStatus.Running && vertex.videoProcessor) {
-                allPromise.push(vertex.videoProcessor.cancel()
+            if (vertex.status === VertexStatus.Running && this._runningVertexDict[vertexId]) {
+                vertexLogger.warn('trying to cancel vertex');
+                vertex.status = VertexStatus.Canceled;
+                allPromise.push(vertexRepo.save(vertex)
                     .then(() => {
-                        vertex.status = VertexStatus.Canceled;
-                        return vertexRepo.save(vertex);
+                        return this._runningVertexDict[vertexId].videoProcessor.cancel()
                     })
                     .then(() => {
                         vertexLogger.warn('vertex canceled');
@@ -133,6 +196,18 @@ export class VertexManagerImpl implements VertexManager {
             }
         });
         await Promise.all(allPromise);
+    }
+
+    public async removeVertexAndCleanVertexWD(vertexId: string): Promise<void> {
+        const vertexRepo = this._databaseService.getVertexRepository();
+        const vertex = await vertexRepo.findOne({ id: vertexId });
+        if (vertex.status === VertexStatus.Running || vertex.status === VertexStatus.Pending) {
+            throw new Error('Running and Pending vertex cannot be removed, current vertex status is ' + vertex.status);
+        }
+        if (await this._fileManagerService.localRemove(vertex.outputPath)) {
+            logger.info('successfully removed vertex output: ' + vertex.outputPath);
+        }
+        await vertexRepo.removeAndFlush(vertex);
     }
 
     private addVertexToQueue(vertexId: string): void {
@@ -161,7 +236,8 @@ export class VertexManagerImpl implements VertexManager {
         }
 
         this._checkQueueTimer = setTimeout(async () => {
-            if (this._job.status === JobStatus.Running) {
+            const job = await this._databaseService.getJobRepository().findOne({ id: this._job.id });
+            if (job && job.status === JobStatus.Running) {
                 await this.checkAndExecuteVertexFromQueue();
             }
         }, CHECK_QUEUE_INTERVAL);
@@ -175,6 +251,7 @@ export class VertexManagerImpl implements VertexManager {
         this.events.emit(VERTEX_MANAGER_LOG, { level: 'info', message: 'start executing vertex ( ' + vertex.id + ' )' });
         const vertexLogger = this._vertexLoggerDict[vertex.id];
         const vertexRepo = this._databaseService.getVertexRepository();
+        this._runningVertexDict[vertex.id] = vertex;
         vertex.videoProcessor = this._processorFactory(vertex.actionType);
         vertex.videoProcessor.registerLogHandler((logChunk, ch) => {
             if (ch === 'stderr') {
@@ -196,6 +273,7 @@ export class VertexManagerImpl implements VertexManager {
         try {
             vertexLogger.info('prepare for processing');
             await vertex.videoProcessor.prepare(jobMessage, vertex);
+            await vertexRepo.save(vertex);
             vertexLogger.info('start processing');
             vertex.outputPath = await vertex.videoProcessor.process(vertex);
             vertexLogger.info(`vertex finished, output: ${vertex.outputPath}`);
@@ -208,6 +286,7 @@ export class VertexManagerImpl implements VertexManager {
             await vertex.videoProcessor.dispose();
         } finally {
             vertex.videoProcessor = null;
+            delete this._runningVertexDict[vertex.id];
         }
     }
 
@@ -240,13 +319,17 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     private onVertexError(vertexId: string, error: any): void {
+        const errorDict: any = error ? {message: error.message, stack: error.stack} : {};
         const vertexRepo = this._databaseService.getVertexRepository();
         vertexRepo.findOne({id: vertexId})
             .then((vertex: Vertex) => {
-                error.vertexId = vertexId;
-                error.errorType = 'ERR_VERTEX_FAIL';
+                if (vertex.status === VertexStatus.Canceled) {
+                    return;
+                }
+                errorDict.vertexId = vertexId;
+                errorDict.errorType = 'ERR_VERTEX_FAIL';
                 vertex.status = VertexStatus.Error;
-                vertex.error = error;
+                vertex.error = errorDict;
                 this.events.emit(EVENT_VERTEX_FAIL, error);
                 return vertexRepo.save(vertex);
             })

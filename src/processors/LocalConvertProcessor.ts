@@ -33,7 +33,9 @@ import { ExtractTarget } from '../domains/ExtractTarget';
 import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../domains/FilenameExtensionConstants';
 import { Vertex } from '../entity/Vertex';
 import { DatabaseService } from '../services/DatabaseService';
+import { getStdLogger } from '../utils/Logger';
 
+const logger = getStdLogger();
 /**
  * Convert inputs to a single mp4 file with h264+aac encoding
  */
@@ -135,6 +137,12 @@ export class LocalConvertProcessor implements VideoProcessor {
                 child.stderr.on('data', (data) => {
                     this.handleLog(data, 'stderr');
                 });
+                child.on('error', (error) => {
+                    if (error && (error as any).type === 'AbortError') {
+                        // ignore AbortError
+                        return;
+                    }
+                })
                 child.on('close', (code) => {
                     if (code !== 0) {
                         reject(new Error('ffmpeg exited with non 0 code'));

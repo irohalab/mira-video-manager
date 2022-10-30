@@ -59,4 +59,8 @@ export class FakeVertexManager implements VertexManager {
         return Promise.resolve(undefined);
     }
 
+    public recreateCanceledVertices(job: Job): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
 }

@@ -20,6 +20,7 @@ import { EventEmitter } from 'events';
 export interface VertexManager {
     events: EventEmitter;
     createAllVertices(job: Job): Promise<void>;
+    recreateCanceledVertices(job: Job): Promise<void>;
     start(job: Job, jobLogPath: string): Promise<void>;
     stop(): Promise<void>;
     cancelVertices(): Promise<void>;

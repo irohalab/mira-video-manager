@@ -21,6 +21,7 @@ import {
     httpPut,
     interfaces,
     queryParam,
+    request,
     requestParam,
     response
 } from 'inversify-express-utils';
@@ -38,6 +39,8 @@ import {
 } from '@irohalab/mira-shared';
 import { Vertex } from '../../entity/Vertex';
 import { CMD_CANCEL, CMD_PAUSE, CMD_RESUME, CommandMessage } from '../../domains/CommandMessage';
+import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { inspect } from 'util';
 
 type Operation = {action: string};
 
@@ -80,9 +83,9 @@ export class JobController implements interfaces.Controller {
     }
 
     @httpPut('/:jobId/op')
-    public async jobOperation(request: Request, @response() res: ExpressResponse): Promise<void> {
-        const jobId = request.params.id;
-        const op = request.body as Operation;
+    public async jobOperation(@request() req: Request, @response() res: ExpressResponse): Promise<void> {
+        const jobId = req.params.jobId;
+        const op = req.body as Operation;
         const cmd = new CommandMessage();
         cmd.jobId = jobId;
         switch (op.action) {

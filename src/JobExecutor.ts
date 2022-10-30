@@ -26,9 +26,8 @@ import { basename } from "path";
 import { JobApplication } from './JobApplication';
 import { promisify } from 'util';
 import { FileManageService } from './services/FileManageService';
-import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { CMD_CANCEL, CMD_PAUSE, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
-import pino from 'pino';
 import {
     COMMAND_QUEUE,
     JOB_EXCHANGE,
@@ -100,9 +99,6 @@ export class JobExecutor implements JobApplication {
     public async stop(): Promise<void> {
         clearTimeout(this._cleanUpTimer);
         await this.pauseJob();
-        if (this.currentJM) {
-            await this.currentJM.dispose();
-        }
     }
 
     private async onJobReceived(msg: JobMessage): Promise<boolean> {
@@ -110,34 +106,58 @@ export class JobExecutor implements JobApplication {
             const jobRepo = this._databaseService.getJobRepository();
             const job = await jobRepo.findOne({jobMessageId: msg.id});
             logger.info(msg.id + ' message received');
-            if (job) {
+            if (job && job.status === JobStatus.Queueing) {
+                let resume = false;
+                if (job.jobExecutorId && job.jobExecutorId === this.id) {
+                    // this job is paused previously and ran on this JobExecutor instance
+                    resume = true;
+                } else if (job.jobExecutorId && job.jobExecutorId !== this.id) {
+                    // this job is paused previously but ran on another JobExecutor instance
+                    await sleep(1000);
+                    return false;
+                } else {
+                    // newly created job
+                    resume = false;
+                }
                 try {
-                    await this.processJob(job);
+                    await this.processJob(job, resume);
                     logger.info('job processed');
                 } catch (err) {
                     logger.error(err);
                     this._sentry.capture(err);
                 }
-            } else {
+                return true;
+            } else if (!job) {
                 // In this case, just do nothing and log error.
                 const error = new Error('no job found in database');
                 logger.error(error);
                 this._sentry.capture(error);
+            } else {
+                // we don't process the other status Job.
+                await sleep(500);
+                return false;
             }
-            return true;
         } else {
-            await sleep(3000);
+            await sleep(2000);
             return false;
         }
     }
 
     private async onCommandReceived(msg: CommandMessage): Promise<boolean> {
         const jobRepo = this._databaseService.getJobRepository();
+        let job: Job;
         switch(msg.command) {
             case CMD_CANCEL:
-                const job = await jobRepo.findOne({jobExecutorId: this.id, id: msg.jobId, status: JobStatus.Running});
+                job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
                 if (job) {
                     await this.cancelJob(job, jobRepo);
+                    return true;
+                }
+                break;
+            case CMD_PAUSE:
+                job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
+                if (job) {
+                    await this.pauseJob();
                     return true;
                 }
                 break;
@@ -150,6 +170,7 @@ export class JobExecutor implements JobApplication {
         if (this.currentJM) {
             try {
                 await this.currentJM.cancel();
+                await this.finalizeJM();
             } catch (error) {
                 logger.error(error);
                 this._sentry.capture(error);
@@ -161,6 +182,7 @@ export class JobExecutor implements JobApplication {
         if (this.currentJM) {
             try {
                 await this.currentJM.pause();
+                await this.finalizeJM();
             } catch (error) {
                 logger.error(error);
                 this._sentry.capture(error);
@@ -173,7 +195,7 @@ export class JobExecutor implements JobApplication {
             const jobRepo = this._databaseService.getJobRepository();
             const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
             if (job) {
-                await this.processJob(job);
+                await this.processJob(job, true);
                 logger.info('job processed');
             }
         } catch (err) {
@@ -182,7 +204,7 @@ export class JobExecutor implements JobApplication {
         }
     }
 
-    private async processJob(job: Job): Promise<void> {
+    private async processJob(job: Job, resume: boolean): Promise<void> {
         this.isIdle = false;
         this.currentJM = this._jmFactory();
         this.currentJM.events.on(JobManager.EVENT_JOB_FINISHED, async (finishedJobId: string) => {
@@ -210,7 +232,7 @@ export class JobExecutor implements JobApplication {
             }
         });
         try {
-            await this.currentJM.start(job.id, this.id);
+            await this.currentJM.start(job.id, this.id, resume);
         } catch (error) {
             logger.error(error);
             this._sentry.capture(error);

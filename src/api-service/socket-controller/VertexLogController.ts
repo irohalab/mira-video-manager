@@ -53,7 +53,7 @@ export class VertexLogController {
             closeSocketWithError(socket, 'vertex not exists');
         }
         if (vertex.status === VertexStatus.Pending || vertex.status === VertexStatus.Running) {
-            tailing(vertexLogPath, socket);
+            tailing(vertexLogPath, socket, true);
         } else {
             readToEnd(vertexLogPath, socket);
         }

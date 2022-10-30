@@ -24,7 +24,6 @@ import { join } from 'path';
 import { getFileLogger, LOG_END_FLAG } from '../utils/Logger';
 import pino from 'pino';
 import { TYPES_VM } from '../TYPES';
-import { Vertex } from '../entity/Vertex';
 import { VertexStatus } from '../domains/VertexStatus';
 import { EventEmitter } from 'events';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
@@ -45,18 +44,27 @@ export class JobManager {
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
-    public async start(jobId: string, jobExecutorId: string): Promise<void> {
+    /**
+     * Start to running a job
+     * @param jobId job id
+     * @param jobExecutorId the JobExecutor instance id start this JobManager
+     * @param resume if the job is previously paused
+     */
+    public async start(jobId: string, jobExecutorId: string, resume: boolean): Promise<void> {
         const jobRepo = this._databaseService.getJobRepository();
         this._vm = this._vmFactory();
         this._job = await jobRepo.findOne({id: jobId});
         this._job.jobExecutorId = jobExecutorId;
         // set log path
         this._logPath = join(this._configManager.jobLogPath(), this._job.id);
-        this._jobLogger = getFileLogger(join(this._logPath, 'job-log.json'));
+        const jobLogFilePath = join(this._logPath, 'job-log.json');
+        this._jobLogger = getFileLogger(jobLogFilePath);
 
-        if (this._job.status === JobStatus.Queueing) {
+        if (this._job.status === JobStatus.Queueing && !resume) {
             this._jobLogger.info('creating vertices');
             await this._vm.createAllVertices(this._job);
+        } else {
+            await this._vm.recreateCanceledVertices(this._job);
         }
 
         if (!this._job.startTime) {
@@ -125,6 +133,7 @@ export class JobManager {
         if (this._job && this._job.status === JobStatus.Running) {
             const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Canceled;
+            this._job.jobExecutorId = null;
             this._job = await jobRepo.save(this._job) as Job;
             await this._vm.cancelVertices();
             this._jobLogger.warn('job canceled');
