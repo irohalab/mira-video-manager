@@ -23,5 +23,6 @@ export class Action {
     // for serialization
     public upstreamActionIds: string[] = [];
     public downstreamIds: string[] = [];
+    // optional, for vertex to determine the outputPath
     public outputFilename: string;
 }
