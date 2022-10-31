@@ -63,9 +63,10 @@ test.serial('execute vertices by their order defined by a graph', async(t) => {
     const context = t.context as Cxt;
     const container = context.container;
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
-    // const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
     const vm = container.get<VertexManager>(TYPES_VM.VertexManager);
     const job = createJob(await configManager.jobExecutorId(), JobStatus.Running);
+    await dbService.getJobRepository().save(job);
     const jobLogPath = join(configManager.jobLogPath(), job.id);
 
     // need to create vertices manually before start
@@ -83,6 +84,6 @@ test.serial('execute vertices by their order defined by a graph', async(t) => {
         });
     });
     await vm.stop();
-    // the order check is performed in FakeVideoProcess.prepare(), if no error is thrown then then everything is fine.
+    // the order check is performed in FakeVideoProcess.prepare(), if no error is thrown then everything is fine.
     t.plan(1);
 });

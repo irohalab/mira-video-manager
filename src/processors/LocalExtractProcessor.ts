@@ -62,10 +62,12 @@ export class LocalExtractProcessor implements VideoProcessor {
                 await this._fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
             }
             action.otherFilePaths = [];
-            for (const remoteFile of jobMessage.otherFiles) {
-                action.otherFilePaths.push(this._fileManager.getLocalPath(remoteFile.filename, jobMessage.id));
-                if (!await this._fileManager.checkExists(remoteFile.filename, jobMessage.id)) {
-                    await this._fileManager.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
+            if (jobMessage.otherFiles && jobMessage.otherFiles.length > 0) {
+                for (const remoteFile of jobMessage.otherFiles) {
+                    action.otherFilePaths.push(this._fileManager.getLocalPath(remoteFile.filename, jobMessage.id));
+                    if (!await this._fileManager.checkExists(remoteFile.filename, jobMessage.id)) {
+                        await this._fileManager.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
+                    }
                 }
             }
         } catch (err) {

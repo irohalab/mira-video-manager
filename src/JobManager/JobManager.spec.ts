@@ -18,7 +18,7 @@
 import test from 'ava';
 import { Container, interfaces } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
-import { TYPES } from '@irohalab/mira-shared';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { FakeConfigManager } from '../test-helpers/FakeConfigManager';
 import { DatabaseService } from '../services/DatabaseService';
 import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
@@ -31,6 +31,7 @@ import { join } from 'path';
 import { JobManager } from './JobManager';
 import { FakeJobRepository } from '../test-helpers/FakeJobRepository';
 import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
+import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 
 type Cxt = { container: Container };
 
@@ -43,6 +44,7 @@ test.beforeEach((t) => {
     container.bind<VertexManager>(TYPES_VM.VertexManager).to(FakeVertexManager);
     container.bind<JobManager>(JobManager).toSelf();
     container.bind<interfaces.Factory<VertexManager>>(TYPES_VM.VertexManagerFactory).toAutoFactory<VertexManager>(FakeVertexManager);
+    container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/job-manager');
 });
@@ -68,7 +70,7 @@ test.serial('Should run the job and manage lifecycle of a job', async (t) => {
     const jobRepo = dbService.getJobRepository();
     await jobRepo.save(job);
 
-    await jm.start(job.id, await configManager.jobExecutorId());
+    await jm.start(job.id, await configManager.jobExecutorId(), false);
     const vx = jm['_vm'] as FakeVertexManager;
     t.truthy(vx._job, '_job should not null after jm start');
     t.true(vx.vxCreated, 'vertices should be created by calling VertexManager.createAllVertices(job)');
@@ -100,7 +102,7 @@ test.serial('Should set the job to UnrecoverableError status after vertex fail',
     const jobRepo = dbService.getJobRepository();
     await jobRepo.save(job);
 
-    await jm.start(job.id, await configManager.jobExecutorId());
+    await jm.start(job.id, await configManager.jobExecutorId(), false);
     const vx = jm['_vm'] as FakeVertexManager;
     t.truthy(vx._job, '_job should not null after jm start');
     t.true(vx._job.status === JobStatus.Running, '_job.status should be JobStatus.Running');
@@ -131,7 +133,7 @@ test.serial('Should call VertexManager.cancelVertices() when cancelling job', as
     const jobRepo = dbService.getJobRepository();
     await jobRepo.save(job);
 
-    await jm.start(job.id, await configManager.jobExecutorId());
+    await jm.start(job.id, await configManager.jobExecutorId(), false);
     const vx = jm['_vm'] as FakeVertexManager;
     t.true(vx._job.status === JobStatus.Running, '_job.status should be JobStatus.Running');
     await jm.cancel();
