@@ -20,10 +20,10 @@ export interface Extractor {
      * this can return null, if there is no need to run ffmpeg, in such
      * case we just copy the file to outputPath
      */
-    extractCMD(): Promise<string[]>;
+    extractCMD(): Promise<string[]|null>;
 
     /**
-     * the inputPath to process with
+     * the inputPath to process with, could be null
      */
-    getInputPath(): string;
+    getInputPath(): string|null;
 }

@@ -39,11 +39,11 @@ export class DefaultExtractor implements Extractor {
         this.action = vertex.action as ExtractAction;
     }
 
-    public getInputPath(): string {
+    public getInputPath(): string|null {
         return this.inputPath;
     }
 
-    public async extractCMD(): Promise<string[]> {
+    public async extractCMD(): Promise<string[]|null> {
         this.findInputAndOutputPath();
         if (this.action.extractTarget === ExtractTarget.KeepContainer) {
             return null;
@@ -76,7 +76,7 @@ export class DefaultExtractor implements Extractor {
         this.streamsInfo = await getStreamsWithFfprobe(this.inputPath);
     }
 
-    private findFile(filePaths: string[], type: 'video' | 'audio' | 'subtitle'): string {
+    private findFile(filePaths: string[], type: 'video' | 'audio' | 'subtitle'): string|null {
         const files = filePaths.filter(f => {
             const ext = extname(f);
             switch(type) {
