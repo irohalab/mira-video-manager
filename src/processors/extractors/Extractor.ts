@@ -15,6 +15,15 @@
  */
 
 export interface Extractor {
+    /**
+     * generate a string being used as ffmpeg arguments.
+     * this can return null, if there is no need to run ffmpeg, in such
+     * case we just copy the file to outputPath
+     */
     extractCMD(): Promise<string[]>;
+
+    /**
+     * the inputPath to process with
+     */
     getInputPath(): string;
 }

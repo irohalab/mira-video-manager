@@ -15,9 +15,6 @@
  */
 
 import pino from 'pino';
-import { stat, truncate } from 'fs/promises';
-import { Stats } from 'fs';
-import { Tail } from 'tail';
 
 /**
  * note that filePath should be in an existed folder

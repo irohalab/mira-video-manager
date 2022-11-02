@@ -44,6 +44,7 @@ import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { Extractor } from './processors/extractors/Extractor';
 import { ExtractorFactory, ExtractorInitiator } from './processors/ExtractorFactory';
 import { getStdLogger } from './utils/Logger';
+import { JobCleaner } from './JobManager/JobCleaner';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
@@ -77,6 +78,8 @@ if (startAs === JOB_EXECUTOR) {
     // VertexManager and Auto factory
     container.bind<VertexManager>(TYPES_VM.VertexManager).to(VertexManagerImpl);
     container.bind<interfaces.Factory<VertexManager>>(TYPES_VM.VertexManagerFactory).toAutoFactory<VertexManager>(TYPES_VM.VertexManager);
+    // JobCleaner
+    container.bind<JobCleaner>(JobCleaner).toSelf().inSingletonScope();
     // JobExecutor
     container.bind<JobExecutor>(TYPES_VM.JobApplication).to(JobExecutor);
 } else if (startAs === JOB_SCHEDULER) {

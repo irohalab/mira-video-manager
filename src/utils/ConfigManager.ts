@@ -60,4 +60,9 @@ export interface ConfigManager extends BaseConfigManager {
      * Generate the file url for downloading output from job executor.
      */
     getFileUrl(filename: string, jobMessageId: string): string;
+
+    /**
+     * Unit is days
+     */
+    getJobExpireTime(): {Canceled: number, UnrecoverableError: number, Finished: number};
 }

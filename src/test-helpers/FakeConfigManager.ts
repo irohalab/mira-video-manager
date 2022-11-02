@@ -107,4 +107,8 @@ export class FakeConfigManager implements ConfigManager {
     public jobLogPath(): string {
         return join(this.jobProfileDirPath(), 'log');
     }
+
+    public getJobExpireTime(): { Canceled: number; UnrecoverableError: number; Finished: number } {
+        return {Canceled: 1, Finished: 1, UnrecoverableError: 1};
+    }
 }

@@ -56,6 +56,7 @@ type AppConfg = {
         port: number;
     };
     jobLogPath: string;
+    jobExpireTime: {Canceled: number, UnrecoverableError: number, Finished: number};
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -229,5 +230,13 @@ export class ConfigManagerImpl implements ConfigManager {
 
     public jobLogPath(): string {
         return ConfigManagerImpl.processPath(this._config.jobLogPath);
+    }
+
+    public getJobExpireTime(): {Canceled: number, UnrecoverableError: number, Finished: number} {
+        if (this._config.jobExpireTime) {
+            return this._config.jobExpireTime;
+        } else {
+            return {Canceled: 1, UnrecoverableError: 5, Finished: 3};
+        }
     }
 }

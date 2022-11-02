@@ -164,7 +164,8 @@ export class JobScheduler implements JobApplication {
                     return true;
                 }
                 break;
-            // no default
+            default:
+                logger.info(`${msg.command} command received, but not processed.`);
         }
         return false;
     }
