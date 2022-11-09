@@ -17,8 +17,14 @@
 import { JobRepository } from '../repository/JobRepository';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
 import { BaseDatabaseService } from '@irohalab/mira-shared';
+import { VertexRepository } from '../repository/VertexRepository';
+import { SessionRepository } from '../repository/SessionRepository';
 
 export interface DatabaseService extends BaseDatabaseService {
     getJobRepository(useRequestContext?: boolean): JobRepository;
     getVideoProcessRuleRepository(useRequestContext?: boolean): VideoProcessRuleRepository;
+    getVertexRepository(useRequestContext?: boolean): VertexRepository;
+    getSessionRepository(useRequestContext?: boolean): SessionRepository;
+    initSchema(): Promise<void>;
+    clearExpiredSession(): void;
 }

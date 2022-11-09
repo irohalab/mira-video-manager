@@ -22,26 +22,46 @@ import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleReposi
 import { FakeMessageRepository } from './FakeMessageRepository';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { NextFunction, Request, Response } from 'express';
+import { VertexRepository } from '../repository/VertexRepository';
+import { FakeVertexRepository } from './FakeVertexRepository';
+import { SqlEntityManager } from '@mikro-orm/postgresql';
+import { Vertex } from '../entity/Vertex';
+import { FakeJobRepository } from './FakeJobRepository';
+import { Job } from '../entity/Job';
+import { SessionRepository } from '../repository/SessionRepository';
+import { FakeSessionRepository } from './FakeSessionRepository';
+import { Session } from '../entity/Session';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
-    getJobRepository(): JobRepository {
+
+    private vertexRepo = new FakeVertexRepository({} as SqlEntityManager, Vertex);
+    private jobRepo = new FakeJobRepository({} as SqlEntityManager, Job);
+    private sessionRepo = new FakeSessionRepository({} as SqlEntityManager, Session);
+    public getSessionRepository(useRequestContext?: boolean): SessionRepository {
+        return this.sessionRepo;
+    }
+    public getJobRepository(): JobRepository {
+        return this.jobRepo;
+    }
+
+    public getMessageRepository(): FakeMessageRepository {
         throw new NotImplementException();
     }
 
-    getMessageRepository(): FakeMessageRepository {
-        return undefined;
-    }
-
-    getVideoProcessRuleRepository(): VideoProcessRuleRepository {
+    public getVideoProcessRuleRepository(): VideoProcessRuleRepository {
         throw new NotImplementException();
     }
 
-    start(): Promise<void> {
+    public getVertexRepository(useRequestContext?: boolean): VertexRepository {
+        return this.vertexRepo;
+    }
+
+    public start(): Promise<void> {
         return Promise.resolve(undefined);
     }
 
-    stop(): Promise<void> {
+    public stop(): Promise<void> {
         return Promise.resolve(undefined);
     }
 
@@ -49,5 +69,19 @@ export class FakeDatabaseService implements DatabaseService {
         return (req: Request, res: Response, next: NextFunction) => {
             next();
         };
+    }
+
+    public initSchema(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+    public generateSchema(): Promise<string> {
+        throw new Error('Method not implemented.');
+    }
+    public syncSchema(): Promise<void> {
+        throw new Error('Method not implemented.');
+    }
+
+    public clearExpiredSession(): void {
+        throw new Error('Method not implemented.');
     }
 }

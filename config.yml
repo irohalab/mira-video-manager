@@ -49,3 +49,12 @@ ApiWebServer:
   enableHttps: false
   host: "localhost"
   port: 8083
+
+# base path for job log.
+jobLogPath: '${project_root}/log/jobs'
+
+# expire time for jobs, unit is days
+jobExpireTime:
+  Canceled: 1
+  UnrecoverableError: 7
+  Finished: 2

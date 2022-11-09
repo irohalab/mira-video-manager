@@ -19,22 +19,11 @@ import { JobStatus } from '../domains/JobStatus';
 import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
 
 export class JobRepository extends BaseEntityRepository<Job> {
-    public async getUncleanedFinishedJobs(days: number): Promise<Job[]> {
-        const latestFinishedTime = new Date(Date.now() - (days * 24 * 3600 * 1000));
+    public async getExpiredJobsByStatusOfCurrentExecutor(jobExecutorId: string, status: JobStatus, expire: number): Promise<Job[]> {
+        const latestStartTime = new Date(Date.now() - expire);
         return await this.find({
             $and: [
                 {status: JobStatus.Finished},
-                {cleaned: false},
-                {finishedTime: {$lt: latestFinishedTime}}
-            ]
-        });
-    }
-
-    public async getUncleanedFailedJobs(days: number): Promise<Job[]> {
-        const latestStartTime = new Date(Date.now() - (days * 24 * 3600 * 1000));
-        return await this.find({
-            $and: [
-                {status: JobStatus.UnrecoverableError},
                 {cleaned: false},
                 {startTime: {$lt: latestStartTime}}
             ]
@@ -51,20 +40,24 @@ export class JobRepository extends BaseEntityRepository<Job> {
         });
     }
 
-    public async getPausedAndQueuedJobs(maxTime: number): Promise<Job[]> {
-        const tolerantTime = new Date(Date.now() - (maxTime * 60 * 1000));
-        return await this.find({
-            $and: [
-                {
-                    $or: [
-                        {status: JobStatus.Pause},
-                        {status: JobStatus.Queueing}
-                    ]
-                },
-                {createTime: {$lt: tolerantTime}}
-            ]
-        });
+    public async getCurrentJobExecutorRunningJob(jobExecutorId: string, jobId: string): Promise<Job> {
+        return await this.findOne({ jobExecutorId, id: jobId, status: JobStatus.Running});
     }
+
+    // public async getPausedAndQueuedJobs(maxTime: number): Promise<Job[]> {
+    //     const tolerantTime = new Date(Date.now() - (maxTime * 60 * 1000));
+    //     return await this.find({
+    //         $and: [
+    //             {
+    //                 $or: [
+    //                     {status: JobStatus.Pause},
+    //                     {status: JobStatus.Queueing}
+    //                 ]
+    //             },
+    //             {createTime: {$lt: tolerantTime}}
+    //         ]
+    //     });
+    // }
 
     public async getJobsByStatus(status: JobStatus): Promise<Job[]> {
         return await this.find({status}, {

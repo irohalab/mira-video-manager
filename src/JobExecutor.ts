@@ -15,25 +15,19 @@
  */
 
 import { ConfigManager } from "./utils/ConfigManager";
-import { inject, injectable } from 'inversify';
+import { inject, injectable, interfaces } from 'inversify';
 import { TYPES_VM } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
-import { VideoProcessor } from './processors/VideoProcessor';
-import { mkdir, rename, stat } from 'fs/promises';
+import { mkdir, stat } from 'fs/promises';
 import { JobStatus } from './domains/JobStatus';
 import { Job } from './entity/Job';
-import { Action } from './domains/Action';
-import { ProcessorFactoryInitiator } from './processors/ProcessorFactory';
-import { JobState } from './domains/JobState';
-import { v4 as uuidv4 } from 'uuid';
-import { basename, dirname, extname, join } from "path";
+import { basename } from "path";
 import { JobApplication } from './JobApplication';
 import { promisify } from 'util';
 import { FileManageService } from './services/FileManageService';
-import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { CMD_CANCEL, CMD_PAUSE, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
-import pino from 'pino';
 import {
     COMMAND_QUEUE,
     JOB_EXCHANGE,
@@ -47,25 +41,26 @@ import {
     VIDEO_MANAGER_GENERAL,
     VideoManagerMessage
 } from '@irohalab/mira-shared';
+import { JobManager } from './JobManager/JobManager';
+import { randomUUID } from 'crypto';
+import { getStdLogger } from './utils/Logger';
+import { JobCleaner } from './JobManager/JobCleaner';
 
-const sleep = promisify(setTimeout);
-const REMOVE_OLD_FILE_INTERVAL = 24 * 3600 * 1000;
-
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class JobExecutor implements JobApplication {
     public id: string;
-    private currentVideoProcessor: VideoProcessor;
+    private currentJM: JobManager;
     private isIdle: boolean;
-    private _cleanUpTimer: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.Sentry) private _sentry: Sentry,
-                private _rabbitmqService: RabbitMQService,
+                @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService,
                 private _fileManageService: FileManageService,
+                private _jobCleaner: JobCleaner,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator) {
+                @inject(TYPES_VM.JobManagerFactory) private _jmFactory: interfaces.AutoFactory<JobManager>) {
         this.isIdle = true;
     }
 
@@ -89,18 +84,18 @@ export class JobExecutor implements JobApplication {
 
         this.id = await this._configManager.jobExecutorId();
 
-        await this.resumeJob();
-        this.removeOldFiles();
+        await this._jobCleaner.start(this.id);
 
-        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
         await this._rabbitmqService.consume(JOB_QUEUE, this.onJobReceived.bind(this));
         await this._rabbitmqService.consume(COMMAND_QUEUE, this.onCommandReceived.bind(this));
+        await this.resumeJob();
     }
 
     public async stop(): Promise<void> {
-        clearTimeout(this._cleanUpTimer);
+        await this._jobCleaner.stop();
         await this.pauseJob();
     }
 
@@ -108,145 +103,157 @@ export class JobExecutor implements JobApplication {
         if (this.isIdle) {
             const jobRepo = this._databaseService.getJobRepository();
             const job = await jobRepo.findOne({jobMessageId: msg.id});
-            console.log(msg.id + ' message received');
-            if (job) {
-                job.status = JobStatus.Running;
-                job.startTime = new Date();
-                await jobRepo.save(job);
-                this.processJob(job).then(() => console.log('job processed'), error => console.error(error));
+            logger.info(msg.id + ' message received');
+            if (job && job.status === JobStatus.Queueing) {
+                let resume = false;
+                if (job.jobExecutorId && job.jobExecutorId === this.id) {
+                    // this job is paused previously and ran on this JobExecutor instance
+                    resume = true;
+                } else if (job.jobExecutorId && job.jobExecutorId !== this.id) {
+                    // this job is paused previously but ran on another JobExecutor instance
+                    return false;
+                } else {
+                    // newly created job
+                    resume = false;
+                }
+                try {
+                    await this.processJob(job, resume);
+                    logger.info('job processed');
+                } catch (err) {
+                    logger.error(err);
+                    this._sentry.capture(err);
+                }
                 return true;
+            } else if (!job) {
+                // In this case, just do nothing and log error.
+                const error = new Error('no job found in database');
+                logger.error(error);
+                this._sentry.capture(error);
+            } else {
+                // we don't process the other status Job.
+                return false;
             }
-            throw new Error('no job found in database');
         } else {
-            await sleep(3000);
             return false;
         }
     }
 
     private async onCommandReceived(msg: CommandMessage): Promise<boolean> {
         const jobRepo = this._databaseService.getJobRepository();
+        let job: Job;
         switch(msg.command) {
             case CMD_CANCEL:
-                const job = await jobRepo.findOne({jobExecutorId: this.id, id: msg.jobId, status: JobStatus.Running});
+                job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
                 if (job) {
                     await this.cancelJob(job, jobRepo);
                     return true;
                 }
                 break;
-            // no default
+            case CMD_PAUSE:
+                job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
+                if (job) {
+                    await this.pauseJob();
+                    return true;
+                }
+                break;
+            default:
+                logger.info(`${msg.command} command received, but not processed.`);
         }
         return false;
     }
 
     private async cancelJob(job: Job, jobRepo: JobRepository): Promise<void> {
-        job.status = JobStatus.Canceled;
-        await jobRepo.save(job);
-        await this.currentVideoProcessor.cancel();
-        this.currentVideoProcessor = null;
+        if (this.currentJM) {
+            try {
+                await this.currentJM.cancel();
+                await this.finalizeJM();
+            } catch (error) {
+                logger.error(error);
+                this._sentry.capture(error);
+            }
+        }
     }
 
     private async pauseJob(): Promise<void> {
-        const jobRepo = this._databaseService.getJobRepository();
-        const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Running});
-        if (job) {
-            job.status = JobStatus.Pause;
-            // try cancel current processor
-            await this.currentVideoProcessor.cancel();
+        if (this.currentJM) {
+            try {
+                await this.currentJM.pause();
+                await this.finalizeJM();
+            } catch (error) {
+                logger.error(error);
+                this._sentry.capture(error);
+            }
         }
     }
 
     private async resumeJob(): Promise<void> {
-        const jobRepo = this._databaseService.getJobRepository();
-        const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
-        if (job) {
-            job.status = JobStatus.Running;
-            job.jobExecutorId = this.id;
-            if (!job.startTime) {
-                job.startTime = new Date();
+        try {
+            const jobRepo = this._databaseService.getJobRepository();
+            const job = await jobRepo.findOne({jobExecutorId: this.id, status: JobStatus.Pause});
+            if (job) {
+                await this.processJob(job, true);
+                logger.info('job processed');
             }
-            await jobRepo.save(job);
-            this.processJob(job)
-                .then(() => {
-                    logger.info('job processed');
-                }, (error) => {
-                    logger.error(error);
-                    this._sentry.capture(error);
-                });
+        } catch (err) {
+            logger.error(err);
+            this._sentry.capture(err);
         }
     }
 
-    private async processJob(job: Job): Promise<void> {
+    private async processJob(job: Job, resume: boolean): Promise<void> {
         this.isIdle = false;
-        const jobRepo = this._databaseService.getJobRepository();
-        const jobMessage = job.jobMessage;
-        let action: Action;
-        let outputPath: string;
-        let state: JobState;
-        const initialProgress = job.progress;
-        if (!Array.isArray(job.stateHistory)) {
-            job.stateHistory = [];
-        }
-        for (let i = initialProgress; i < jobMessage.actions.length && job.status !== JobStatus.Canceled && job.status !== JobStatus.UnrecoverableError; i++) {
-            job.progress = i;
-            state = new JobState();
-            state.startTime = new Date();
-            action = jobMessage.actions[i];
-            action.index = i;
-            if (outputPath) {
-                action.lastOutput = outputPath;
-            }
-            this.currentVideoProcessor = this._processorFactory(action.type);
-            state.log = `preparing for action[${i}]`;
-            this.currentVideoProcessor.registerLogHandler((logChunk, ch) => {
-                // TODO: realTime logging
-                logger.info(ch + ':' + logChunk);
-            });
-            await this.currentVideoProcessor.prepare(jobMessage, action);
-            state.endTime = new Date();
-            job.stateHistory.push(state);
-            await jobRepo.save(job);
-            state = new JobState();
-            state.startTime = new Date();
-            state.log = `start processing action[${i}]`;
+        this.currentJM = this._jmFactory();
+        this.currentJM.events.on(JobManager.EVENT_JOB_FINISHED, async (finishedJobId: string) => {
+            // find all output path
             try {
-                outputPath = await this.currentVideoProcessor.process(action);
-            } catch (e) {
-                job.status = JobStatus.UnrecoverableError;
-                logger.warn(e);
-                this._sentry.capture(e);
+                const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
+                const outputPathList = outputVertices.map(vx => {
+                    return vx.outputPath;
+                });
+                await this.notifyFinished(job, outputPathList);
+                await this.finalizeJM();
+            } catch (err) {
+                logger.error(err);
+                this._sentry.capture(err);
             }
-            state.endTime = new Date();
-            job.stateHistory.push(state);
-            await jobRepo.save(job);
-            await this.currentVideoProcessor.dispose();
+        });
+
+        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, async (failedJob: Job) => {
+            // TODO: notify failed
+            try {
+                await this.finalizeJM();
+            } catch (err) {
+                logger.error(err);
+                this._sentry.capture(err);
+            }
+        });
+        try {
+            await this.currentJM.start(job.id, this.id, resume);
+        } catch (error) {
+            logger.error(error);
+            this._sentry.capture(error);
         }
-        if (job.status !== JobStatus.Canceled) {
-            // Finished
-            job.status = JobStatus.Finished;
-            job.finishedTime = new Date();
-            await jobRepo.save(job);
-            outputPath = await JobExecutor.normalizeFilename(basename(jobMessage.videoFile.filename), outputPath);
-            await this.notifyFinished(job, outputPath);
-        }
-        this.isIdle = true;
     }
 
-    private static async normalizeFilename(originalFilename: string, outputPath: string): Promise<string> {
-        const ext = extname(originalFilename);
-        const originalBasename = basename(originalFilename, ext);
-        const outputPathDir = dirname(outputPath);
-        const normalizedOutputPath = join(outputPathDir, originalBasename + extname(outputPath));
-        await rename(outputPath, normalizedOutputPath);
-        return normalizedOutputPath;
-    }
+    // private static async normalizeFilename(originalFilename: string, outputPath: string): Promise<string> {
+    //     const ext = extname(originalFilename);
+    //     const originalBasename = basename(originalFilename, ext);
+    //     const outputPathDir = dirname(outputPath);
+    //     const normalizedOutputPath = join(outputPathDir, originalBasename + extname(outputPath));
+    //     await rename(outputPath, normalizedOutputPath);
+    //     return normalizedOutputPath;
+    // }
 
-    private async notifyFinished(job: Job, outputFilePath: string): Promise<void> {
+    private async notifyFinished(job: Job, outputFilePathList: string[]): Promise<void> {
         const msg = new VideoManagerMessage();
-        msg.id = uuidv4();
-        msg.processedFile = new RemoteFile();
-        msg.processedFile.filename = basename(outputFilePath);
-        msg.processedFile.fileLocalPath = outputFilePath;
-        msg.processedFile.fileUri = this._configManager.getFileUrl(msg.processedFile.filename, job.jobMessageId);
+        msg.id = randomUUID();
+        msg.processedFiles = outputFilePathList.map((outputFilePath) => {
+            const remoteFile = new RemoteFile();
+            remoteFile.filename = basename(outputFilePath);
+            remoteFile.fileLocalPath = outputFilePath;
+            remoteFile.fileUri = this._configManager.getFileUrl(remoteFile.filename, job.jobMessageId);
+            return remoteFile;
+        });
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
@@ -258,25 +265,12 @@ export class JobExecutor implements JobApplication {
         }
     }
 
-    private removeOldFiles(): void {
-        this._cleanUpTimer = setTimeout(async () => {
-            await this.doRemoveFiles();
-            this.removeOldFiles();
-        }, REMOVE_OLD_FILE_INTERVAL);
-    }
-
-    private async doRemoveFiles(): Promise<void> {
-        console.log('start clean up files')
-        const jobRepo = this._databaseService.getJobRepository();
-        const successFullJobs = await jobRepo.getUncleanedFinishedJobs(this._configManager.fileRetentionDays());
-        const failedJobs = await jobRepo.getUncleanedFailedJobs(this._configManager.failedFileRetentionDays());
-        for (const job of successFullJobs) {
-            await this._fileManageService.cleanUpFiles(job.jobMessageId);
-            logger.info(`cleaned successful job ${job.id} files`);
+    private async finalizeJM(): Promise<void> {
+        if (this.currentJM) {
+            this.currentJM.events.removeAllListeners();
+            await this.currentJM.dispose();
+            this.currentJM = null;
         }
-        for (const job of failedJobs) {
-            await this._fileManageService.cleanUpFiles(job.jobMessageId);
-            logger.info(`cleaned failed job ${job.id} files`);
-        }
+        this.isIdle = true;
     }
 }

@@ -5,6 +5,7 @@ build/
 dist/
 tmp/
 temp/
+log/
 yarn-error.log
 test.json
 start-scheduler.sh

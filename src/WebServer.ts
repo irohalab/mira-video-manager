@@ -20,22 +20,31 @@ import { ConfigManager } from './utils/ConfigManager';
 import { ConfigManagerImpl } from './utils/ConfigManagerImpl';
 import { DatabaseService } from './services/DatabaseService';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
-import { bootstrap } from './api-service/bootstrap';
+import { API_SERVER, bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
-import pino from 'pino';
-import { Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
+import {
+    RabbitMQService,
+    Sentry,
+    SentryImpl,
+    TYPES,
+    VIDEO_MANAGER_COMMAND,
+    VIDEO_MANAGER_EXCHANGE
+} from '@irohalab/mira-shared';
+import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
+import { getStdLogger } from './utils/Logger';
 
 const startAs = process.env.START_AS;
 
-const logger = pino();
+const logger = getStdLogger();
 
 const container = new Container();
 container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
 container.bind<VideoProcessRuleService>(VideoProcessRuleService).toSelf().inSingletonScope();
+container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
 
 // tslint:disable-next-line
 const { version } = require('../package.json');
@@ -43,11 +52,20 @@ const sentry = container.get<Sentry>(TYPES.Sentry);
 sentry.setup(`WEB_${startAs}_${hostname()}`, 'mira-video-manager', version);
 
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
+const rabbitMQService = container.get<RabbitMQService>(TYPES.RabbitMQService);
 
 let webServer: Server;
 
 databaseService.start()
     .then(() => {
+        if (startAs === API_SERVER) {
+            return rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
+        }
+    })
+    .then(() => {
+        if (startAs === API_SERVER) {
+            databaseService.clearExpiredSession();
+        }
         webServer = bootstrap(container, startAs);
     });
 

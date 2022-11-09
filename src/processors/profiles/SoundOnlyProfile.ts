@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 import { BaseProfile } from "./BaseProfile";
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
+import { ConvertAction } from '../../domains/ConvertAction';
 
 const DEFAULT_BIT_RATE_PER_CHANNEL = 64; // kbit/s
 
@@ -30,8 +31,8 @@ const DEFAULT_BIT_RATE_PER_CHANNEL = 64; // kbit/s
 export class SoundOnlyProfile extends BaseProfile {
     public static profileName = 'sound_only'
 
-    constructor(videoFilePath: string, private _preferredTrack: string, actionIndex: number) {
-        super(videoFilePath, actionIndex);
+    constructor(action: ConvertAction, private _preferredTrack: string) {
+        super(action);
     }
 
     private static isPropertyEqual(prop1: any, prop2: string): boolean {
@@ -59,7 +60,7 @@ export class SoundOnlyProfile extends BaseProfile {
     }
 
     public async getCommandArgs(): Promise<string[]> {
-        const streams = await getStreamsWithFfprobe(this.videoFilePath);
+        const streams = await getStreamsWithFfprobe(this.action.videoFilePath);
         const audioStreams = streams.filter(stream => stream.codec_type.toLowerCase() === 'audio');
         let audioStreamIndex = -1;
         if (audioStreams.length > 1) {
@@ -89,10 +90,10 @@ export class SoundOnlyProfile extends BaseProfile {
         let bitrate: number;
         if (audioStreamIndex === -1) {
             bitrate = this.getAudioChannelCount(audioStreams.find(stream => stream.disposition.default === 1)) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+            return ['-i', ...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
         } else {
             bitrate = this.getAudioChannelCount(audioStreams[audioStreamIndex]) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', this.videoFilePath, '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+            return ['-i', ...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
         }
 
     }

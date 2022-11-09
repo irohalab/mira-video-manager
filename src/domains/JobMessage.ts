@@ -15,16 +15,17 @@
  */
 
 import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
-import { Action } from './Action';
+import { ActionMap } from './ActionMap';
 
 export class JobMessage implements MQMessage {
     public id: string;
+    public jobId: string;
     public bangumiId: string;
     public videoId: string;
-    public actions: Action[];
+    public actions: ActionMap;
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[];
     public downloadAppId: string;
     public downloadTaskId: string;
-    public version: string;
+    public version: string = '2';
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,21 +20,22 @@ import { DefaultProfile } from "./DefaultProfile";
 import { interfaces } from "inversify";
 import { BaseProfile } from "./BaseProfile";
 import { ContainerOnlyProfile } from './ContainerOnlyProfile';
+import { ConvertAction } from '../../domains/ConvertAction';
 
 export function ProfileFactory(context: interfaces.Context): ProfileFactoryInitiator {
-    return (profileName: string, videoFilePath: string, actionIndex: number, profileExtraData?: any) => {
+    return (profileName: string, action: ConvertAction, profileExtraData?: any) => {
         switch (profileName) {
             case SoundOnlyProfile.profileName:
-                return new SoundOnlyProfile(videoFilePath, profileExtraData.data, actionIndex);
+                return new SoundOnlyProfile(action, profileExtraData.data);
             case VideoOnlyProfile.profileName:
-                return new VideoOnlyProfile(videoFilePath, actionIndex);
+                return new VideoOnlyProfile(action);
             case ContainerOnlyProfile.profileName:
-                return new ContainerOnlyProfile(videoFilePath, actionIndex);
+                return new ContainerOnlyProfile(action);
             case DefaultProfile.profileName:
             default:
-                return new DefaultProfile(videoFilePath, actionIndex);
+                return new DefaultProfile(action);
         }
     };
 }
 
-export type ProfileFactoryInitiator = (profileName: string, videoFilePath: string, actionIndex: number, profileExtraData?: any) => BaseProfile;
+export type ProfileFactoryInitiator = (profileName: string, action: ConvertAction, profileExtraData?: any) => BaseProfile;

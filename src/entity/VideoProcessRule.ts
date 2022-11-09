@@ -18,11 +18,12 @@ import { Action } from "../domains/Action";
 import { Entity, EntityRepositoryType, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
 import { randomUUID } from 'crypto';
+import { ActionMap } from '../domains/ActionMap';
 
 @Entity({customRepository: () => VideoProcessRuleRepository})
 export class VideoProcessRule {
 
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
     public id: string = randomUUID();
 
     @Property({
@@ -53,7 +54,7 @@ export class VideoProcessRule {
         columnType: 'jsonb',
         nullable: false
     })
-    public actions: Action[];
+    public actions: ActionMap;
 
     @Property({
         columnType: 'integer'

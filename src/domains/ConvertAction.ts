@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,18 @@
  */
 
 import { Action } from "./Action";
+import { ActionType } from './ActionType';
 
+/**
+ * ConvertAction takes output from upstream actions and convert the file defined with profile.
+ * This action cannot be input action(entry stream)
+ */
 export class ConvertAction extends Action {
-    /**
-     * input list includes video files, only one video file should be in the list. it also may include subtitle file.
-     * at most one subtitle file can be included.
-     */
-    public inputList: string[];
     public profile: string;
     public profileExtraData: any;
+    public type = ActionType.Convert;
+    // below properties will not be serialized.
+    public videoFilePath?: string;
+    public audioFilePath?: string;
+    public subtitlePath?: string;
 }

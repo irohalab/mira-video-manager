@@ -16,7 +16,6 @@
 
 import { JobStatus } from "../domains/JobStatus";
 import { JobMessage } from '../domains/JobMessage';
-import { JobState } from '../domains/JobState';
 import {
     DateTimeType,
     Entity,
@@ -28,11 +27,12 @@ import {
 } from "@mikro-orm/core";
 import { JobRepository } from '../repository/JobRepository';
 import { randomUUID } from 'crypto';
+import { ActionMap } from '../domains/ActionMap';
 
 @Entity({customRepository: () => JobRepository})
 export class Job {
 
-    @PrimaryKey()
+    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
     public id: string = randomUUID();
 
     @Property()
@@ -44,19 +44,13 @@ export class Job {
     })
     public jobMessage: JobMessage;
 
-    /**
-     * index of current action to be or being executed from actions array.
-     */
-    @Property()
-    public progress: number;
-
     @Property({
         type: JsonType,
         columnType: 'jsonb'
     })
-    public stateHistory: JobState[];
+    public actionMap: ActionMap;
 
-    @Enum()
+    @Enum(() => JobStatus)
     public status: JobStatus = JobStatus.Queueing;
 
     @Property({

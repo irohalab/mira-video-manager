@@ -17,15 +17,15 @@
 import { inject, injectable } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { URL } from 'url';
-import { copyFile, readdir, unlink, stat, mkdir } from 'fs/promises';
-import { join, dirname } from 'path';
+import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
+import { dirname, join } from 'path';
 import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
 import axios from 'axios';
-import pino from 'pino';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
+import { getStdLogger } from '../utils/Logger';
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class FileManageService {
@@ -108,6 +108,26 @@ export class FileManageService {
         } catch (err) {
             this._sentry.capture(err);
             logger.error(err);
+        }
+    }
+
+    public async localRemove(filePath: string): Promise<boolean> {
+        try {
+            await unlink(filePath);
+            return true;
+        } catch (err) {
+            this._sentry.capture(err);
+            logger.error(err);
+            return false;
+        }
+    }
+
+    public async localCopy(src: string, dest: string): Promise<void> {
+        try {
+            await copyFile(src, dest);
+        } catch (ex) {
+            this._sentry.capture(ex);
+            logger.error(ex);
         }
     }
 

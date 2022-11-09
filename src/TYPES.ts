@@ -15,11 +15,17 @@
  */
 
 export const TYPES_VM = {
-    ProfileFactory: Symbol.for('ProfileFactory'),
+    ProfileFactory: Symbol.for('Factory<Profile>'),
     ProcessorFactory: Symbol.for('Factory<VideoProcessor>'),
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
-    JobApplication: Symbol.for('JobApplication')
+    LocalExtractProcessor: Symbol.for('LocalExtractProcessor'),
+    JobApplication: Symbol.for('JobApplication'),
+    ExtractorFactory: Symbol.for('Factory<Extractor>'),
+    VertexManager: Symbol.for('VertexManager'),
+    VertexManagerFactory: Symbol.for('Factory<VertexManager>'),
+    JobManager: Symbol.for('JobManager'),
+    JobManagerFactory: Symbol.for('Factory<JobManager>'),
 };
 
 export type WebServerConfig = {

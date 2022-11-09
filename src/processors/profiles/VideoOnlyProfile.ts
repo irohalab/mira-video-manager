@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import { BaseProfile } from "./BaseProfile";
+import { ConvertAction } from '../../domains/ConvertAction';
+import { DefaultProfile } from './DefaultProfile';
 
-export class VideoOnlyProfile extends BaseProfile {
-    constructor(videoFilePath: string, actionIndex: number) {
-        super(videoFilePath, actionIndex);
+export class VideoOnlyProfile extends DefaultProfile {
+    constructor(action: ConvertAction) {
+        super(action);
     }
 
     public static profileName = 'video_only'
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve(['-i', this.videoFilePath, '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
+        return Promise.resolve(['-i', ...this.getInputCommandArgs(), '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
     }
 }

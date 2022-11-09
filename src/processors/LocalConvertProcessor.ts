@@ -17,7 +17,6 @@
 import { VideoProcessor } from "./VideoProcessor";
 import { extname } from "path";
 import { ConfigManager } from "../utils/ConfigManager";
-import { Action } from "../domains/Action";
 import { ConvertAction } from "../domains/ConvertAction";
 import { ProfileFactoryInitiator } from "./profiles/ProfileFactory";
 import { inject, injectable } from "inversify";
@@ -28,74 +27,88 @@ import { StringDecoder } from 'string_decoder';
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
+import { ActionType } from '../domains/ActionType';
+import { ExtractAction } from '../domains/ExtractAction';
+import { ExtractTarget } from '../domains/ExtractTarget';
+import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../domains/FilenameExtensionConstants';
+import { Vertex } from '../entity/Vertex';
+import { DatabaseService } from '../services/DatabaseService';
+import { getStdLogger } from '../utils/Logger';
 
-const logger = pino();
-
-const VIDEO_FILE_EXT: string[] = ['.mp4', '.mkv', '.avi', 'rmvb', '.rm', '.mov', '.wmv', '.ts'];
-const SUBTITLE_EXT: string[] = ['.ass', '.ssa', '.srt', '.sub', '.scc', '.vtt', '.smi', '.sbv'];
-
+const logger = getStdLogger();
+/**
+ * Convert inputs to a single mp4 file with h264+aac encoding
+ */
 @injectable()
 export class LocalConvertProcessor implements VideoProcessor {
 
     private _controller: AbortController;
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
+    private upstreamVertices: Vertex[];
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_VM.ProfileFactory) private _profileFactory: ProfileFactoryInitiator,
                 private _fileManageService: FileManageService) {
     }
 
-    public async prepare(jobMessage: JobMessage, action: ConvertAction): Promise<void> {
-        const videoFilePath: string = this._fileManageService.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
-        action.inputList = [videoFilePath];
-        try {
-            if (!await this._fileManageService.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
-                await this._fileManageService.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
-            }
-            for (const remoteFile of jobMessage.otherFiles) {
-                action.inputList.push(this._fileManageService.getLocalPath(remoteFile.filename, jobMessage.id));
-                if (!await this._fileManageService.checkExists(remoteFile.filename, jobMessage.id)) {
-                    await this._fileManageService.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
-                }
-            }
-        } catch (err) {
-            logger.error(err);
-        }
+    public async prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+        const outputFilename = vertex.action.outputFilename || vertex.id + '.mp4';
+        vertex.outputPath = this._fileManageService.getLocalPath(outputFilename, jobMessage.id);
+        const verticesMap = await this._databaseService.getVertexRepository().getVertexMap(jobMessage.jobId);
+        this.upstreamVertices = vertex.upstreamVertexIds.map(actionId => verticesMap[actionId]);
+        return Promise.resolve();
     }
 
-    public async process(action: Action): Promise<string> {
-        const currentAction = action as ConvertAction;
+    public async process(vertex: Vertex): Promise<string> {
+        const currentAction = vertex.action as ConvertAction;
         let videoFilePath = null;
         let subtitleFilePath = null;
-
-        if (action.lastOutput) {
-            const lastOutputExtname = extname(action.lastOutput).toLowerCase();
-            if (lastOutputExtname && VIDEO_FILE_EXT.indexOf(lastOutputExtname) !== -1) {
-                videoFilePath = action.lastOutput;
-            } else if (lastOutputExtname && SUBTITLE_EXT.indexOf(lastOutputExtname) !== -1) {
-                subtitleFilePath = action.lastOutput;
+        let audioFilePath = null;
+        for (const upstreamVertex of this.upstreamVertices) {
+            const vertexOutputPath = upstreamVertex.outputPath;
+            switch (upstreamVertex.actionType) {
+                case ActionType.Convert:
+                    videoFilePath = vertexOutputPath;
+                    break;
+                case ActionType.Extract:
+                    const extractAction = upstreamVertex.action as ExtractAction;
+                    switch(extractAction.extractTarget) {
+                        case ExtractTarget.KeepContainer:
+                            const ext = extname(vertexOutputPath);
+                            if (!videoFilePath && VIDEO_FILE_EXT.includes(ext)) {
+                                videoFilePath = vertexOutputPath;
+                            } else if (!audioFilePath && AUDIO_FILE_EXT.includes(ext)) {
+                                audioFilePath = vertexOutputPath;
+                            } else if (!subtitleFilePath && SUBTITLE_EXT.includes(ext)) {
+                                subtitleFilePath = vertexOutputPath;
+                            }
+                            break;
+                        case ExtractTarget.AudioStream:
+                            audioFilePath = vertexOutputPath;
+                            break;
+                        case ExtractTarget.Subtitle:
+                            subtitleFilePath = vertexOutputPath;
+                            break;
+                    }
+                    break;
+                case ActionType.Merge:
+                    // TODO: support merge output
+                    break;
+                // fragment should the final output, should not be in upstream of convert action
             }
         }
+        currentAction.videoFilePath = videoFilePath;
+        currentAction.audioFilePath = audioFilePath;
+        currentAction.subtitlePath = subtitleFilePath;
 
-        for (const inputPath of currentAction.inputList) {
-            if (videoFilePath && subtitleFilePath) {
-                break;
-            }
-            const extName = extname(inputPath).toLowerCase();
-            if (!videoFilePath && VIDEO_FILE_EXT.indexOf(extName) !== -1) {
-                videoFilePath = inputPath;
-            } else if (!subtitleFilePath && SUBTITLE_EXT.indexOf(extName) !== -1) {
-                subtitleFilePath = inputPath;
-            }
-        }
         const extra = { data: currentAction.profileExtraData } as any;
         if (subtitleFilePath) {
             extra.subtitleFile = subtitleFilePath;
         }
-        const convertProfile = this._profileFactory(currentAction.profile, videoFilePath, action.index, extra);
-        const outputFilename = convertProfile.getOutputFilename();
-        await this.runCommand(await convertProfile.getCommandArgs(), outputFilename);
-        return outputFilename;
+        const convertProfile = this._profileFactory(currentAction.profile, currentAction, extra);
+        await this.runCommand(await convertProfile.getCommandArgs(), vertex.outputPath);
+        return vertex.outputPath;
     }
 
     public async cancel(): Promise<void> {
@@ -109,7 +122,7 @@ export class LocalConvertProcessor implements VideoProcessor {
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
         const maxThreads = this._configManager.maxThreadsToProcess();
         const threadsLimit = maxThreads > 0 ? ['-threads', `${maxThreads}`] : [];
-        console.log('ffmpeg -n ' + threadsLimit.join(' ') + ' ' + cmdArgs.join(' ') + ' ' + outputFilename);
+        console.log('ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
@@ -124,9 +137,15 @@ export class LocalConvertProcessor implements VideoProcessor {
                 child.stderr.on('data', (data) => {
                     this.handleLog(data, 'stderr');
                 });
+                child.on('error', (error) => {
+                    if (error && (error as any).type === 'AbortError') {
+                        // ignore AbortError
+                        return;
+                    }
+                })
                 child.on('close', (code) => {
                     if (code !== 0) {
-                        reject('ffmpeg exited with non 0 code');
+                        reject(new Error('ffmpeg exited with non 0 code'));
                         return;
                     }
                     resolve();

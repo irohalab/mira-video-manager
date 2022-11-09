@@ -20,20 +20,19 @@ import { DatabaseService } from './services/DatabaseService';
 import { VideoProcessRule } from './entity/VideoProcessRule';
 import { ConditionParser } from './utils/ConditionParser';
 import { JobMessage } from './domains/JobMessage';
-import { v4 as uuidv4 } from 'uuid';
 import { Job } from './entity/Job';
 import { JobStatus } from './domains/JobStatus';
 import { JobApplication } from './JobApplication';
-import { JobState } from './domains/JobState';
 import { FileManageService } from './services/FileManageService';
-import { CMD_CANCEL, CommandMessage } from './domains/CommandMessage';
+import { CMD_CANCEL, CMD_RESUME, CommandMessage } from './domains/CommandMessage';
 import { promisify } from 'util';
-import pino from 'pino';
 import {
+    COMMAND_QUEUE,
     DOWNLOAD_MESSAGE_EXCHANGE,
     DOWNLOAD_MESSAGE_QUEUE,
     DownloadMQMessage,
     JOB_EXCHANGE,
+    JOB_QUEUE,
     RabbitMQService,
     Sentry,
     TYPES,
@@ -42,28 +41,34 @@ import {
     VIDEO_MANAGER_GENERAL,
     VideoManagerMessage
 } from '@irohalab/mira-shared';
+import { randomUUID } from 'crypto';
+import { getStdLogger } from './utils/Logger';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
 
-const logger = pino();
+const logger = getStdLogger();
 
 @injectable()
 export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
+    private _commandMessageConsumeTag: string;
+    private _jobMessageConsumeTag: string;
     private _jobStatusCheckerTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _fileManageService: FileManageService,
-                private _rabbitmqService: RabbitMQService) {
+                @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService) {
     }
 
     public async start(): Promise<void> {
-        this.checkJobStatus();
-        await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct');
-        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct');
+        await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', '');
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND, true);
+        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
         this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, async (msg) => {
             try {
@@ -75,6 +80,31 @@ export class JobScheduler implements JobApplication {
                 return false;
             }
         });
+        this._commandMessageConsumeTag = await this._rabbitmqService.consume(COMMAND_QUEUE, async (msg) => {
+            try {
+                return await this.onCommandMessage(msg as CommandMessage);
+            } catch (ex) {
+                logger.error(ex);
+                this._sentry.capture(ex);
+                return false;
+            }
+        });
+        this._jobMessageConsumeTag = await this._rabbitmqService.consume(JOB_QUEUE, async (msg) => {
+            try {
+                const jobMessage = msg as JobMessage;
+                const job = await this._databaseService.getJobRepository().findOne({ id: jobMessage.jobId });
+                if (job.status === JobStatus.Canceled) {
+                    logger.info('remove canceled job (' + job.id +') from message queue');
+                    // remove from Message Queue
+                    return true;
+                }
+            } catch (ex) {
+                logger.error(ex);
+                this._sentry.capture(ex);
+            }
+            return false;
+        });
+        this.checkJobStatus();
     }
 
     public async stop(): Promise<void> {
@@ -113,6 +143,33 @@ export class JobScheduler implements JobApplication {
         }
     }
 
+    private async onCommandMessage(msg: CommandMessage): Promise<boolean> {
+        let job: Job;
+        const jobRepo = this._databaseService.getJobRepository();
+        switch (msg.command) {
+            case CMD_CANCEL:
+                job = await jobRepo.findOne({ id: msg.jobId });
+                if (job && job.status === JobStatus.Queueing || job.status === JobStatus.Pause) {
+                    job.status = JobStatus.Canceled;
+                    await jobRepo.save(job);
+                    return true;
+                }
+                break;
+            case CMD_RESUME:
+                job = await jobRepo.findOne({ id: msg.jobId });
+                if (job && job.status === JobStatus.Pause) {
+                    job.status = JobStatus.Queueing;
+                    await jobRepo.save(job);
+                    await this._rabbitmqService.publish(JOB_EXCHANGE, '', job.jobMessage);
+                    return true;
+                }
+                break;
+            default:
+                logger.info(`${msg.command} command received, but not processed.`);
+        }
+        return false;
+    }
+
     private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
         if (!condition) {
             return true;
@@ -130,9 +187,25 @@ export class JobScheduler implements JobApplication {
         }
     }
 
+    /**
+     * create a new job with job message, Job entity must have default PK before save to database.
+     * @param msg
+     * @private
+     */
+    private async newJob(msg: JobMessage): Promise<void> {
+        const job = new Job();
+        msg.jobId = job.id;
+        job.jobMessage = msg;
+        job.jobMessageId = msg.id;
+        job.status = JobStatus.Queueing;
+        job.createTime = new Date();
+        job.actionMap = msg.actions;
+        await this._databaseService.getJobRepository().save(job);
+    }
+
     private async dispatchJob(appliedRule: VideoProcessRule, msg: DownloadMQMessage): Promise<void> {
         const jobMessage = new JobMessage();
-        jobMessage.id = uuidv4();
+        jobMessage.id = randomUUID();
         jobMessage.bangumiId = msg.bangumiId;
         jobMessage.videoId = msg.videoId;
         jobMessage.actions = appliedRule.actions;
@@ -140,8 +213,7 @@ export class JobScheduler implements JobApplication {
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.downloadAppId = msg.downloadManagerId;
         jobMessage.downloadTaskId = msg.downloadTaskId;
-        const job = JobScheduler.newJob(jobMessage);
-        await this._databaseService.getJobRepository().save(job);
+        await this.newJob(jobMessage);
         this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
             .then(() => {
                 logger.info('dispatched job ' + jobMessage.id);
@@ -150,32 +222,18 @@ export class JobScheduler implements JobApplication {
 
     private async sendNoNeedToProcessMessage(msg: DownloadMQMessage) {
         const vmMsg = new VideoManagerMessage();
-        vmMsg.id = uuidv4();
+        vmMsg.id = randomUUID();
         vmMsg.bangumiId = msg.bangumiId;
         vmMsg.videoId = msg.videoId;
         vmMsg.isProcessed = false;
-        vmMsg.processedFile = null;
+        vmMsg.processedFiles = null;
         vmMsg.jobExecutorId = null;
         vmMsg.downloadTaskId = msg.downloadTaskId;
         await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
     }
 
-    private static newJob(msg: JobMessage): Job {
-        const job = new Job();
-        job.jobMessage = msg;
-        job.jobMessageId = msg.id;
-        job.status = JobStatus.Queueing;
-        job.progress = 0;
-        const jobState = new JobState();
-        jobState.log = 'new job created by Scheduler. JobMessageId: ' + msg.id + '. bangumiId: ' + msg.bangumiId;
-        jobState.startTime = new Date();
-        jobState.endTime = new Date();
-        job.stateHistory = [jobState];
-        job.createTime = new Date();
-        return job;
-    }
-
     private checkJobStatus(): void {
+        console.log('start to check job status');
         this._jobStatusCheckerTimerId = setTimeout(async () => {
             await this.doCheckJobStatus();
             this.checkJobStatus();
@@ -197,9 +255,8 @@ export class JobScheduler implements JobApplication {
 
         for (const job of unfinishedRunningJobs) {
             const jobMessage = Object.assign({}, job.jobMessage);
-            jobMessage.id = uuidv4();
-            const rerunJob = JobScheduler.newJob(jobMessage);
-            await jobRepo.save(rerunJob);
+            jobMessage.id = randomUUID();
+            await this.newJob(jobMessage);
             await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage);
         }
     }

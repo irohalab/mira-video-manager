@@ -19,15 +19,16 @@ import * as process from 'process';
 import { Options } from 'amqplib';
 import * as os from 'os';
 import { join, resolve } from 'path';
-import { mkdir, stat, readFile, writeFile } from 'fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
-import { v4 as uuidv4 } from 'uuid';
 import { readFileSync } from 'fs';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
-import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
+import { MikroORMOptions } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
+import { TSMigrationGenerator } from '@mikro-orm/migrations';
+import { randomUUID } from 'crypto';
 
 type AppConfg = {
     amqp: {
@@ -54,6 +55,8 @@ type AppConfg = {
         host: string;
         port: number;
     };
+    jobLogPath: string;
+    jobExpireTime: {Canceled: number, UnrecoverableError: number, Finished: number};
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -160,7 +163,7 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.fileRetentionDays;
     }
 
-    failedFileRetentionDays(): number {
+    public failedFileRetentionDays(): number {
         return this._config.failedFileRetentionDays;
     }
 
@@ -185,11 +188,27 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
-        return Object.assign({namingStrategy: MiraNamingStrategy as new() => NamingStrategy}, this._ormConfig) as MikroORMOptions<PostgreSqlDriver>;
+        return Object.assign({
+            namingStrategy: MiraNamingStrategy,
+            migrations: {
+                tableName: 'mikro_orm_migrations',
+                path: 'dist/migrations',
+                pathTs: 'src/migrations',
+                glob: '!(*.d).{js.ts}',
+                transactional: true,
+                disableForeignKeys: true,
+                allOrNothing: true,
+                dropTables: true,
+                safe: false,
+                snapshot: true,
+                emit: 'ts',
+                generator: TSMigrationGenerator
+            }
+        }, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver>;
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {
-        const myId = uuidv4();
+        const myId = randomUUID();
         await writeFile(profilePath, JSON.stringify({id: myId}));
         return myId
     }
@@ -207,5 +226,17 @@ export class ConfigManagerImpl implements ConfigManager {
 
     public WebServerConfig(): WebServerConfig {
         return this._config.WebServer as WebServerConfig;
+    }
+
+    public jobLogPath(): string {
+        return ConfigManagerImpl.processPath(this._config.jobLogPath);
+    }
+
+    public getJobExpireTime(): {Canceled: number, UnrecoverableError: number, Finished: number} {
+        if (this._config.jobExpireTime) {
+            return this._config.jobExpireTime;
+        } else {
+            return {Canceled: 1, UnrecoverableError: 5, Finished: 3};
+        }
     }
 }

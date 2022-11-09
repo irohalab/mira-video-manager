@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2022 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,27 @@
 
 import { VideoProcessor } from './VideoProcessor';
 import { JobMessage } from '../domains/JobMessage';
-import { Action } from '../domains/Action';
+import { Vertex } from '../entity/Vertex';
 
 export class MergeProcessor implements VideoProcessor {
     cancel(): Promise<void> {
         return Promise.resolve(undefined);
     }
 
-    prepare(jobMessage: JobMessage, action: Action): Promise<void> {
-        return Promise.resolve();
-    }
-
-    process(action: Action): Promise<string> {
-        return Promise.resolve('');
-    }
-
-    dispose(): Promise<void> {
+    public dispose(): Promise<void> {
         return Promise.resolve(undefined);
     }
 
-    registerLogHandler(callback: (logChunk: string, ch: ("stdout" | "stderr")) => void): void {
+    public prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+        return Promise.resolve(undefined);
+    }
+
+    public process(vertex: Vertex): Promise<string> {
+        return Promise.resolve('');
+    }
+
+    public registerLogHandler(callback: (logChunk: string, ch: ("stdout" | "stderr")) => void): void {
+        // TODO register handler
     }
 
 }
