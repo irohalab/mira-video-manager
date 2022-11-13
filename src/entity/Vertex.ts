@@ -50,7 +50,7 @@ export class Vertex {
      * Result of the vertex
      */
     @Property({
-        type: 'text',
+        columnType: 'text',
         nullable: true
     })
     public outputPath: string;

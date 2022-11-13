@@ -36,7 +36,7 @@ export class JobCleaner {
     private _checkErrorJobsTimer: NodeJS.Timeout;
 
     constructor(private _fileManageService: FileManageService,
-                private _databaseService: DatabaseService,
+                @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
