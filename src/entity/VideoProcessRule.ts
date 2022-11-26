@@ -27,6 +27,7 @@ export class VideoProcessRule {
     public id: string = randomUUID();
 
     @Property({
+        columnType: 'text',
         nullable: true
     })
     public name: string;
@@ -45,6 +46,7 @@ export class VideoProcessRule {
      * An expression to determine a rule can apply to a certain download
      */
     @Property({
+        columnType: 'text',
         nullable: true
     })
     public condition: string;
