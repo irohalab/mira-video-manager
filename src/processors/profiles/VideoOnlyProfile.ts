@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,6 @@ export class VideoOnlyProfile extends DefaultProfile {
     public static profileName = 'video_only'
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve(['-i', ...this.getInputCommandArgs(), '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
+        return Promise.resolve([...this.getInputCommandArgs(), '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
     }
 }
