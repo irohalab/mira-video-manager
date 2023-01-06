@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -122,7 +122,9 @@ export class LocalConvertProcessor implements VideoProcessor {
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
         const maxThreads = this._configManager.maxThreadsToProcess();
         const threadsLimit = maxThreads > 0 ? ['-threads', `${maxThreads}`] : [];
-        console.log('ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename);
+        const cmdFinal = 'ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename;
+        this.handleLog(Buffer.from(cmdFinal, 'utf-8'), 'stdout');
+        console.log(cmdFinal);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {

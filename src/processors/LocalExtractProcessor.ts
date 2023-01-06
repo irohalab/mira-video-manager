@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,7 +107,9 @@ export class LocalExtractProcessor implements VideoProcessor {
     }
 
     private runCommand(cmdArgs: string[], outputFilename): Promise<void> {
-        console.log('extract cmd: ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename);
+        const finalCmd = 'extract cmd: ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename;
+        this.handleLog(Buffer.from(finalCmd, 'utf-8'), 'stdout');
+        console.log(finalCmd);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
