@@ -109,7 +109,7 @@ export class LocalExtractProcessor implements VideoProcessor {
     private runCommand(cmdArgs: string[], outputFilename): Promise<void> {
         const finalCmd = 'extract cmd: ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename;
         this.handleLog(Buffer.from(finalCmd, 'utf-8'), 'stdout');
-        console.log(finalCmd);
+        logger.info(finalCmd);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
