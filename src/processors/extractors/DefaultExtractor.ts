@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ const DEFAULT_REGEX = /(?:\.sc\.|\.tc\.|简体|繁體)/;
  * For subtitle extraction from subtitle files, action.outputExtname must set.
  */
 export class DefaultExtractor implements Extractor {
+    public static Id = 'Default';
     public trackIdx: number;
     public inputPath: string;
     public streamsInfo: any[];

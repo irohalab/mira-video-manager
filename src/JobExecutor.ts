@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,6 +171,11 @@ export class JobExecutor implements JobApplication {
                 logger.error(error);
                 this._sentry.capture(error);
             }
+        } else {
+            // consider JM is exited before job status change. in this case, just update job status
+            job.status = JobStatus.Canceled;
+            job.jobExecutorId = null;
+            await jobRepo.save(job);
         }
     }
 

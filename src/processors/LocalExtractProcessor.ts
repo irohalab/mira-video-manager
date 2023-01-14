@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,7 +83,7 @@ export class LocalExtractProcessor implements VideoProcessor {
             // if cmd is null, we only need to copy source file to our outputPath
             if (extractAction.extractFrom !== ExtractSource.VideoFile) {
                 if(!extractor.getInputPath()) {
-                    throw new Error('inputPath of extractor is null');
+                    throw new Error('inputPath of extractor is null when ExtractSource is not VideoFile');
                 }
                 await this._fileManager.localCopy(extractor.getInputPath(), vertex.outputPath);
             } else {

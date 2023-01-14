@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,4 +34,5 @@ export class ExtractAction extends Action {
     public outputExtname: string;
     public extractRegex: string;
     public extractorId: string;
+    public extraData: any;
 }
