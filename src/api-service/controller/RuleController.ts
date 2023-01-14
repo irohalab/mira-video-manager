@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,8 +60,8 @@ export class RuleController implements interfaces.Controller {
             Object.keys(rule.actions).forEach(actId => {
                 const action = rule.actions[actId];
                 // auto correction for extractId
-                if (action && action.type === ActionType.Extract) {
-                    (action as ExtractAction).extractorId = 'Default';
+                if (action && action.type === ActionType.Extract && !(action as ExtractAction).extractorId) {
+                    throw new Error('No extractorId');
                 }
             });
         } else {

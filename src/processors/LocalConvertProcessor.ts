@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,10 @@ import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../domains/Filenam
 import { Vertex } from '../entity/Vertex';
 import { DatabaseService } from '../services/DatabaseService';
 import { getStdLogger } from '../utils/Logger';
+import { DefaultExtractor } from './extractors/DefaultExtractor';
+import { FileExtractor } from './extractors/FileExtractor';
+import { SubtitleExtractor } from './extractors/SubtitleExtractor';
+import { AudioExtractor } from './extractors/AudioExtractor';
 
 const logger = getStdLogger();
 /**
@@ -65,6 +69,7 @@ export class LocalConvertProcessor implements VideoProcessor {
         let videoFilePath = null;
         let subtitleFilePath = null;
         let audioFilePath = null;
+        let ext: string;
         for (const upstreamVertex of this.upstreamVertices) {
             const vertexOutputPath = upstreamVertex.outputPath;
             switch (upstreamVertex.actionType) {
@@ -73,9 +78,29 @@ export class LocalConvertProcessor implements VideoProcessor {
                     break;
                 case ActionType.Extract:
                     const extractAction = upstreamVertex.action as ExtractAction;
-                    switch(extractAction.extractTarget) {
-                        case ExtractTarget.KeepContainer:
-                            const ext = extname(vertexOutputPath);
+                    switch (extractAction.extractorId) {
+                        case DefaultExtractor.Id:
+                            switch(extractAction.extractTarget) {
+                                case ExtractTarget.KeepContainer:
+                                    ext = extname(vertexOutputPath);
+                                    if (!videoFilePath && VIDEO_FILE_EXT.includes(ext)) {
+                                        videoFilePath = vertexOutputPath;
+                                    } else if (!audioFilePath && AUDIO_FILE_EXT.includes(ext)) {
+                                        audioFilePath = vertexOutputPath;
+                                    } else if (!subtitleFilePath && SUBTITLE_EXT.includes(ext)) {
+                                        subtitleFilePath = vertexOutputPath;
+                                    }
+                                    break;
+                                case ExtractTarget.AudioStream:
+                                    audioFilePath = vertexOutputPath;
+                                    break;
+                                case ExtractTarget.Subtitle:
+                                    subtitleFilePath = vertexOutputPath;
+                                    break;
+                            }
+                            break;
+                        case FileExtractor.Id:
+                            ext = extname(vertexOutputPath);
                             if (!videoFilePath && VIDEO_FILE_EXT.includes(ext)) {
                                 videoFilePath = vertexOutputPath;
                             } else if (!audioFilePath && AUDIO_FILE_EXT.includes(ext)) {
@@ -84,13 +109,16 @@ export class LocalConvertProcessor implements VideoProcessor {
                                 subtitleFilePath = vertexOutputPath;
                             }
                             break;
-                        case ExtractTarget.AudioStream:
-                            audioFilePath = vertexOutputPath;
-                            break;
-                        case ExtractTarget.Subtitle:
+                        case SubtitleExtractor.Id:
                             subtitleFilePath = vertexOutputPath;
                             break;
+                        case AudioExtractor.Id:
+                            audioFilePath = vertexOutputPath;
+                            break;
+                        default:
+                            throw new Error(`ExtractId: ${extractAction.extractorId} haven't support this is a bug`);
                     }
+
                     break;
                 case ActionType.Merge:
                     // TODO: support merge output
