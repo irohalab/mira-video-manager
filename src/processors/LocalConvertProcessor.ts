@@ -24,7 +24,6 @@ import { JobMessage } from '../domains/JobMessage';
 import { spawn } from 'child_process';
 import { FileManageService } from '../services/FileManageService';
 import { StringDecoder } from 'string_decoder';
-import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
 import { ActionType } from '../domains/ActionType';
@@ -150,7 +149,9 @@ export class LocalConvertProcessor implements VideoProcessor {
     private runCommand(cmdArgs: string[], outputFilename: string): Promise<void> {
         const maxThreads = this._configManager.maxThreadsToProcess();
         const threadsLimit = maxThreads > 0 ? ['-threads', `${maxThreads}`] : [];
-        console.log('ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename);
+        const cmdFinal = 'ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename;
+        this.handleLog(Buffer.from(cmdFinal, 'utf-8'), 'stdout');
+        logger.info(cmdFinal);
         this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
