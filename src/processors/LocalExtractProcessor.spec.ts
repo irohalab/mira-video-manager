@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,7 @@ test('DefaultExtractor', async (t) => {
     const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
 
     const videoExtractAction = new ExtractAction();
-    videoExtractAction.extractorId = 'Default';
+    videoExtractAction.extractorId = DefaultExtractor.Id;
     videoExtractAction.extractTarget = ExtractTarget.KeepContainer;
     videoExtractAction.extractFrom = ExtractSource.VideoFile;
 
@@ -140,7 +140,7 @@ test('DefaultExtractor extract ass from mkv', async (t) => {
     const jobMessage = prepareJobMessage('test-video-with-sub.mkv');
 
     const action = new ExtractAction();
-    action.extractorId = 'Default';
+    action.extractorId = DefaultExtractor.Id;
     action.extractTarget = ExtractTarget.Subtitle;
     action.extractFrom = ExtractSource.VideoFile;
     action.outputExtname = 'ass'

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ import { ProfileFactory, ProfileFactoryInitiator } from './profiles/ProfileFacto
 import { TYPES_VM } from '../TYPES';
 import { BaseProfile } from './profiles/BaseProfile';
 import { rm } from 'fs/promises';
+import { DefaultExtractor } from './extractors/DefaultExtractor';
 
 type Cxt = { container: Container };
 const testVideoFile = 'test-video-2.mkv';
@@ -76,9 +77,11 @@ test('Default Profile', async (t) => {
     const subtitleFilePath = await fileManager.downloadFile(jobMessage.otherFiles[0], jobMessage.downloadAppId, jobMessage.id);
 
     const extractAction = new ExtractAction();
+    extractAction.extractorId = DefaultExtractor.Id;
     extractAction.extractTarget = ExtractTarget.KeepContainer;
     extractAction.extractFrom = ExtractSource.VideoFile;
     const subExtractAction = new ExtractAction();
+    subExtractAction.extractorId = DefaultExtractor.Id;
     subExtractAction.extractTarget = ExtractTarget.Subtitle;
     subExtractAction.extractFrom = ExtractSource.OtherFiles;
 
