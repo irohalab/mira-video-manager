@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,7 +80,8 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
         const io = new SocketIOServer(server, {
             cors: {
                 origin: 'http://localhost:3000'
-            }
+            },
+            path: '/rt-log/'
         });
         const iss = new InversifySocketServer(container, io);
         iss.build();
