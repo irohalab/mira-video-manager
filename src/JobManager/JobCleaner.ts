@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ export class JobCleaner {
 
     public async start(jobExecutorId: string): Promise<void> {
         this._jobExecutorId = jobExecutorId;
+        await this.doCheckJobs(JobStatus.UnrecoverableError);
         this.checkCanceledJobs();
         this.checkCompleteJobs();
         this.checkErrorJobs();
@@ -90,7 +91,9 @@ export class JobCleaner {
     private async doCheckJobs(status: JobStatus): Promise<void> {
         const jobRepo = this._databaseService.getJobRepository();
         const expireTime = this._configManager.getJobExpireTime()[status] * 24 * 3600 * 1000;
+        console.log(expireTime);
         const jobs = await jobRepo.getExpiredJobsByStatusOfCurrentExecutor(this._jobExecutorId, status, expireTime);
+        console.log(jobs);
         for (const job of jobs) {
             await this.cleanJob(job, jobRepo);
             logger.info(`job ${job.id} cleaned`);
