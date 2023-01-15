@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,27 +18,13 @@ import { BaseProfile } from "./BaseProfile";
 import { ConvertAction } from '../../domains/ConvertAction';
 
 export class DefaultProfile extends BaseProfile {
-    constructor(action: ConvertAction) {
-        super(action);
+    constructor(action: ConvertAction, fontsDir: string) {
+        super(action, fontsDir);
     }
 
     public static profileName = 'default';
 
     public getCommandArgs(): Promise<string[]> {
         return Promise.resolve([...this.getInputCommandArgs(), '-strict', '-2']);
-    }
-
-    protected getInputCommandArgs(): string[] {
-        let cmd = [];
-        if (this.action.videoFilePath) {
-            cmd = cmd.concat(['-i', this.action.videoFilePath]);
-        }
-        if (this.action.audioFilePath) {
-            cmd = cmd.concat(['-i', this.action.audioFilePath]);
-        }
-        if (this.action.subtitlePath) {
-            cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}'`]);
-        }
-        return cmd;
     }
 }

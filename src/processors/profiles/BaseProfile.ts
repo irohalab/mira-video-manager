@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import { ConvertAction } from '../../domains/ConvertAction';
 
 export abstract class BaseProfile {
-    protected constructor(protected action: ConvertAction) {
+    protected constructor(protected action: ConvertAction, protected fontsDir: string) {
     }
 
     /**
@@ -44,7 +44,11 @@ export abstract class BaseProfile {
             cmd = cmd.concat(['-i', this.action.audioFilePath]);
         }
         if (this.action.subtitlePath) {
-            cmd = cmd.concat(['-i', this.action.audioFilePath]);
+            if (this.fontsDir) {
+                cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}':fontsdir='${this.fontsDir}'`]);
+            } else {
+                cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}'`]);
+            }
         }
         return cmd;
     }

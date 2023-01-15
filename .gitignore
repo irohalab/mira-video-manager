@@ -11,3 +11,4 @@ test.json
 start-scheduler.sh
 start-executor.sh
 start-e2ehelper.sh
+fonts/
