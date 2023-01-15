@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,8 +20,8 @@ import { ConvertAction } from '../../domains/ConvertAction';
 export class ContainerOnlyProfile extends BaseProfile {
     public static profileName = 'container_only';
 
-    constructor(action: ConvertAction) {
-        super(action);
+    constructor(action: ConvertAction, fontsDir: string) {
+        super(action, fontsDir);
     }
 
     public getCommandArgs(): Promise<string[]> {

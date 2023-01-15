@@ -18,8 +18,8 @@ import { ConvertAction } from '../../domains/ConvertAction';
 import { DefaultProfile } from './DefaultProfile';
 
 export class VideoOnlyProfile extends DefaultProfile {
-    constructor(action: ConvertAction) {
-        super(action);
+    constructor(action: ConvertAction, fontsDir: string) {
+        super(action, fontsDir);
     }
 
     public static profileName = 'video_only'

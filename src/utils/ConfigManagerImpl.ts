@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,6 +57,7 @@ type AppConfg = {
     };
     jobLogPath: string;
     jobExpireTime: {Canceled: number, UnrecoverableError: number, Finished: number};
+    fontsDir: string;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -238,5 +239,13 @@ export class ConfigManagerImpl implements ConfigManager {
         } else {
             return {Canceled: 1, UnrecoverableError: 5, Finished: 3};
         }
+    }
+
+    public fontsDir(): string {
+        const fontsDirStr = this._config.fontsDir;
+        if (fontsDirStr) {
+            return ConfigManagerImpl.processPath(fontsDirStr);
+        }
+        return null;
     }
 }

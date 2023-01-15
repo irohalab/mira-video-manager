@@ -58,3 +58,6 @@ jobExpireTime:
   Canceled: 1
   UnrecoverableError: 7
   Finished: 2
+
+# fonts directory that can be used by ffmpeg
+fontsDir: ${project_root}/fonts

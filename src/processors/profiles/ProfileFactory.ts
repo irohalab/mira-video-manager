@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,19 +21,23 @@ import { interfaces } from "inversify";
 import { BaseProfile } from "./BaseProfile";
 import { ContainerOnlyProfile } from './ContainerOnlyProfile';
 import { ConvertAction } from '../../domains/ConvertAction';
+import { ConfigManager } from '../../utils/ConfigManager';
+import { TYPES } from '@irohalab/mira-shared';
 
 export function ProfileFactory(context: interfaces.Context): ProfileFactoryInitiator {
+    const configManager = context.container.get<ConfigManager>(TYPES.ConfigManager);
+    const fontsDir = configManager.fontsDir();
     return (profileName: string, action: ConvertAction, profileExtraData?: any) => {
         switch (profileName) {
             case SoundOnlyProfile.profileName:
-                return new SoundOnlyProfile(action, profileExtraData.data);
+                return new SoundOnlyProfile(action, profileExtraData.data, fontsDir);
             case VideoOnlyProfile.profileName:
-                return new VideoOnlyProfile(action);
+                return new VideoOnlyProfile(action, fontsDir);
             case ContainerOnlyProfile.profileName:
-                return new ContainerOnlyProfile(action);
+                return new ContainerOnlyProfile(action, fontsDir);
             case DefaultProfile.profileName:
             default:
-                return new DefaultProfile(action);
+                return new DefaultProfile(action, fontsDir);
         }
     };
 }

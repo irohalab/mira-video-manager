@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ const DEFAULT_BIT_RATE_PER_CHANNEL = 64; // kbit/s
 export class SoundOnlyProfile extends BaseProfile {
     public static profileName = 'sound_only'
 
-    constructor(action: ConvertAction, private _preferredTrack: string) {
-        super(action);
+    constructor(action: ConvertAction, private _preferredTrack: string, fontsDir: string) {
+        super(action, fontsDir);
     }
 
     private static isPropertyEqual(prop1: any, prop2: string): boolean {
