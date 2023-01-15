@@ -43,7 +43,6 @@ export class JobCleaner {
 
     public async start(jobExecutorId: string): Promise<void> {
         this._jobExecutorId = jobExecutorId;
-        await this.doCheckJobs(JobStatus.UnrecoverableError);
         this.checkCanceledJobs();
         this.checkCompleteJobs();
         this.checkErrorJobs();
