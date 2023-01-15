@@ -91,9 +91,7 @@ export class JobCleaner {
     private async doCheckJobs(status: JobStatus): Promise<void> {
         const jobRepo = this._databaseService.getJobRepository();
         const expireTime = this._configManager.getJobExpireTime()[status] * 24 * 3600 * 1000;
-        console.log(expireTime);
         const jobs = await jobRepo.getExpiredJobsByStatusOfCurrentExecutor(this._jobExecutorId, status, expireTime);
-        console.log(jobs);
         for (const job of jobs) {
             await this.cleanJob(job, jobRepo);
             logger.info(`job ${job.id} cleaned`);
