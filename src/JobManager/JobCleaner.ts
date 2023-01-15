@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ export class JobCleaner {
 
     public async start(jobExecutorId: string): Promise<void> {
         this._jobExecutorId = jobExecutorId;
+        await this.doCheckJobs(JobStatus.UnrecoverableError);
         this.checkCanceledJobs();
         this.checkCompleteJobs();
         this.checkErrorJobs();

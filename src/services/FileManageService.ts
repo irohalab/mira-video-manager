@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,7 +103,7 @@ export class FileManageService {
         try {
             const files = await readdir(tempDir);
             for (const file of files) {
-                await unlink(file);
+                await unlink(join(tempDir, file));
             }
         } catch (err) {
             this._sentry.capture(err);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ export class JobRepository extends BaseEntityRepository<Job> {
         const latestStartTime = new Date(Date.now() - expire);
         return await this.find({
             $and: [
-                {status: JobStatus.Finished},
+                {status},
                 {cleaned: false},
                 {startTime: {$lt: latestStartTime}}
             ]
