@@ -45,7 +45,11 @@ export abstract class BaseProfile {
         }
         if (this.action.subtitlePath) {
             if (this.fontsDir) {
-                cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}':fontsdir='${this.fontsDir}'`]);
+                if (this.action.forceFontName) {
+                    cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}':fontsdir='${this.fontsDir}':force_style='Fontname=${this.action.forceFontName}'`]);
+                } else {
+                    cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}':fontsdir='${this.fontsDir}'`]);
+                }
             } else {
                 cmd = cmd.concat(['-vf', `subtitles='${this.action.subtitlePath}'`]);
             }

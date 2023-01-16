@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import { DatabaseService } from './services/DatabaseService';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { API_SERVER, bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
-import { VideoProcessRuleService } from './services/VideoProcessRuleService';
 import { hostname } from 'os';
 import {
     RabbitMQService,
@@ -43,7 +42,6 @@ const container = new Container();
 container.bind<Sentry>(TYPES.Sentry).to(SentryImpl).inSingletonScope();
 container.bind<ConfigManager>(TYPES.ConfigManager).to(ConfigManagerImpl).inSingletonScope();
 container.bind<DatabaseService>(TYPES.DatabaseService).to(DatabaseServiceImpl).inSingletonScope();
-container.bind<VideoProcessRuleService>(VideoProcessRuleService).toSelf().inSingletonScope();
 container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingletonScope();
 
 // tslint:disable-next-line

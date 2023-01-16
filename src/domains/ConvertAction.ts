@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,11 @@ export class ConvertAction extends Action {
     public profile: string;
     public profileExtraData: any;
     public type = ActionType.Convert;
+    /**
+     * force ffmpeg to use the font in subtitles filter as default style, it will add force_style='Fontname={forceFontName}'
+     * If this will is null or empty, then force_style will not be added.
+     */
+    public forceFontName: string;
     // below properties will not be serialized.
     public videoFilePath?: string;
     public audioFilePath?: string;
