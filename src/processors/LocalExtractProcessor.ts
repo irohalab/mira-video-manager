@@ -81,14 +81,13 @@ export class LocalExtractProcessor implements VideoProcessor {
         const cmd = await extractor.extractCMD();
         if (!cmd) {
             // if cmd is null, we only need to copy source file to our outputPath
-            if (extractAction.extractFrom !== ExtractSource.VideoFile) {
+            if (extractor.getInputPath() !== vertex.outputPath) {
                 if(!extractor.getInputPath()) {
                     throw new Error('inputPath of extractor is null when ExtractSource is not VideoFile');
                 }
                 await this._fileManager.localCopy(extractor.getInputPath(), vertex.outputPath);
-            } else {
-                await this._fileManager.localCopy(extractAction.videoFilePath, vertex.outputPath);
             }
+            // if input path and output path is equal, do nothing.
         } else {
             await this.runCommand(cmd, vertex.outputPath);
         }
