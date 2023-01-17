@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@ import { TYPES_VM } from '../TYPES';
 import { VertexStatus } from '../domains/VertexStatus';
 import { EventEmitter } from 'events';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
+import { FileManageService } from '../services/FileManageService';
+import { JobMessage } from '../domains/JobMessage';
 
 @injectable()
 export class JobManager {
@@ -41,6 +43,7 @@ export class JobManager {
     constructor(@inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.VertexManagerFactory) private _vmFactory: interfaces.AutoFactory<VertexManager>,
+                private _fileManager: FileManageService,
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
@@ -123,6 +126,8 @@ export class JobManager {
         });
 
         this._jobLogger.info('start running');
+        await this.prepareFiles(this._job.jobMessage);
+        this._jobLogger.info('Files Downloaded');
         await this._vm.start(this._job, this._logPath);
     }
 
@@ -164,5 +169,27 @@ export class JobManager {
             this._vm = null;
         }
         // clean up
+    }
+
+    private async prepareFiles(jobMessage: JobMessage): Promise<void> {
+        try {
+            this._jobLogger.info(`Checking videoFile ${jobMessage.videoFile.filename} existence`);
+            if (!await this._fileManager.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
+                this._jobLogger.info(`videoFile ${jobMessage.videoFile.filename} not found, start downloading`);
+                await this._fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
+            }
+            if (jobMessage.otherFiles && jobMessage.otherFiles.length > 0) {
+                for (const remoteFile of jobMessage.otherFiles) {
+                    this._jobLogger.info(`Checking otherFiles ${remoteFile.filename} existence`);
+                    if (!await this._fileManager.checkExists(remoteFile.filename, jobMessage.id)) {
+                        this._jobLogger.info(`otherFiles ${remoteFile.filename} not found, start downloading`);
+                        await this._fileManager.downloadFile(remoteFile, jobMessage.downloadAppId, jobMessage.id);
+                    }
+                }
+            }
+        } catch (err) {
+            this._sentry.capture(err);
+            this._jobLogger.error(err);
+        }
     }
 }
