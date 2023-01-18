@@ -25,6 +25,6 @@ export class VideoOnlyProfile extends DefaultProfile {
     public static profileName = 'video_only'
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve([...this.getInputCommandArgs(), '-c:v', 'libx264', '-vf', 'format=yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
+        return Promise.resolve([...this.getInputCommandArgs(), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-c:a', 'copy', '-strict', '-2']);
     }
 }
