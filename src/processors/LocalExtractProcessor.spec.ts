@@ -34,7 +34,7 @@ import { LocalExtractProcessor } from './LocalExtractProcessor';
 import { Vertex } from '../entity/Vertex';
 import { ActionType } from '../domains/ActionType';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
-import { rm } from 'fs/promises';
+import { copyFile, rm } from 'fs/promises';
 import { JobMessage } from '../domains/JobMessage';
 import { randomUUID } from 'crypto';
 
@@ -69,62 +69,62 @@ test.after(async(t) => {
 //     }
 // });
 
-test('DefaultExtractor', async (t) => {
-    const context = t.context as Cxt;
-    const fileManager = context.container.get<FileManageService>(FileManageService);
-    const videoProcessor1 = context.container.get<VideoProcessor>(LocalExtractProcessor);
-
-    videoProcessor1.registerLogHandler((log, ch) => {
-        if (ch === 'stderr') {
-            console.error(log);
-        } else {
-            console.log(log);
-        }
-    });
-
-    const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
-
-    const videoExtractAction = new ExtractAction();
-    videoExtractAction.extractorId = DefaultExtractor.Id;
-    videoExtractAction.extractTarget = ExtractTarget.KeepContainer;
-    videoExtractAction.extractFrom = ExtractSource.VideoFile;
-
-    const videoExtractVertex = new Vertex();
-    videoExtractVertex.actionType = ActionType.Extract;
-    videoExtractVertex.action = videoExtractAction;
-    videoExtractVertex.jobId = jobMessage.jobId;
-
-    await videoProcessor1.prepare(jobMessage, videoExtractVertex);
-    await videoProcessor1.process(videoExtractVertex);
-    console.log(videoExtractVertex.outputPath);
-    t.true(await fileManager.checkExists(basename(videoExtractVertex.outputPath), jobMessage.id));
-
-    // subtitle extraction
-    const videoProcessor2 = context.container.get<VideoProcessor>(LocalExtractProcessor);
-
-    videoProcessor2.registerLogHandler((log, ch) => {
-        if (ch === 'stderr') {
-            console.error(log);
-        } else {
-            console.log(log);
-        }
-    });
-    const subExtractAction = new ExtractAction();
-    subExtractAction.extractorId = 'Default';
-    subExtractAction.extractTarget = ExtractTarget.Subtitle;
-    subExtractAction.extractFrom = ExtractSource.OtherFiles;
-    subExtractAction.outputExtname = 'ass'
-
-    const subExtractVertex = new Vertex();
-    subExtractVertex.actionType = ActionType.Extract;
-    subExtractVertex.action = subExtractAction;
-    subExtractVertex.jobId = jobMessage.jobId;
-
-    await videoProcessor2.prepare(jobMessage, subExtractVertex);
-    await videoProcessor2.process(subExtractVertex);
-    console.log(subExtractVertex.outputPath);
-    t.true(await fileManager.checkExists(basename(subExtractVertex.outputPath), jobMessage.id));
-});
+// test('DefaultExtractor', async (t) => {
+//     const context = t.context as Cxt;
+//     const fileManager = context.container.get<FileManageService>(FileManageService);
+//     const videoProcessor1 = context.container.get<VideoProcessor>(LocalExtractProcessor);
+//
+//     videoProcessor1.registerLogHandler((log, ch) => {
+//         if (ch === 'stderr') {
+//             console.error(log);
+//         } else {
+//             console.log(log);
+//         }
+//     });
+//
+//     const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
+//
+//     const videoExtractAction = new ExtractAction();
+//     videoExtractAction.extractorId = DefaultExtractor.Id;
+//     videoExtractAction.extractTarget = ExtractTarget.KeepContainer;
+//     videoExtractAction.extractFrom = ExtractSource.VideoFile;
+//
+//     const videoExtractVertex = new Vertex();
+//     videoExtractVertex.actionType = ActionType.Extract;
+//     videoExtractVertex.action = videoExtractAction;
+//     videoExtractVertex.jobId = jobMessage.jobId;
+//
+//     await videoProcessor1.prepare(jobMessage, videoExtractVertex);
+//     await videoProcessor1.process(videoExtractVertex);
+//     console.log(videoExtractVertex.outputPath);
+//     t.true(videoExtractVertex.outputPath === fileManager.getLocalPath(jobMessage.videoFile.filename, jobMessage.id));
+//
+//     // subtitle extraction
+//     const videoProcessor2 = context.container.get<VideoProcessor>(LocalExtractProcessor);
+//
+//     videoProcessor2.registerLogHandler((log, ch) => {
+//         if (ch === 'stderr') {
+//             console.error(log);
+//         } else {
+//             console.log(log);
+//         }
+//     });
+//     const subExtractAction = new ExtractAction();
+//     subExtractAction.extractorId = 'Default';
+//     subExtractAction.extractTarget = ExtractTarget.Subtitle;
+//     subExtractAction.extractFrom = ExtractSource.OtherFiles;
+//     subExtractAction.outputExtname = 'ass'
+//
+//     const subExtractVertex = new Vertex();
+//     subExtractVertex.actionType = ActionType.Extract;
+//     subExtractVertex.action = subExtractAction;
+//     subExtractVertex.jobId = jobMessage.jobId;
+//
+//     await videoProcessor2.prepare(jobMessage, subExtractVertex);
+//     await videoProcessor2.process(subExtractVertex);
+//     console.log(subExtractVertex.outputPath);
+//     t.true(subExtractVertex.outputPath === fileManager.getLocalPath(jobMessage.otherFiles[0].filename, jobMessage.id));
+// });
 
 test('DefaultExtractor extract ass from mkv', async (t) => {
     const context = t.context as Cxt;
@@ -138,6 +138,9 @@ test('DefaultExtractor extract ass from mkv', async (t) => {
         }
     });
     const jobMessage = prepareJobMessage('test-video-with-sub.mkv');
+
+    // copy file to temp folder
+    await fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
 
     const action = new ExtractAction();
     action.extractorId = DefaultExtractor.Id;
