@@ -44,10 +44,10 @@ export class FileExtractor implements Extractor {
         this.action = this.vertex.action as ExtractAction;
     }
     public async extractCMD(): Promise<string[] | null> {
-        // just copy video file
+        // just do nothing
         if (this.action.extractFrom === ExtractSource.VideoFile && this.action.extractTarget === ExtractTarget.KeepContainer) {
             this.inputPath = this.action.videoFilePath;
-            this.vertex.outputPath = this.vertex.outputPath + extname(this.inputPath);
+            this.vertex.outputPath = this.inputPath;
             return null;
         }
 
@@ -92,11 +92,9 @@ export class FileExtractor implements Extractor {
         }
 
         if (!this.inputPath) {
-            this.vertex.outputPath = this.vertex.outputPath + extname(this.inputPath);
-        } else {
             throw new Error('FileExtractor cannot find a file that match any of the conditions');
         }
-
+        this.vertex.outputPath = this.inputPath;
         return null;
     }
 

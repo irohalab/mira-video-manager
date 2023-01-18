@@ -24,7 +24,6 @@ import { JobStatus } from './domains/JobStatus';
 import { Job } from './entity/Job';
 import { basename } from "path";
 import { JobApplication } from './JobApplication';
-import { promisify } from 'util';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CMD_PAUSE, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
