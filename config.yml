@@ -13,6 +13,8 @@ amqpUrl: ''
 # the remote url will be replaced with host defined in the mapping. there is no default value, if appid is not found,
 # no replacement will occur.
 appIdHostMap:
+  # main_site is for downloading files from the main website (currently albireo)
+  main_site: "http://localhost:8000/"
   test_download_manager: "http://localhost:8000/"
 
 # Config Below is for JobExecutor

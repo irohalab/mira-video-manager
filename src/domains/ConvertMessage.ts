@@ -14,17 +14,9 @@
  * limitations under the License.
  */
 
-import { BaseProfile } from './BaseProfile';
-import { ConvertAction } from '../../domains/ConvertAction';
+import { DownloadMQMessage } from '@irohalab/mira-shared';
 
-export class ContainerOnlyProfile extends BaseProfile {
-    public static profileName = 'container_only';
-
-    constructor(action: ConvertAction, fontsDir: string) {
-        super(action, fontsDir);
-    }
-
-    public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve([...this.getInputCommandArgs(), '-c:v', 'copy', '-c:a', 'copy', '-strict', '-2']);
-    }
+export class ConvertMessage extends DownloadMQMessage {
+    public downloadManagerId = 'main_site';
+    public downloadTaskId = null;
 }

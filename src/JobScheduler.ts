@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -125,9 +125,13 @@ export class JobScheduler implements JobApplication {
                         appliedRule = rule;
                         break;
                     }
-                    if (await this.checkConditionMatch(rule.condition, msg)) {
-                        appliedRule = rule;
-                        break;
+                }
+                if (!appliedRule) {
+                    for (const rule of rules) {
+                        if (await this.checkConditionMatch(rule.condition, msg)) {
+                            appliedRule = rule;
+                            break;
+                        }
                     }
                 }
             }

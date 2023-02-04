@@ -126,9 +126,10 @@ export class JobManager {
         });
 
         this._jobLogger.info('start running');
-        await this.prepareFiles(this._job.jobMessage);
-        this._jobLogger.info('Files Downloaded');
-        await this._vm.start(this._job, this._logPath);
+        if (await this.prepareFiles(this._job.jobMessage)) {
+            this._jobLogger.info('Files Downloaded');
+            await this._vm.start(this._job, this._logPath);
+        }
     }
 
     /**
@@ -171,7 +172,7 @@ export class JobManager {
         // clean up
     }
 
-    private async prepareFiles(jobMessage: JobMessage): Promise<void> {
+    private async prepareFiles(jobMessage: JobMessage): Promise<boolean> {
         try {
             this._jobLogger.info(`Checking videoFile ${jobMessage.videoFile.filename} existence`);
             if (!await this._fileManager.checkExists(jobMessage.videoFile.filename, jobMessage.id)) {
@@ -187,9 +188,14 @@ export class JobManager {
                     }
                 }
             }
+            return true;
         } catch (err) {
             this._sentry.capture(err);
             this._jobLogger.error(err);
+            this._job.status = JobStatus.UnrecoverableError;
+            await this._databaseService.getJobRepository().save(this._job);
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+            return false;
         }
     }
 }
