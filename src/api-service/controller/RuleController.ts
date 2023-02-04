@@ -21,13 +21,19 @@ import {
     httpGet,
     httpPost,
     httpPut, IHttpActionResult,
-    interfaces,
+    interfaces, request,
     requestParam
 } from 'inversify-express-utils';
 import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { ConditionParser } from '../../utils/ConditionParser';
-import { TokenCheckException, TYPES } from '@irohalab/mira-shared';
+import {
+    DOWNLOAD_MESSAGE_EXCHANGE,
+    RabbitMQService,
+    RemoteFile,
+    TokenCheckException,
+    TYPES
+} from '@irohalab/mira-shared';
 import { ActionType } from '../../domains/ActionType';
 import { ExtractAction } from '../../domains/ExtractAction';
 import { DatabaseService } from '../../services/DatabaseService';
@@ -38,6 +44,7 @@ import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
 import { open as openFont } from 'fontkit';
 import { inject } from 'inversify';
+import { ConvertMessage } from '../../domains/ConvertMessage';
 
 const logger = getStdLogger();
 
@@ -46,7 +53,8 @@ export class RuleController extends BaseHttpController implements interfaces.Con
     private readonly _fontsDir: string;
     private fontFileNameMap = new Map<string, string>();
     constructor(@inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES.ConfigManager) private _configManager: ConfigManager) {
+                @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
         super();
         this._fontsDir = this._configManager.fontsDir();
     }
@@ -80,8 +88,8 @@ export class RuleController extends BaseHttpController implements interfaces.Con
     }
 
     @httpPost('/')
-    public async addRule(request: Request): Promise<IHttpActionResult> {
-        const rule = request.body as VideoProcessRule;
+    public async addRule(req: Request): Promise<IHttpActionResult> {
+        const rule = req.body as VideoProcessRule;
         try {
             if (rule.condition) {
                 const conditionParser = new ConditionParser(rule.condition, null, null);
@@ -114,9 +122,9 @@ export class RuleController extends BaseHttpController implements interfaces.Con
     }
 
     @httpPut('/:id')
-    public async updateRule(request: Request): Promise<IHttpActionResult> {
-        const ruleId = request.params.id;
-        const updateRule = request.body;
+    public async updateRule(req: Request): Promise<IHttpActionResult> {
+        const ruleId = req.params.id;
+        const updateRule = req.body;
         try {
             const repo = this._databaseService.getVideoProcessRuleRepository(true);
             const rule = await repo.findOneOrFail({ id: ruleId });
@@ -151,8 +159,8 @@ export class RuleController extends BaseHttpController implements interfaces.Con
     }
 
     @httpPost('/condition')
-    public async checkCondition(request: Request): Promise<IHttpActionResult> {
-        const condition = request.body.condition;
+    public async checkCondition(req: Request): Promise<IHttpActionResult> {
+        const condition = req.body.condition;
         const conditionParser = new ConditionParser(condition, null, null);
         const result = {} as any;
         try {
@@ -206,6 +214,20 @@ export class RuleController extends BaseHttpController implements interfaces.Con
     public async uploadFontFile(req: Request): Promise<IHttpActionResult> {
         // TODO: finish this API
         return Promise.resolve(undefined);
+    }
+
+    @httpPost('/video-file')
+    public async convertExistingVideoFile(@request() req: Request): Promise<IHttpActionResult> {
+        const data = req.body as any;
+        const convertMessage = new ConvertMessage();
+        convertMessage.bangumiId = data.bangumiId;
+        convertMessage.videoId = data.videoFileId;
+        convertMessage.videoFile = new RemoteFile();
+        convertMessage.videoFile.fileUri = data.fileUrl;
+        convertMessage.videoFile.filename = data.filename;
+        convertMessage.otherFiles = [];
+        await this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', convertMessage);
+        return this.json({'message': 'OK', status: 0});
     }
 
     private async readFontName(fontPath: string): Promise<string> {

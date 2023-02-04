@@ -52,21 +52,20 @@ export class FileManageService {
 
     public getFileUrlOrLocalPath(remoteFile: RemoteFile, appId: string): RemoteFile {
         const idHostMap = this._configManager.appIdHostMap();
-        const host = idHostMap[appId];
+        const host = appId ? idHostMap[appId]: null;
         const convertedRemoteFile =  new RemoteFile();
         convertedRemoteFile.filename = remoteFile.filename;
         if (host) {
             const hostURLObj = new URL(host);
             if (hostURLObj.hostname === 'localhost') {
                 convertedRemoteFile.fileLocalPath = remoteFile.fileLocalPath;
-            } else {
-                // replace part
-                const fileURLObj = new URL(remoteFile.fileUri);
-                fileURLObj.host = hostURLObj.host;
-                fileURLObj.protocol = hostURLObj.protocol;
-                fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
-                convertedRemoteFile.fileUri = fileURLObj.toString();
             }
+            // replace part
+            const fileURLObj = new URL(remoteFile.fileUri);
+            fileURLObj.host = hostURLObj.host;
+            fileURLObj.protocol = hostURLObj.protocol;
+            fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
+            convertedRemoteFile.fileUri = fileURLObj.toString();
         } else {
             convertedRemoteFile.fileUri = remoteFile.fileUri;
         }

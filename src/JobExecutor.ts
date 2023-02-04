@@ -234,6 +234,9 @@ export class JobExecutor implements JobApplication {
         try {
             await this.currentJM.start(job.id, this.id, resume);
         } catch (error) {
+            job.status = JobStatus.UnrecoverableError;
+            await this._databaseService.getJobRepository().save(job);
+            await this.finalizeJM();
             logger.error(error);
             this._sentry.capture(error);
         }

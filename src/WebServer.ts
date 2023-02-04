@@ -24,6 +24,7 @@ import { API_SERVER, bootstrap } from './api-service/bootstrap';
 import { Server } from 'http';
 import { hostname } from 'os';
 import {
+    DOWNLOAD_MESSAGE_EXCHANGE,
     RabbitMQService,
     Sentry,
     SentryImpl,
@@ -55,9 +56,10 @@ const rabbitMQService = container.get<RabbitMQService>(TYPES.RabbitMQService);
 let webServer: Server;
 
 databaseService.start()
-    .then(() => {
+    .then(async () => {
         if (startAs === API_SERVER) {
-            return rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
+            await rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
+            return await rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
         }
     })
     .then(() => {
