@@ -60,12 +60,18 @@ export class FileManageService {
             if (hostURLObj.hostname === 'localhost') {
                 convertedRemoteFile.fileLocalPath = remoteFile.fileLocalPath;
             }
-            // replace part
-            const fileURLObj = new URL(remoteFile.fileUri);
-            fileURLObj.host = hostURLObj.host;
-            fileURLObj.protocol = hostURLObj.protocol;
-            fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
-            convertedRemoteFile.fileUri = fileURLObj.toString();
+            if (remoteFile.fileUri) {
+                try {
+                    // replace part
+                    const fileURLObj = new URL(remoteFile.fileUri);
+                    fileURLObj.host = hostURLObj.host;
+                    fileURLObj.protocol = hostURLObj.protocol;
+                    fileURLObj.pathname = FileManageService.trimEndSlash(hostURLObj.pathname) + fileURLObj.pathname;
+                    convertedRemoteFile.fileUri = fileURLObj.toString();
+                } catch (ex) {
+                    logger.warn(ex);
+                }
+            }
         } else {
             convertedRemoteFile.fileUri = remoteFile.fileUri;
         }
