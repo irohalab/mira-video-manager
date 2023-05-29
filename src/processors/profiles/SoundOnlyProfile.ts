@@ -90,10 +90,10 @@ export class SoundOnlyProfile extends BaseProfile {
         let bitrate: number;
         if (audioStreamIndex === -1) {
             bitrate = this.getAudioChannelCount(audioStreams.find(stream => stream.disposition.default === 1)) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', ...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+            return [...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
         } else {
             bitrate = this.getAudioChannelCount(audioStreams[audioStreamIndex]) * DEFAULT_BIT_RATE_PER_CHANNEL;
-            return ['-i', ...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
+            return [...this.getInputCommandArgs(), '-c:a', 'aac', `-b:a:${audioStreamIndex}`, `${bitrate}k`, '-c:v', 'copy', '-strict', '-2'];
         }
 
     }
