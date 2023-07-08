@@ -16,6 +16,7 @@
 
 
 import test from 'ava';
+import 'reflect-metadata';
 import { Container } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { RemoteFile, TYPES } from '@irohalab/mira-shared';
