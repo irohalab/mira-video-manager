@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import { injectable } from 'inversify';
 import { DatabaseService } from '../services/DatabaseService';
 import { JobRepository } from '../repository/JobRepository';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
-import { FakeMessageRepository } from './FakeMessageRepository';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { NextFunction, Request, Response } from 'express';
 import { VertexRepository } from '../repository/VertexRepository';
@@ -43,10 +42,6 @@ export class FakeDatabaseService implements DatabaseService {
     }
     public getJobRepository(): JobRepository {
         return this.jobRepo;
-    }
-
-    public getMessageRepository(): FakeMessageRepository {
-        throw new NotImplementException();
     }
 
     public getVideoProcessRuleRepository(): VideoProcessRuleRepository {
