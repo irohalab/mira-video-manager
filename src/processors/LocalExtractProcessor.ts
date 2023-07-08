@@ -26,8 +26,8 @@ import { ExtractAction } from '../domains/ExtractAction';
 import { spawn } from 'child_process';
 import { StringDecoder } from 'string_decoder';
 import { Vertex } from '../entity/Vertex';
-import { ExtractSource } from '../domains/ExtractSource';
 import { getStdLogger } from '../utils/Logger';
+import pino from 'pino';
 
 const logger = getStdLogger();
 
@@ -57,6 +57,7 @@ export class LocalExtractProcessor implements VideoProcessor {
         action.videoFilePath = this._fileManager.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
         const outputFilename = action.outputFilename || vertex.id;
         vertex.outputPath = this._fileManager.getLocalPath(outputFilename, jobMessage.id);
+        vertex.fileMapping = jobMessage.fileMapping;
         action.otherFilePaths = [];
         if (jobMessage.otherFiles && jobMessage.otherFiles.length > 0) {
             for (const remoteFile of jobMessage.otherFiles) {
@@ -66,8 +67,7 @@ export class LocalExtractProcessor implements VideoProcessor {
     }
 
     public async process(vertex: Vertex): Promise<string> {
-        const extractAction = vertex.action as ExtractAction;
-        const extractor = this._extractorFactory(vertex);
+        const extractor = this._extractorFactory(vertex, this.extractorLogger.bind(this));
         const cmd = await extractor.extractCMD();
         if (!cmd) {
             // if cmd is null, we only need to copy source file to our outputPath
@@ -81,7 +81,18 @@ export class LocalExtractProcessor implements VideoProcessor {
         } else {
             await this.runCommand(cmd, vertex.outputPath);
         }
+        // release the logger reference
+        extractor.logger = null;
         return vertex.outputPath;
+    }
+
+    private extractorLogger(log: string, level: pino.Level): void {
+        if (this._logHandler) {
+            const ch = level === 'warn' || level === 'error' || level === 'fatal' ? 'stderr' : 'stdout';
+            this._logHandler(log, ch);
+        } else {
+            logger[level](log);
+        }
     }
 
     public registerLogHandler(callback: (logChunk: string, ch: ("stdout" | "stderr")) => void): void {

@@ -15,7 +15,7 @@
  */
 
 import { ExtractTarget } from '../../domains/ExtractTarget';
-import { Extractor } from './Extractor';
+import { Extractor, ExtractorLogger } from './Extractor';
 import { ExtractAction } from '../../domains/ExtractAction';
 import { ExtractSource } from '../../domains/ExtractSource';
 import { extname } from 'path';
@@ -35,7 +35,7 @@ export class DefaultExtractor implements Extractor {
     public inputPath: string;
     public streamsInfo: any[];
     public action: ExtractAction;
-    constructor(public vertex: Vertex) {
+    constructor(public vertex: Vertex, public logger: ExtractorLogger) {
         this.inputPath = null;
         this.action = vertex.action as ExtractAction;
     }

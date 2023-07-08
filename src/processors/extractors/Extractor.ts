@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import pino from 'pino';
+
 export interface Extractor {
     /**
      * generate a string being used as ffmpeg arguments.
@@ -26,4 +28,11 @@ export interface Extractor {
      * the inputPath to process with, could be null
      */
     getInputPath(): string|null;
+
+    /**
+     * register a logger that print log to ExtractProcessor
+     */
+    logger: ExtractorLogger;
 }
+
+export type ExtractorLogger = (log: string, severity: pino.Level) => void;

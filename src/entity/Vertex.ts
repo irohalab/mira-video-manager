@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import { VertexStatus } from '../domains/VertexStatus';
 import { DateTimeType, Entity, EntityRepositoryType, Enum, JsonType, PrimaryKey, Property } from '@mikro-orm/core';
 import { VertexRepository } from '../repository/VertexRepository';
 import { ActionType } from '../domains/ActionType';
+import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
 @Entity({ customRepository: () => VertexRepository })
 export class Vertex {
@@ -88,6 +89,7 @@ export class Vertex {
     // not serialized
     public videoProcessor: VideoProcessor;
     public upstreamVertexFinished?: boolean[] = [];
+    public fileMapping?: FileMapping;
 
     [EntityRepositoryType]?: VertexRepository;
 }

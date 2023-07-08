@@ -215,6 +215,7 @@ export class JobScheduler implements JobApplication {
         jobMessage.actions = appliedRule.actions;
         jobMessage.videoFile = msg.videoFile;
         jobMessage.otherFiles = msg.otherFiles;
+        jobMessage.fileMapping = msg.fileMapping;
         jobMessage.downloadAppId = msg.downloadManagerId;
         jobMessage.downloadTaskId = msg.downloadTaskId;
         await this.newJob(jobMessage);
