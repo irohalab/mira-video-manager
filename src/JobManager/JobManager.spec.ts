@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 /* tslint:disable:no-string-literal */
 import test from 'ava';
+import 'reflect-metadata';
 import { Container, interfaces } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
