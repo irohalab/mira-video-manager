@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,5 +16,6 @@
 
 export enum ExtractSource {
     VideoFile = 'VideoFile',
+    Archive = 'Archive',
     OtherFiles = 'OtherFiles'
 }

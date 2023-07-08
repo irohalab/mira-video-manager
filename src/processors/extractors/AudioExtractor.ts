@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-import { Extractor } from './Extractor';
+import { Extractor, ExtractorLogger } from './Extractor';
 import { Vertex } from '../../entity/Vertex';
 import { ExtractAction } from '../../domains/ExtractAction';
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
-import { getStdLogger } from '../../utils/Logger';
-
-const logger = getStdLogger();
 
 /**
  * describe how to find a track based ffprobe track properties
@@ -50,7 +47,7 @@ export class AudioExtractor implements Extractor {
     public static Id = 'Audio';
     public action: ExtractAction;
     private inputPath: string;
-    constructor(private vertex: Vertex) {
+    constructor(private vertex: Vertex, public logger: ExtractorLogger) {
         this.action = this.vertex.action as ExtractAction;
         this.inputPath = this.action.videoFilePath;
     }
@@ -120,7 +117,7 @@ export class AudioExtractor implements Extractor {
         if (CODE_NAME_EXT_MAPPING.hasOwnProperty(codeName)) {
             return CODE_NAME_EXT_MAPPING[codeName];
         } else {
-            logger.warn(`Code Name: ${codeName} has no matched file extension name, will use default .vtt`);
+            this.logger(`Code Name: ${codeName} has no matched file extension name, will use default .vtt`, 'warn');
             return '.vtt';
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
 import { ActionMap } from './ActionMap';
+import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
 export class JobMessage implements MQMessage {
     public id: string;
@@ -25,6 +26,7 @@ export class JobMessage implements MQMessage {
     public actions: ActionMap;
     public videoFile: RemoteFile;
     public otherFiles: RemoteFile[];
+    public fileMapping?: FileMapping;
     public downloadAppId: string;
     public downloadTaskId: string;
     public version: string = '2';

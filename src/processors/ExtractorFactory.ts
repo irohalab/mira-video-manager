@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Extractor } from './extractors/Extractor';
+import { Extractor, ExtractorLogger } from './extractors/Extractor';
 import { ExtractAction } from '../domains/ExtractAction';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
 import { interfaces } from 'inversify';
@@ -24,22 +24,23 @@ import { ActionType } from '../domains/ActionType';
 import { FileExtractor } from './extractors/FileExtractor';
 import { SubtitleExtractor } from './extractors/SubtitleExtractor';
 import { AudioExtractor } from './extractors/AudioExtractor';
+import pino from 'pino';
 
-export type ExtractorInitiator = (vertex: Vertex) => Extractor;
+export type ExtractorInitiator = (vertex: Vertex, logger: (log: string, severity: pino.Level) => void) => Extractor;
 
 export function ExtractorFactory(context: interfaces.Context): ExtractorInitiator {
-    return (vertex: Vertex) => {
+    return (vertex: Vertex, logger: ExtractorLogger) => {
         assert(vertex.actionType === ActionType.Extract, "action must be ExtractAction");
         const action = vertex.action as ExtractAction;
         switch (action.extractorId) {
             case DefaultExtractor.Id:
-                return new DefaultExtractor(vertex);
+                return new DefaultExtractor(vertex, logger);
             case FileExtractor.Id:
-                return new FileExtractor(vertex);
+                return new FileExtractor(vertex, logger);
             case SubtitleExtractor.Id:
-                return new SubtitleExtractor(vertex);
+                return new SubtitleExtractor(vertex, logger);
             case AudioExtractor.Id:
-                return new AudioExtractor(vertex);
+                return new AudioExtractor(vertex, logger);
             default:
                 throw new Error('No Extractor found for Id ' + action.extractorId);
         }
