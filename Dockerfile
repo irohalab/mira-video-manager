@@ -1,5 +1,7 @@
-FROM node:17 AS base
-RUN add-apt-repository multiverse && apt update && apt install -y mediainfo ffmpeg unrar
+FROM node:18-bullseye AS base
+RUN apt update
+RUN apt install software-properties-common -y && apt-add-repository non-free && apt update
+RUN apt install -y mediainfo ffmpeg unrar
 WORKDIR /app
 
 FROM base AS dev
