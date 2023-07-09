@@ -1,6 +1,7 @@
-FROM node:18 AS base
-RUN sudo apt install software-properties-common -y && apt-add-repository contrib non-free
-RUN apt update && apt install -y mediainfo ffmpeg unrar
+FROM node:18-bullseye AS base
+RUN apt update
+RUN apt install software-properties-common -y && apt-add-repository non-free && apt update
+RUN apt install -y mediainfo ffmpeg unrar
 WORKDIR /app
 
 FROM base AS dev
