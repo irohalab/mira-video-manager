@@ -17,7 +17,7 @@
 import { VideoProcessor } from './VideoProcessor';
 import { JobMessage } from '../domains/JobMessage';
 import { inject, injectable } from 'inversify';
-import { TYPES } from '@irohalab/mira-shared';
+import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { ConfigManager } from '../utils/ConfigManager';
 import { FileManageService } from '../services/FileManageService';
 import { TYPES_VM } from '../TYPES';
@@ -28,6 +28,10 @@ import { StringDecoder } from 'string_decoder';
 import { Vertex } from '../entity/Vertex';
 import { getStdLogger } from '../utils/Logger';
 import pino from 'pino';
+import { ExtractSource } from '../domains/ExtractSource';
+import { getStreamsInfo, getStreamsWithFfprobe } from '../utils/VideoProber';
+import { SubtitleExtractor } from './extractors/SubtitleExtractor';
+import { AudioExtractor } from './extractors/AudioExtractor';
 
 const logger = getStdLogger();
 
@@ -37,6 +41,7 @@ export class LocalExtractProcessor implements VideoProcessor {
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.ExtractorFactory) private _extractorFactory: ExtractorInitiator,
+                @inject(TYPES.Sentry) private _sentry: Sentry,
                 private _fileManager: FileManageService) {
     }
     public async cancel(): Promise<void> {
@@ -67,6 +72,21 @@ export class LocalExtractProcessor implements VideoProcessor {
     }
 
     public async process(vertex: Vertex): Promise<string> {
+        // log video file information
+        const action = vertex.action as ExtractAction;
+        if (action.extractorId === SubtitleExtractor.Id || action.extractorId === AudioExtractor.Id) {
+            try {
+                const streams = await getStreamsWithFfprobe(action.videoFilePath);
+                for (const stream of streams) {
+                    this.extractorLogger(JSON.stringify(stream, null, 2), 'info');
+                }
+            } catch (ex) {
+                this.extractorLogger(ex.message, 'error');
+                this.extractorLogger(ex.stack, 'error');
+                this._sentry.capture(ex);
+            }
+        }
+
         const extractor = this._extractorFactory(vertex, this.extractorLogger.bind(this));
         const cmd = await extractor.extractCMD();
         if (!cmd) {
