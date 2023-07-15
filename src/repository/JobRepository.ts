@@ -17,6 +17,7 @@
 import { Job } from "../entity/Job";
 import { JobStatus } from '../domains/JobStatus';
 import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
+import { JobType } from '../domains/JobType';
 
 export class JobRepository extends BaseEntityRepository<Job> {
     public async getExpiredJobsByStatusOfCurrentExecutor(jobExecutorId: string, status: JobStatus, expire: number): Promise<Job[]> {
@@ -35,7 +36,8 @@ export class JobRepository extends BaseEntityRepository<Job> {
         return await this.find({
             $and: [
                 {status: JobStatus.Running},
-                {startTime: {$lt: tolerantTime}}
+                {startTime: {$lt: tolerantTime}},
+                {jobMessage: {jobType: JobType.NORMAL_JOB}}
             ]
         });
     }
@@ -64,6 +66,15 @@ export class JobRepository extends BaseEntityRepository<Job> {
             orderBy: {
                 createTime: 'DESC'
             }
+        })
+    }
+
+    public async getRecentJobs(): Promise<Job[]> {
+        return await this.find({}, {
+            orderBy: {
+                createTime: 'DESC'
+            },
+            limit: 30
         })
     }
 }

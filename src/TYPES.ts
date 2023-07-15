@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ export const TYPES_VM = {
     VideoProcessor: Symbol.for('VideoProcessor'),
     LocalConvertProcessor: Symbol.for('LocalConvertProcessor'),
     LocalExtractProcessor: Symbol.for('LocalExtractProcessor'),
+    LocalValidateProcessor: Symbol.for('LocalValidateProcessor'),
     JobApplication: Symbol.for('JobApplication'),
     ExtractorFactory: Symbol.for('Factory<Extractor>'),
     VertexManager: Symbol.for('VertexManager'),
@@ -33,3 +34,14 @@ export type WebServerConfig = {
     port: number;
     enableHttps: boolean;
 };
+
+
+export const EXEC_MODE_NORMAL = 'NORMAL_MODE';
+export const EXEC_MODE_META = 'META_MODE';
+
+// job queues:
+export const META_JOB_QUEUE = 'meta_job_queue';
+
+// routing key
+export const NORMAL_JOB_KEY = 'normal_job';
+export const META_JOB_KEY = 'meta_job';

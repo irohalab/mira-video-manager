@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import { LocalConvertProcessor } from './LocalConvertProcessor';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { TYPES_VM } from '../TYPES';
 import { LocalExtractProcessor } from './LocalExtractProcessor';
+import { LocalVideoValidateProcessor } from './LocalVideoValidateProcessor';
 
 export function ProcessorFactory(context: interfaces.Context): ProcessorFactoryInitiator {
     return (actionType: ActionType) => {
@@ -31,8 +32,12 @@ export function ProcessorFactory(context: interfaces.Context): ProcessorFactoryI
                 throw new NotImplementException();
             case ActionType.Convert:
                 return context.container.get<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor);
+            case ActionType.Validate:
+                return context.container.get<LocalVideoValidateProcessor>(TYPES_VM.LocalValidateProcessor);
             case ActionType.Fragment:
                 throw new NotImplementException();
+            default:
+                throw new Error('ActionType not support');
         }
     };
 }

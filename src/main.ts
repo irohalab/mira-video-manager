@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import { JobApplication } from './JobApplication';
 import { DatabaseServiceImpl } from './services/DatabaseServiceImpl';
 import { DatabaseService } from './services/DatabaseService';
 import { RabbitMQService, Sentry, SentryImpl, TYPES } from '@irohalab/mira-shared';
-import { TYPES_VM } from './TYPES';
+import { EXEC_MODE_META, TYPES_VM } from './TYPES';
 import { JobManager } from './JobManager/JobManager';
 import { VertexManager } from './JobManager/VertexManager';
 import { VertexManagerImpl } from './JobManager/VertexManagerImpl';
@@ -45,10 +45,12 @@ import { Extractor } from './processors/extractors/Extractor';
 import { ExtractorFactory, ExtractorInitiator } from './processors/ExtractorFactory';
 import { getStdLogger } from './utils/Logger';
 import { JobCleaner } from './JobManager/JobCleaner';
+import { LocalVideoValidateProcessor } from './processors/LocalVideoValidateProcessor';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
 const startAs = process.env.START_AS;
+const execMode = process.env.EXEC_MODE;
 
 const logger = getStdLogger();
 
@@ -65,13 +67,20 @@ container.bind<RabbitMQService>(TYPES.RabbitMQService).to(RascalImpl).inSingleto
 container.bind<FileManageService>(FileManageService).toSelf().inSingletonScope();
 
 if (startAs === JOB_EXECUTOR) {
-    // VideoProcessor
-    container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
-    container.bind<LocalExtractProcessor>(TYPES_VM.LocalExtractProcessor).to(LocalExtractProcessor);
-    // factory provider
-    container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
-    container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
-    container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
+    if (execMode === EXEC_MODE_META) {
+        // VideoProcessor
+        container.bind<LocalVideoValidateProcessor>(TYPES_VM.LocalValidateProcessor).to(LocalVideoValidateProcessor);
+        // factory provider
+        container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+    } else {
+        // VideoProcessor
+        container.bind<LocalConvertProcessor>(TYPES_VM.LocalConvertProcessor).to(LocalConvertProcessor);
+        container.bind<LocalExtractProcessor>(TYPES_VM.LocalExtractProcessor).to(LocalExtractProcessor);
+        // factory provider
+        container.bind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(ProcessorFactory);
+        container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
+        container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
+    }
     // JobManager and Auto factory
     container.bind<JobManager>(TYPES_VM.JobManager).to(JobManager);
     container.bind<interfaces.Factory<JobManager>>(TYPES_VM.JobManagerFactory).toAutoFactory<JobManager>(TYPES_VM.JobManager);

@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-export enum ActionType {
-    Convert = 'convert',
-    Copy = 'copy',
-    Fragment = 'fragment',
-    Merge = 'merge',
-    Extract = 'extract',
-    Validate = 'validate'
+import { Action } from './Action';
+import { ActionType } from './ActionType';
+
+export class ValidateAction extends Action {
+    public type = ActionType.Validate;
+    public videoFilePath: string;
 }

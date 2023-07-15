@@ -17,6 +17,7 @@
 import { MQMessage, RemoteFile } from '@irohalab/mira-shared';
 import { ActionMap } from './ActionMap';
 import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
+import { JobType } from './JobType';
 
 export class JobMessage implements MQMessage {
     public id: string;
@@ -29,5 +30,6 @@ export class JobMessage implements MQMessage {
     public fileMapping?: FileMapping;
     public downloadAppId: string;
     public downloadTaskId: string;
+    public jobType: JobType;
     public version: string = '2';
 }

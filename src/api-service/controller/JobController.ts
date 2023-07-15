@@ -35,6 +35,7 @@ import { RabbitMQService, TYPES, VIDEO_MANAGER_COMMAND, VIDEO_MANAGER_EXCHANGE }
 import { CMD_CANCEL, CMD_PAUSE, CMD_RESUME, CommandMessage } from '../../domains/CommandMessage';
 import { getStdLogger } from '../../utils/Logger';
 import { BadRequestResult, InternalServerErrorResult } from 'inversify-express-utils/lib/results';
+import { Job } from '../../entity/Job';
 
 type Operation = {action: string};
 
@@ -53,9 +54,14 @@ export class JobController extends BaseHttpController implements interfaces.Cont
 
     @httpGet('/')
     public async listJobs(@queryParam('status') jobStatus: string): Promise<IHttpActionResult> {
-        const status = jobStatus as JobStatus;
+        const status = jobStatus as JobStatus | 'all';
+        let jobs: Job[];
         try {
-            const jobs = await this._databaseService.getJobRepository().getJobsByStatus(status);
+            if (status === 'all') {
+                jobs = await this._databaseService.getJobRepository(true).getRecentJobs();
+            } else {
+                jobs = await this._databaseService.getJobRepository(true).getJobsByStatus(status);
+            }
             return this.json({
                 data: jobs,
                 status: 0

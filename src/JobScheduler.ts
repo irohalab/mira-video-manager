@@ -38,11 +38,13 @@ import {
     TYPES,
     VIDEO_MANAGER_COMMAND,
     VIDEO_MANAGER_EXCHANGE,
-    VIDEO_MANAGER_GENERAL,
-    VideoManagerMessage
+    VIDEO_MANAGER_GENERAL
 } from '@irohalab/mira-shared';
 import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
+import { META_JOB_KEY, NORMAL_JOB_KEY } from './TYPES';
+import { JobType } from './domains/JobType';
+import { ValidateAction } from './domains/ValidateAction';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
@@ -64,11 +66,11 @@ export class JobScheduler implements JobApplication {
     }
 
     public async start(): Promise<void> {
-        await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', '');
+        await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', NORMAL_JOB_KEY);
+        await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', META_JOB_KEY);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
-        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND, true);
-        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, '', true);
+        await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, NORMAL_JOB_KEY, true);
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
         this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, async (msg) => {
             try {
@@ -138,13 +140,7 @@ export class JobScheduler implements JobApplication {
         }
 
         // preprocess actions of the rule
-        if (appliedRule) {
-            logger.info({message: 'condition matched', video_id: msg.videoId, video_file: msg.videoFile, rule: appliedRule});
-            await this.dispatchJob(appliedRule, msg);
-        } else {
-            logger.info({message: 'no condition matched', video_id: msg.videoId, video_file: msg.videoFile});
-            await this.sendNoNeedToProcessMessage(msg);
-        }
+        await this.dispatchJob(appliedRule, msg);
     }
 
     private async onCommandMessage(msg: CommandMessage): Promise<boolean> {
@@ -164,7 +160,7 @@ export class JobScheduler implements JobApplication {
                 if (job && job.status === JobStatus.Pause) {
                     job.status = JobStatus.Queueing;
                     await jobRepo.save(job);
-                    await this._rabbitmqService.publish(JOB_EXCHANGE, '', job.jobMessage);
+                    await this._rabbitmqService.publish(JOB_EXCHANGE, NORMAL_JOB_KEY, job.jobMessage);
                     return true;
                 }
                 break;
@@ -212,29 +208,27 @@ export class JobScheduler implements JobApplication {
         jobMessage.id = randomUUID();
         jobMessage.bangumiId = msg.bangumiId;
         jobMessage.videoId = msg.videoId;
-        jobMessage.actions = appliedRule.actions;
         jobMessage.videoFile = msg.videoFile;
         jobMessage.otherFiles = msg.otherFiles;
         jobMessage.fileMapping = msg.fileMapping;
         jobMessage.downloadAppId = msg.downloadManagerId;
         jobMessage.downloadTaskId = msg.downloadTaskId;
+        if (appliedRule) {
+            logger.info({message: 'condition matched', video_id: msg.videoId, video_file: msg.videoFile, rule: appliedRule});
+            jobMessage.actions = appliedRule.actions;
+            jobMessage.jobType = JobType.NORMAL_JOB;
+        } else {
+            logger.info({message: 'no condition matched', video_id: msg.videoId, video_file: msg.videoFile});
+            const validateAction = new ValidateAction();
+            jobMessage.actions = {[validateAction.id]: validateAction};
+            jobMessage.jobType = JobType.META_JOB;
+        }
+
         await this.newJob(jobMessage);
-        this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage)
+        this._rabbitmqService.publish(JOB_EXCHANGE, appliedRule ? NORMAL_JOB_KEY : META_JOB_KEY, jobMessage)
             .then(() => {
                 logger.info('dispatched job ' + jobMessage.id);
             });
-    }
-
-    private async sendNoNeedToProcessMessage(msg: DownloadMQMessage) {
-        const vmMsg = new VideoManagerMessage();
-        vmMsg.id = randomUUID();
-        vmMsg.bangumiId = msg.bangumiId;
-        vmMsg.videoId = msg.videoId;
-        vmMsg.isProcessed = false;
-        vmMsg.processedFiles = null;
-        vmMsg.jobExecutorId = null;
-        vmMsg.downloadTaskId = msg.downloadTaskId;
-        await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
     }
 
     private checkJobStatus(): void {
@@ -245,6 +239,7 @@ export class JobScheduler implements JobApplication {
         }, JOB_STATUS_CHECK_INTERVAL);
     }
 
+    // check for unfinished jobs (not include meta jobs)
     private async doCheckJobStatus(): Promise<void> {
         const jobRepo = this._databaseService.getJobRepository();
         const unfinishedRunningJobs = await jobRepo.getUnfinishedJobs(this._configManager.maxJobProcessTime());
@@ -262,7 +257,7 @@ export class JobScheduler implements JobApplication {
             const jobMessage = Object.assign({}, job.jobMessage);
             jobMessage.id = randomUUID();
             await this.newJob(jobMessage);
-            await this._rabbitmqService.publish(JOB_EXCHANGE, '', jobMessage);
+            await this._rabbitmqService.publish(JOB_EXCHANGE, NORMAL_JOB_KEY, jobMessage);
         }
     }
 }
