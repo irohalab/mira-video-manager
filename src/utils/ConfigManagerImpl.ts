@@ -24,7 +24,7 @@ import { injectable } from 'inversify';
 import { readFileSync } from 'fs';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
-import { MikroORMOptions } from '@mikro-orm/core';
+import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
 import { PostgreSqlDriver } from '@mikro-orm/postgresql';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
 import { TSMigrationGenerator } from '@mikro-orm/migrations';
@@ -190,22 +190,7 @@ export class ConfigManagerImpl implements ConfigManager {
 
     public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
         return Object.assign({
-            namingStrategy: MiraNamingStrategy,
-            migrations: {
-                tableName: 'mikro_orm_migrations',
-                path: 'dist/migrations',
-                pathTs: 'src/migrations',
-                glob: '!(*.d).{js.ts}',
-                transactional: true,
-                disableForeignKeys: true,
-                allOrNothing: true,
-                dropTables: true,
-                safe: false,
-                snapshot: true,
-                emit: 'ts',
-                generator: TSMigrationGenerator
-            }
-        }, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver>;
+            namingStrategy: MiraNamingStrategy as new()=> NamingStrategy}, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver>;
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {

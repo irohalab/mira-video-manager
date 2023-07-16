@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-export enum ActionType {
-    Convert = 'convert',
-    Copy = 'copy',
-    Fragment = 'fragment',
-    Merge = 'merge',
-    Extract = 'extract',
-    Validate = 'validate'
+export enum JobType {
+    NORMAL_JOB = 'normal_job',
+    META_JOB = 'meta_job'
 }

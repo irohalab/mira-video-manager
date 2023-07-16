@@ -17,7 +17,7 @@
 import { inject, injectable } from 'inversify';
 import { ConfigManager } from '../utils/ConfigManager';
 import { URL } from 'url';
-import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
+import { copyFile, mkdir, readdir, rmdir, stat, unlink } from 'fs/promises';
 import { dirname, join } from 'path';
 import { createWriteStream } from 'fs';
 import { finished } from 'stream/promises';
@@ -110,6 +110,8 @@ export class FileManageService {
             for (const file of files) {
                 await unlink(join(tempDir, file));
             }
+            // remove the temp folder
+            await rmdir(tempDir);
         } catch (err) {
             this._sentry.capture(err);
             logger.error(err);
