@@ -129,8 +129,11 @@ export class JobScheduler implements JobApplication {
                     }
                 }
                 if (!appliedRule) {
+                    // check all bangumi wide rule, we need to exclude video file specified rules
+                    // since checkConditionMatch will return true for any rule.condition is none
+                    // see: https://github.com/irohalab/mira-video-manager/issues/57
                     for (const rule of rules) {
-                        if (await this.checkConditionMatch(rule.condition, msg)) {
+                        if (!rule.videoFileId && await this.checkConditionMatch(rule.condition, msg)) {
                             appliedRule = rule;
                             break;
                         }
