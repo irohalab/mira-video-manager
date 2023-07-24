@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,10 +71,13 @@ export class VertexManagerImpl implements VertexManager {
         await this.checkAndExecuteVertexFromQueue();
     }
 
-    public async stop(): Promise<void> {
+    public async stop(jobId: string = null): Promise<void> {
         clearTimeout(this._checkQueueTimer);
-        if (this._job) {
-            await this.cancelVertices();
+        if (jobId) {
+            await this.cancelVertices(jobId);
+        } else if (this._job) {
+            // job not started yet
+            await this.cancelVertices(this._job.id);
         }
     }
 
@@ -173,9 +176,9 @@ export class VertexManagerImpl implements VertexManager {
      * cancel all running vertices, save each vertex status to VertexStatus.Canceled.
      * waiting until all vertices canceled.
      */
-    public async cancelVertices(): Promise<void> {
+    public async cancelVertices(jobId: string): Promise<void> {
         const vertexRepo = this._databaseService.getVertexRepository();
-        const vertexMap = await vertexRepo.getVertexMap(this._job.id);
+        const vertexMap = await vertexRepo.getVertexMap(jobId);
         const allPromise = [];
         Object.keys(vertexMap).forEach(vertexId => {
             const vertex = vertexMap[vertexId];
