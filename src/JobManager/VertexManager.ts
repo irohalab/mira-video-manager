@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ export interface VertexManager {
     createAllVertices(job: Job): Promise<void>;
     recreateCanceledVertices(job: Job): Promise<void>;
     start(job: Job, jobLogPath: string): Promise<void>;
-    stop(): Promise<void>;
-    cancelVertices(): Promise<void>;
+    stop(jobId?: string): Promise<void>;
+    cancelVertices(jobId: string): Promise<void>;
 }
 
 export const EVENT_VERTEX_FAIL = 'vertex_fail';

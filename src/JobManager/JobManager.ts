@@ -141,7 +141,7 @@ export class JobManager {
             this._job.status = JobStatus.Canceled;
             this._job.jobExecutorId = null;
             this._job = await jobRepo.save(this._job) as Job;
-            await this._vm.cancelVertices();
+            await this._vm.stop(this._job.id);
             this._jobLogger.warn('job canceled');
             this._jobLogger.info(LOG_END_FLAG);
         }
@@ -156,7 +156,7 @@ export class JobManager {
             const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Pause;
             this._job = await jobRepo.save(this._job) as Job;
-            await this._vm.cancelVertices();
+            await this._vm.stop(this._job.id);
             this._jobLogger.info('job paused.');
             this._jobLogger.info(LOG_END_FLAG);
         }
