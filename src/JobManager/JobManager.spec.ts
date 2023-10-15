@@ -33,6 +33,8 @@ import { JobManager } from './JobManager';
 import { FakeJobRepository } from '../test-helpers/FakeJobRepository';
 import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
 import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { FakeJobMetadataHelper } from '../test-helpers/FakeJobMetadataHelper';
+import { JobMetadataHelper } from './JobMetadataHelper';
 
 type Cxt = { container: Container };
 
@@ -45,6 +47,7 @@ test.beforeEach((t) => {
     container.bind<VertexManager>(TYPES_VM.VertexManager).to(FakeVertexManager);
     container.bind<JobManager>(JobManager).toSelf();
     container.bind<interfaces.Factory<VertexManager>>(TYPES_VM.VertexManagerFactory).toAutoFactory<VertexManager>(FakeVertexManager);
+    container.bind<JobMetadataHelper>(TYPES_VM.JobMetadataHelper).to(FakeJobMetadataHelper).inSingletonScope();
     container.bind<Sentry>(TYPES.Sentry).to(FakeSentry);
     const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
     (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/job-manager');
@@ -83,7 +86,7 @@ test.serial('Should run the job and manage lifecycle of a job', async (t) => {
             resolve(true);
         });
         jm.events.on(JobManager.EVENT_JOB_FAILED, (jobId: string) => {
-            reject(false);
+            reject('Job Failed');
         });
         vx.completeAllVertices();
     });

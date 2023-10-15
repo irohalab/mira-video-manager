@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-export enum JobStatus {
-    Queueing = 'Queueing',
-    Running = 'Running',
-    MetaData = 'MetaData',
-    Finished = 'Finished',
-    UnrecoverableError = 'UnrecoverableError',
-    Pause = 'Pause',
-    Canceled = 'Canceled'
+import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
+import { VertexMap } from '../domains/VertexMap';
+import pino from 'pino';
+
+export interface JobMetadataHelper {
+    processMetaData(vertexMap: VertexMap, jobLogger: pino.Logger): Promise<VideoOutputMetadata>;
+    generatePreviewImage(videoPath: string, metaData: VideoOutputMetadata, jobLogger: pino.Logger): Promise<void>;
 }

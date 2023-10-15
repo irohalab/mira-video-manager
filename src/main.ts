@@ -46,6 +46,8 @@ import { ExtractorFactory, ExtractorInitiator } from './processors/ExtractorFact
 import { getStdLogger } from './utils/Logger';
 import { JobCleaner } from './JobManager/JobCleaner';
 import { LocalVideoValidateProcessor } from './processors/LocalVideoValidateProcessor';
+import { JobMetadataHelper } from './JobManager/JobMetadataHelper';
+import { JobMetadataHelperImpl } from './JobManager/JobMetadataHelperImpl';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
@@ -81,6 +83,8 @@ if (startAs === JOB_EXECUTOR) {
         container.bind<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory).toFactory<BaseProfile>(ProfileFactory);
         container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
     }
+    // JobMetadataHelper
+    container.bind<JobMetadataHelper>(TYPES_VM.JobMetadataHelper).to(JobMetadataHelperImpl);
     // JobManager and Auto factory
     container.bind<JobManager>(TYPES_VM.JobManager).to(JobManager);
     container.bind<interfaces.Factory<JobManager>>(TYPES_VM.JobManagerFactory).toAutoFactory<JobManager>(TYPES_VM.JobManager);

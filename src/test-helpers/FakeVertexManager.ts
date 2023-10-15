@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,7 +55,8 @@ export class FakeVertexManager implements VertexManager {
         return Promise.resolve(undefined);
     }
 
-    public stop(): Promise<void> {
+    public async stop(): Promise<void> {
+        await this.cancelVertices();
         return Promise.resolve(undefined);
     }
 

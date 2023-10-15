@@ -14,28 +14,11 @@
  * limitations under the License.
  */
 
-import { VideoInfo } from '../../domains/MediaInfo/VideoInfo';
+import { extname } from 'path';
 
-const PLAYABLE_BIT_DEPTH = 8;
+export const VIDEO_CONTAINER_EXT = ['.mp4', '.mkv', '.ts'];
 
-export class VideoStream {
-    constructor(private _info: VideoInfo) {
-    }
-
-    public isPlayable() {
-        return this._info.Format === 'AVC' && this._info.BitDepth === PLAYABLE_BIT_DEPTH
-            && this._info.ColorSpace === 'YUV' && this._info.ChromaSubsampling === '4:2:0'
-    }
-
-    public getInfo(): VideoInfo {
-        return this._info;
-    }
-
-    public getWidth(): number {
-        return this._info.Width;
-    }
-
-    public getHeight(): number {
-        return this._info.Height;
-    }
+export function IsVideoFileContainer(filePath: string): boolean {
+    const ext = extname(filePath);
+    return VIDEO_CONTAINER_EXT.includes(ext);
 }

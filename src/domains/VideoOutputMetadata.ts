@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
-export enum JobStatus {
-    Queueing = 'Queueing',
-    Running = 'Running',
-    MetaData = 'MetaData',
-    Finished = 'Finished',
-    UnrecoverableError = 'UnrecoverableError',
-    Pause = 'Pause',
-    Canceled = 'Canceled'
+export class VideoOutputMetadata {
+    public width: number;
+    public height: number;
+    public duration: number; // milliseconds
+    public dominantColorOfThumbnail: string;
+    public thumbnailPath: string;
+    public keyframeImagePath: string;
+    public frameSize: number;
+    public tileSize: number;
 }

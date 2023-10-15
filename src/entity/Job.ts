@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import {
 import { JobRepository } from '../repository/JobRepository';
 import { randomUUID } from 'crypto';
 import { ActionMap } from '../domains/ActionMap';
+import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
 
 @Entity({customRepository: () => JobRepository})
 export class Job {
@@ -77,6 +78,12 @@ export class Job {
         nullable: true
     })
     public finishedTime: Date;
+
+    @Property({
+        type: JsonType,
+        columnType: 'jsonb'
+    })
+    public metadata: VideoOutputMetadata;
 
     @Property()
     public cleaned: boolean = false;

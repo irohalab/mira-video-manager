@@ -14,12 +14,23 @@
  * limitations under the License.
  */
 
-export enum JobStatus {
-    Queueing = 'Queueing',
-    Running = 'Running',
-    MetaData = 'MetaData',
-    Finished = 'Finished',
-    UnrecoverableError = 'UnrecoverableError',
-    Pause = 'Pause',
-    Canceled = 'Canceled'
-}
+const {familySync, GLIBC}  = require('detect-libc');
+
+module.exports = {
+    extensions: [
+        "ts"
+    ],
+    files: [
+        "src/utils/*.spec.ts",
+        "src/services/*.spec.ts",
+        "src/processors/*.spec.ts",
+        "src/api-service/controller/*.spec.ts",
+        "src/JobManager/*.spec.ts",
+        "src/domains/*.spec.ts"
+    ],
+    require: [
+        "ts-node/register"
+    ],
+    verbose: true,
+    workerThreads: familySync() !== GLIBC
+};
