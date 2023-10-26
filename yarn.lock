@@ -343,6 +343,11 @@
   resolved "https://registry.npmjs.org/@types/node/-/node-18.11.0.tgz"
   integrity sha512-IOXCvVRToe7e0ny7HpT/X9Rb2RYtElG1a+VshjwT00HxrM2dWBApHQoqsI6WiY7Q03vdf2bCrIGzVrkF/5t10w==
 
+"@types/offscreencanvas@^2019.7.2":
+  version "2019.7.2"
+  resolved "https://registry.yarnpkg.com/@types/offscreencanvas/-/offscreencanvas-2019.7.2.tgz#0b518a609c34d58f06c76fdf3b536ad2643e1eca"
+  integrity sha512-ujCjOxeA07IbEBQYAkoOI+XFw5sT3nhWJ/xZfPR6reJppDG7iPQPZacQiLTtWH1b3a2NYXWlxvYqa40y/LAixQ==
+
 "@types/qs@*":
   version "6.9.7"
   resolved "https://registry.npmjs.org/@types/qs/-/qs-6.9.7.tgz"
