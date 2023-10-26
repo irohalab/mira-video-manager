@@ -14,20 +14,11 @@
  * limitations under the License.
  */
 
-import { TrackInfo } from './TrackInfo';
+import { extname } from 'path';
 
-export interface ContainerInfo extends TrackInfo {
-    VideoCount: string;
-    AudioCount: string;
-    TextCount: string;
-    FileExtension: string;
-    Format_Version: string;
-    FileSize: string;
-    Duration: string;
-    OverallBitRate: string;
-    StreamSize: string;
-    IsStreamable: string; // Yes or No
-    extra: {
-        Attachments: string;
-    };
+export const VIDEO_CONTAINER_EXT = ['.mp4', '.mkv', '.ts'];
+
+export function IsVideoFileContainer(filePath: string): boolean {
+    const ext = extname(filePath);
+    return VIDEO_CONTAINER_EXT.includes(ext);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 export enum JobStatus {
     Queueing = 'Queueing',
     Running = 'Running',
+    MetaData = 'MetaData',
     Finished = 'Finished',
     UnrecoverableError = 'UnrecoverableError',
     Pause = 'Pause',

@@ -29,6 +29,7 @@ import { EventEmitter } from 'events';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VERTEX_MANAGER_LOG, VertexManager } from './VertexManager';
 import { FileManageService } from '../services/FileManageService';
 import { JobMessage } from '../domains/JobMessage';
+import { JobMetadataHelper } from './JobMetadataHelper';
 
 @injectable()
 export class JobManager {
@@ -44,6 +45,7 @@ export class JobManager {
                 @inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.VertexManagerFactory) private _vmFactory: interfaces.AutoFactory<VertexManager>,
                 private _fileManager: FileManageService,
+                @inject(TYPES_VM.JobMetadataHelper) private _metaDataHelper: JobMetadataHelper,
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
@@ -100,6 +102,7 @@ export class JobManager {
                 this._jobLogger.error(err);
                 this._jobLogger.info(LOG_END_FLAG);
                 this._sentry.capture(err);
+                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
             }
         });
 
@@ -111,6 +114,9 @@ export class JobManager {
                     return vertexMap[vertexId].status === VertexStatus.Finished;
                 });
                 if (allVerticesFinished) {
+                    this._job.status = JobStatus.MetaData;
+                    this._job = await jobRepo.save(this._job) as Job;
+                    this._job.metadata = await this._metaDataHelper.processMetaData(vertexMap, this._jobLogger);
                     this._job.status = JobStatus.Finished;
                     this._job.finishedTime = new Date();
                     this._job = await jobRepo.save(this._job) as Job;
@@ -122,6 +128,7 @@ export class JobManager {
                 this._jobLogger.error(error);
                 this._jobLogger.info(LOG_END_FLAG);
                 this._sentry.capture(error);
+                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
             }
         });
 

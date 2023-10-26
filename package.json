@@ -4,7 +4,7 @@
    "description": "Video Process for mira project",
    "main": "index.js",
    "scripts": {
-      "test": "$(npm bin)/ava",
+      "test": "ava",
       "start:jobscheduler": "cross-env START_AS=JOB_SCHEDULER ts-node src/main.ts",
       "start:jobexecutor": "cross-env START_AS=JOB_EXECUTOR ts-node src/main.ts",
       "start:jobexecutor:meta": "cross-env START_AS=JOB_EXECUTOR EXEC_MODE=META_MODE ts-node src/main.ts",
@@ -28,7 +28,7 @@
    "license": "Apache-2.0",
    "dependencies": {
       "@cloudamqp/amqp-client": "^2.1.0",
-      "@irohalab/mira-shared": "^3.5.0",
+      "@irohalab/mira-shared": "^3.7.0",
       "@mikro-orm/core": "^5.5.3",
       "@mikro-orm/migrations": "^5.5.3",
       "@mikro-orm/postgresql": "^5.5.3",
@@ -39,6 +39,7 @@
       "cors": "^2.8.5",
       "esprima": "^4.0.1",
       "express": "^4.17.3",
+      "fast-average-color-node": "^2.6.0",
       "fontkit": "^2.0.2",
       "inversify": "^6.0.1",
       "inversify-binding-decorators": "^4.0.0",
@@ -66,6 +67,7 @@
       "@types/tail": "^2.2.1",
       "ava": "^4.2.0",
       "cross-env": "^7.0.3",
+      "detect-libc": "^2.0.2",
       "rimraf": "^3.0.2",
       "supertest": "^6.1.4",
       "ts-node": "^10.7.0",
@@ -74,22 +76,5 @@
    },
    "engines": {
       "node": ">=16.0.0"
-   },
-   "ava": {
-      "extensions": [
-         "ts"
-      ],
-      "files": [
-         "src/utils/*.spec.ts",
-         "src/services/*.spec.ts",
-         "src/processors/*.spec.ts",
-         "src/api-service/controller/*.spec.ts",
-         "src/JobManager/*.spec.ts",
-         "src/domains/*.spec.ts"
-      ],
-      "require": [
-         "ts-node/register"
-      ],
-      "verbose": true
    }
 }

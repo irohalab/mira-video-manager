@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,20 +20,20 @@ export interface VideoInfo extends TrackInfo {
     Format_Level: string;
     Format_Tier: string;
     CodecId: string;
-    Duration: number;
-    BitRate: number;
-    Width: number;
-    Height: number;
-    Sampled_Width: number;
-    Sampled_height: number;
-    PixelAspectRatio: number;
-    DisplayAspectRatio: number;
-    Delay: number;
+    Duration: string;
+    BitRate: string;
+    Width: string;
+    Height: string;
+    Sampled_Width: string;
+    Sampled_height: string;
+    PixelAspectRatio: string;
+    DisplayAspectRatio: string;
+    Delay: string;
     FrameRate_Mode: string;
     ColorSpace: string;
     ChromaSubsampling: string;
-    BitDepth: number;
-    StreamSize: number;
+    BitDepth: string;
+    StreamSize: string;
     Encoded_Library: string;
     Encoded_Library_Name: string;
     Encoded_Library_Version: string;

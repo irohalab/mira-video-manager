@@ -45,6 +45,7 @@ import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
 import { JobCleaner } from './JobManager/JobCleaner';
 import { JobType } from './domains/JobType';
+import { VideoOutputMetadata } from './domains/VideoOutputMetadata';
 
 const logger = getStdLogger();
 
@@ -218,15 +219,12 @@ export class JobExecutor implements JobApplication {
         this.currentJM.events.on(JobManager.EVENT_JOB_FINISHED, async (finishedJobId: string) => {
             // find all output path
             try {
-                if (job.jobMessage.jobType === JobType.META_JOB) {
-                    await this.sendNoNeedToProcessMessage(job);
-                } else {
-                    const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
-                    const outputPathList = outputVertices.map(vx => {
-                        return vx.outputPath;
-                    });
-                    await this.notifyFinished(job, outputPathList);
-                }
+                job = await this._databaseService.getJobRepository().findOne({id:finishedJobId});
+                const outputVertices = await this._databaseService.getVertexRepository().getOutputVertices(finishedJobId);
+                const outputPathList = outputVertices.map(vx => {
+                    return vx.outputPath;
+                });
+                await this.notifyFinished(job, outputPathList);
                 await this.finalizeJM();
             } catch (err) {
                 logger.error(err);
@@ -263,27 +261,44 @@ export class JobExecutor implements JobApplication {
     //     return normalizedOutputPath;
     // }
 
-    private async notifyFinished(job: Job, outputFilePathList: string[]): Promise<void> {
+    private async notifyFinished(job: Job, outputPathList: string[]): Promise<void> {
         const msg = new VideoManagerMessage();
         msg.id = randomUUID();
-        msg.processedFiles = outputFilePathList.map((outputFilePath) => {
+        msg.processedFiles = outputPathList.map((outputPath) => {
             const remoteFile = new RemoteFile();
-            remoteFile.filename = basename(outputFilePath);
-            remoteFile.fileLocalPath = outputFilePath;
+            remoteFile.filename = basename(outputPath);
+            remoteFile.fileLocalPath = outputPath;
             remoteFile.fileUri = this._configManager.getFileUrl(remoteFile.filename, job.jobMessageId);
             return remoteFile;
         });
+        const thumbnailPath = new RemoteFile();
+        thumbnailPath.filename = basename(job.metadata.thumbnailPath);
+        thumbnailPath.fileLocalPath = job.metadata.thumbnailPath;
+        thumbnailPath.fileUri = this._configManager.getFileUrl(thumbnailPath.filename, job.jobMessageId);
+        const keyframeImagePathList = job.metadata.keyframeImagePathList.map((p) => {
+            const keyframeImagePath = new RemoteFile();
+            keyframeImagePath.filename = basename(p);
+            keyframeImagePath.fileLocalPath = p;
+            keyframeImagePath.fileUri = this._configManager.getFileUrl(keyframeImagePath.filename, job.jobMessageId);
+            return keyframeImagePath;
+        });
+        msg.metadata = Object.assign({}, job.metadata, {thumbnailPath, keyframeImagePathList});
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
         msg.downloadTaskId = job.jobMessage.downloadTaskId;
-        msg.isProcessed = true;
+        msg.isProcessed = job.jobMessage.jobType === JobType.NORMAL_JOB;
         if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
             // TODO: do something
             logger.info('TODO: after published to VIDEO_MANAGER_EXCHANGE');
         }
     }
 
+    /**
+     * @deprecated
+     * @param job
+     * @private
+     */
     private async sendNoNeedToProcessMessage(job: Job) {
         const vmMsg = new VideoManagerMessage();
         vmMsg.id = randomUUID();

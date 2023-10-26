@@ -14,20 +14,11 @@
  * limitations under the License.
  */
 
-import { TrackInfo } from './TrackInfo';
+import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
+import { VertexMap } from '../domains/VertexMap';
+import pino from 'pino';
 
-export interface ContainerInfo extends TrackInfo {
-    VideoCount: string;
-    AudioCount: string;
-    TextCount: string;
-    FileExtension: string;
-    Format_Version: string;
-    FileSize: string;
-    Duration: string;
-    OverallBitRate: string;
-    StreamSize: string;
-    IsStreamable: string; // Yes or No
-    extra: {
-        Attachments: string;
-    };
+export interface JobMetadataHelper {
+    processMetaData(vertexMap: VertexMap, jobLogger: pino.Logger): Promise<VideoOutputMetadata>;
+    generatePreviewImage(videoPath: string, metaData: VideoOutputMetadata, jobLogger: pino.Logger): Promise<void>;
 }

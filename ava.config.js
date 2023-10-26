@@ -14,20 +14,23 @@
  * limitations under the License.
  */
 
-import { TrackInfo } from './TrackInfo';
+const {familySync, GLIBC}  = require('detect-libc');
 
-export interface ContainerInfo extends TrackInfo {
-    VideoCount: string;
-    AudioCount: string;
-    TextCount: string;
-    FileExtension: string;
-    Format_Version: string;
-    FileSize: string;
-    Duration: string;
-    OverallBitRate: string;
-    StreamSize: string;
-    IsStreamable: string; // Yes or No
-    extra: {
-        Attachments: string;
-    };
-}
+module.exports = {
+    extensions: [
+        "ts"
+    ],
+    files: [
+        "src/utils/*.spec.ts",
+        "src/services/*.spec.ts",
+        "src/processors/*.spec.ts",
+        "src/api-service/controller/*.spec.ts",
+        "src/JobManager/*.spec.ts",
+        "src/domains/*.spec.ts"
+    ],
+    require: [
+        "ts-node/register"
+    ],
+    verbose: true,
+    workerThreads: familySync() !== GLIBC
+};

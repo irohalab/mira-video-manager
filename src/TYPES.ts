@@ -27,6 +27,7 @@ export const TYPES_VM = {
     VertexManagerFactory: Symbol.for('Factory<VertexManager>'),
     JobManager: Symbol.for('JobManager'),
     JobManagerFactory: Symbol.for('Factory<JobManager>'),
+    JobMetadataHelper: Symbol.for('JobMetadataHelper')
 };
 
 export type WebServerConfig = {

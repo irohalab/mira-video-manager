@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ export class MediaContainer {
     }
 
     public isStreamable(): boolean {
-        return this.getContainerInfo().IsStreamable;
+        return this.getContainerInfo().IsStreamable === "Yes";
     }
 
     public getContainerInfo(): ContainerInfo {
@@ -47,10 +47,39 @@ export class MediaContainer {
     }
 
     public getDefaultVideoStreamInfo(): VideoInfo {
-        return this._trackInfos.find(info => info['@type'] === 'Video' && (info as VideoInfo).Default) as VideoInfo;
+        const videoTracks = this._trackInfos.filter(info => info['@type'] === 'Video');
+        if (videoTracks.length === 1) {
+            return videoTracks[0] as VideoInfo;
+        } else if (videoTracks.length > 1){
+            let defaultVideoTrack = videoTracks.find(info => (info as VideoInfo).Default) as VideoInfo;
+            if (!defaultVideoTrack) {
+                defaultVideoTrack = videoTracks[0] as VideoInfo;
+            }
+            return defaultVideoTrack;
+        } else {
+            return null;
+        }
     }
 
     public getDefaultAudioStreamInfo(): AudioInfo {
-        return this._trackInfos.find(info => info['@type'] === 'Audio' && (info as AudioInfo).Default) as AudioInfo;
+        const audioTracks = this._trackInfos.filter(info => info['@type'] === 'Audio');
+        if (audioTracks.length === 1) {
+            return audioTracks[0] as AudioInfo;
+        } else if (audioTracks.length > 1) {
+            let defaultAudioTracks = audioTracks.find(info => (info as AudioInfo).Default) as AudioInfo;
+            if (!defaultAudioTracks) {
+                defaultAudioTracks = audioTracks[0] as AudioInfo;
+            }
+            return defaultAudioTracks;
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * return duration of media, unit is second
+     */
+    public getDuration(): number {
+        return parseFloat(this.getContainerInfo().Duration);
     }
 }

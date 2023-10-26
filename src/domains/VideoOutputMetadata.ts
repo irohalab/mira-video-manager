@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-import { TrackInfo } from './TrackInfo';
-
-export interface ContainerInfo extends TrackInfo {
-    VideoCount: string;
-    AudioCount: string;
-    TextCount: string;
-    FileExtension: string;
-    Format_Version: string;
-    FileSize: string;
-    Duration: string;
-    OverallBitRate: string;
-    StreamSize: string;
-    IsStreamable: string; // Yes or No
-    extra: {
-        Attachments: string;
-    };
+export class VideoOutputMetadata {
+    public width: number;
+    public height: number;
+    public duration: number; // milliseconds
+    public dominantColorOfThumbnail: string;
+    public thumbnailPath: string;
+    public keyframeImagePathList: string[];
+    public frameWidth: number;
+    public frameHeight: number;
+    public tileSize: number;
 }

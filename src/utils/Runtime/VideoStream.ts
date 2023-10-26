@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,11 +23,19 @@ export class VideoStream {
     }
 
     public isPlayable() {
-        return this._info.Format === 'AVC' && this._info.BitDepth === PLAYABLE_BIT_DEPTH
+        return this._info.Format === 'AVC' && parseInt(this._info.BitDepth, 10) === PLAYABLE_BIT_DEPTH
             && this._info.ColorSpace === 'YUV' && this._info.ChromaSubsampling === '4:2:0'
     }
 
     public getInfo(): VideoInfo {
         return this._info;
+    }
+
+    public getWidth(): number {
+        return parseInt(this._info.Width, 10);
+    }
+
+    public getHeight(): number {
+        return parseInt(this._info.Height, 10);
     }
 }
