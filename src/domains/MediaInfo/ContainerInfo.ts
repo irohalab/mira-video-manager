@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2023 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,16 +17,16 @@
 import { TrackInfo } from './TrackInfo';
 
 export interface ContainerInfo extends TrackInfo {
-    VideoCount: number;
-    AudioCount: number;
-    TextCount: number;
+    VideoCount: string;
+    AudioCount: string;
+    TextCount: string;
     FileExtension: string;
     Format_Version: string;
-    FileSize: number;
-    Duration: number;
-    OverallBitRate: number;
-    StreamSize: number;
-    IsStreamable: boolean;
+    FileSize: string;
+    Duration: string;
+    OverallBitRate: string;
+    StreamSize: string;
+    IsStreamable: string; // Yes or No
     extra: {
         Attachments: string;
     };

@@ -275,11 +275,14 @@ export class JobExecutor implements JobApplication {
         thumbnailPath.filename = basename(job.metadata.thumbnailPath);
         thumbnailPath.fileLocalPath = job.metadata.thumbnailPath;
         thumbnailPath.fileUri = this._configManager.getFileUrl(thumbnailPath.filename, job.jobMessageId);
-        const keyframeImagePath = new RemoteFile();
-        keyframeImagePath.filename = basename(job.metadata.keyframeImagePath);
-        keyframeImagePath.fileLocalPath = job.metadata.keyframeImagePath;
-        keyframeImagePath.fileUri = this._configManager.getFileUrl(keyframeImagePath.filename, job.jobMessageId);
-        msg.metadata = Object.assign({}, job.metadata, {thumbnailPath, keyframeImagePath});
+        const keyframeImagePathList = job.metadata.keyframeImagePathList.map((p) => {
+            const keyframeImagePath = new RemoteFile();
+            keyframeImagePath.filename = basename(p);
+            keyframeImagePath.fileLocalPath = p;
+            keyframeImagePath.fileUri = this._configManager.getFileUrl(keyframeImagePath.filename, job.jobMessageId);
+            return keyframeImagePath;
+        });
+        msg.metadata = Object.assign({}, job.metadata, {thumbnailPath, keyframeImagePathList});
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;

@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import { FileManageService } from '../services/FileManageService';
 import { inject, injectable } from 'inversify';
 import pino from 'pino';
-import { DatabaseService } from '../services/DatabaseService';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { VertexMap } from '../domains/VertexMap';
 import { Vertex } from '../entity/Vertex';
@@ -26,14 +24,17 @@ import { spawn } from 'child_process';
 import { getStreamsInfo } from '../utils/VideoProber';
 import { MediaContainer } from '../utils/Runtime/MediaContainer';
 import { VideoStream } from '../utils/Runtime/VideoStream';
-import { basename, dirname, join } from 'path';
+import { basename, dirname, extname, join } from 'path';
 import { getAverageColor } from 'fast-average-color-node';
 import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
 import { JobMetadataHelper } from './JobMetadataHelper';
+import { readdir } from 'fs/promises';
 
 const COMMAND_TIMEOUT = 5000;
 
-const SCALE_HEIGHT = 72;
+const SCALE_HEIGHT = 120;
+const FRAMES_INTERVAL = 5000; // milliseconds
+const MAX_PIC_WIDTH = 16256; // this is based on formula ((Width * 8) + 1024)*(Height + 128) < INT_MAX.
 
 @injectable()
 export class JobMetadataHelperImpl implements JobMetadataHelper {
@@ -64,7 +65,7 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
             const videoStream = new VideoStream(container.getDefaultVideoStreamInfo());
             const thumbnailPath = join(dirname(outputPath), `thumb-${basename(outputPath)}.png`);
             jobLogger.info(`Generating thumbnail of the video at 00:00:01.000, output is ${thumbnailPath}`);
-            await this.runCommand('ffmpeg', ['-y','-ss', '00:00:01.000', '-i', outputPath, '-vframes','1', thumbnailPath]);
+            await this.runCommand('ffmpeg', ['-y','-ss', '00:00:01.000', '-i', outputPath, '-vframes','1', thumbnailPath], jobLogger);
             jobLogger.info(`Thumbnail generated, getting dominant color of the thumbnail`);
             const dominantColor = await getAverageColor(thumbnailPath, {algorithm: 'dominant'});
             metadata.width = videoStream.getWidth();
@@ -91,18 +92,27 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
      * @param jobLogger
      */
     public async generatePreviewImage(videoPath: string, metaData: VideoOutputMetadata, jobLogger: pino.Logger): Promise<void> {
-        metaData.tileSize = Math.ceil(Math.sqrt(metaData.duration / 5.0));
-        metaData.frameSize = Math.round(SCALE_HEIGHT * (metaData.width/metaData.height));
-        metaData.keyframeImagePath = join(dirname(videoPath), `keyframes-${basename(videoPath)}.png`);
-        // generate tiles for key frames
-        jobLogger.info(await this.runCommand('ffmpeg', ['-y', '-i', videoPath,
+        metaData.tileSize = Math.ceil(Math.sqrt(metaData.duration / FRAMES_INTERVAL));
+        metaData.frameHeight = SCALE_HEIGHT;
+        metaData.frameWidth = Math.round(SCALE_HEIGHT * (metaData.width/metaData.height));
+        if (metaData.tileSize * metaData.frameWidth > MAX_PIC_WIDTH) {
+            metaData.tileSize = Math.floor(MAX_PIC_WIDTH / metaData.frameWidth);
+        }
+        const imageDirPath = dirname(videoPath);
+        const imageFilenameBase = `keyframes-${basename(videoPath, extname(videoPath))}`;
+        const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.png`);
+        // generate tiles for key frames every 1 second
+        await this.runCommand('ffmpeg', ['-y', '-i', videoPath,
             '-vf',
-            `select=isnan(prev_selected_t)+gte(t-prev_selected_t\\,5),scale=${metaData.frameSize}:${SCALE_HEIGHT},tile=${metaData.tileSize}x${metaData.tileSize}`,
-            '-an', '-vsync', '0', metaData.keyframeImagePath
-        ]));
+            `select=isnan(prev_selected_t)+gte(t-prev_selected_t\\,2),scale=${metaData.frameWidth}:${metaData.frameHeight},tile=${metaData.tileSize}x${metaData.tileSize}`,
+            '-an', '-vsync', '0', keyframeImagePath
+        ], jobLogger);
+
+        const filenameList = await readdir(imageDirPath);
+        metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.png') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
     }
 
-    private async runCommand(cmdExc: string, cmdArgs: string[]): Promise<any> {
+    private async runCommand(cmdExc: string, cmdArgs: string[], logger: pino.Logger): Promise<any> {
         console.log(cmdExc + ' ' + cmdArgs.join(' '));
         return new Promise((resolve, reject) => {
             try {
@@ -110,20 +120,18 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
                     timeout: COMMAND_TIMEOUT,
                     stdio: 'pipe'
                 });
-                let output = '';
-                let error = '';
                 child.stdout.on('data', (data) => {
-                    output += data;
+                    logger.info(data);
                 });
                 child.stderr.on('data', (data) => {
-                    error += data;
+                    logger.error(data);
                 });
                 child.on('close', (code) => {
                     if (code !== 0) {
-                        reject(error);
+                        reject();
                         return;
                     }
-                    resolve(output);
+                    resolve(undefined);
                 });
             } catch (exception) {
                 reject(exception);

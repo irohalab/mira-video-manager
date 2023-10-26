@@ -39,7 +39,7 @@ export class MediaContainer {
     }
 
     public isStreamable(): boolean {
-        return this.getContainerInfo().IsStreamable;
+        return this.getContainerInfo().IsStreamable === "Yes";
     }
 
     public getContainerInfo(): ContainerInfo {
@@ -80,6 +80,6 @@ export class MediaContainer {
      * return duration of media, unit is second
      */
     public getDuration(): number {
-        return this.getContainerInfo().Duration;
+        return parseFloat(this.getContainerInfo().Duration);
     }
 }

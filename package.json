@@ -28,7 +28,7 @@
    "license": "Apache-2.0",
    "dependencies": {
       "@cloudamqp/amqp-client": "^2.1.0",
-      "@irohalab/mira-shared": "^3.6.1",
+      "@irohalab/mira-shared": "^3.7.0",
       "@mikro-orm/core": "^5.5.3",
       "@mikro-orm/migrations": "^5.5.3",
       "@mikro-orm/postgresql": "^5.5.3",

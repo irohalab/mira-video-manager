@@ -54,6 +54,7 @@
           "enumItems": [
             "Queueing",
             "Running",
+            "MetaData",
             "Finished",
             "UnrecoverableError",
             "Pause",
@@ -99,6 +100,15 @@
           "nullable": true,
           "length": 6,
           "mappedType": "datetime"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "mappedType": "json"
         },
         "cleaned": {
           "name": "cleaned",

@@ -81,7 +81,8 @@ export class Job {
 
     @Property({
         type: JsonType,
-        columnType: 'jsonb'
+        columnType: 'jsonb',
+        nullable: true
     })
     public metadata: VideoOutputMetadata;
 

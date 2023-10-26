@@ -73,8 +73,8 @@ test('test generate metadata', async (t) => {
     t.true(!!metadata, 'metadata should not be null');
     t.true(/^#[0-9a-f]{6}/i.test(metadata.dominantColorOfThumbnail), 'dominant color should be a string');
     t.true(Number.isInteger(metadata.duration), `duration should be integer, ${metadata.duration}`);
-    t.true(metadata.frameSize > 0, `frameSize should be greater than 0, ${metadata.frameSize}`);
+    t.true(metadata.frameWidth > 0, `frameSize should be greater than 0, ${metadata.frameWidth}`);
     t.true(metadata.height > 0, `height should be greater than 0 ${metadata.height}`);
-    const f = await stat(metadata.keyframeImagePath);
+    const f = await stat(metadata.keyframeImagePathList[0]);
     t.true(f.isFile() && f.size > 0, 'keyframeImage should exists');
 });

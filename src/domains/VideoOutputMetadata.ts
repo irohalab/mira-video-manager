@@ -20,7 +20,8 @@ export class VideoOutputMetadata {
     public duration: number; // milliseconds
     public dominantColorOfThumbnail: string;
     public thumbnailPath: string;
-    public keyframeImagePath: string;
-    public frameSize: number;
+    public keyframeImagePathList: string[];
+    public frameWidth: number;
+    public frameHeight: number;
     public tileSize: number;
 }

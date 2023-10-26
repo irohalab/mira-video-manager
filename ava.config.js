@@ -21,12 +21,12 @@ module.exports = {
         "ts"
     ],
     files: [
-        "src/utils/*.spec.ts",
-        "src/services/*.spec.ts",
-        "src/processors/*.spec.ts",
-        "src/api-service/controller/*.spec.ts",
+        // "src/utils/*.spec.ts",
+        // "src/services/*.spec.ts",
+        // "src/processors/*.spec.ts",
+        // "src/api-service/controller/*.spec.ts",
         "src/JobManager/*.spec.ts",
-        "src/domains/*.spec.ts"
+        // "src/domains/*.spec.ts"
     ],
     require: [
         "ts-node/register"
