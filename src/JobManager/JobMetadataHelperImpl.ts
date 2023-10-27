@@ -29,6 +29,7 @@ import { getAverageColor } from 'fast-average-color-node';
 import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
 import { JobMetadataHelper } from './JobMetadataHelper';
 import { readdir } from 'fs/promises';
+import { StringDecoder } from 'string_decoder';
 
 const COMMAND_TIMEOUT = 5000;
 
@@ -111,11 +112,12 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         ], jobLogger);
 
         const filenameList = await readdir(imageDirPath);
-        metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.png') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
+        metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.jpg') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
     }
 
     private async runCommand(cmdExc: string, cmdArgs: string[], logger: pino.Logger): Promise<any> {
         console.log(cmdExc + ' ' + cmdArgs.join(' '));
+        const decoder = new StringDecoder('utf8');
         return new Promise((resolve, reject) => {
             try {
                 const child = spawn(cmdExc, cmdArgs, {
@@ -123,10 +125,10 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
                     stdio: 'pipe'
                 });
                 child.stdout.on('data', (data) => {
-                    logger.info(data);
+                    logger.info(decoder.end(data));
                 });
                 child.stderr.on('data', (data) => {
-                    logger.error(data);
+                    logger.error(decoder.end(data));
                 });
                 child.on('close', (code) => {
                     if (code !== 0) {
