@@ -32,6 +32,7 @@ import { readdir } from 'fs/promises';
 
 const COMMAND_TIMEOUT = 5000;
 
+const TILE_SIZE = 10; // fixed tile size to avoid large image
 const SCALE_HEIGHT = 120;
 const FRAMES_INTERVAL = 5000; // milliseconds
 const MAX_PIC_WIDTH = 16256; // this is based on formula ((Width * 8) + 1024)*(Height + 128) < INT_MAX.
@@ -92,15 +93,16 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
      * @param jobLogger
      */
     public async generatePreviewImage(videoPath: string, metaData: VideoOutputMetadata, jobLogger: pino.Logger): Promise<void> {
-        metaData.tileSize = Math.ceil(Math.sqrt(metaData.duration / FRAMES_INTERVAL));
+        metaData.tileSize = TILE_SIZE;
         metaData.frameHeight = SCALE_HEIGHT;
         metaData.frameWidth = Math.round(SCALE_HEIGHT * (metaData.width/metaData.height));
-        if (metaData.tileSize * metaData.frameWidth > MAX_PIC_WIDTH) {
-            metaData.tileSize = Math.floor(MAX_PIC_WIDTH / metaData.frameWidth);
-        }
+        // unlikely we need to calculate this as tileSize will be a small value
+        // if (metaData.tileSize * metaData.frameWidth > MAX_PIC_WIDTH) {
+        //     metaData.tileSize = Math.floor(MAX_PIC_WIDTH / metaData.frameWidth);
+        // }
         const imageDirPath = dirname(videoPath);
         const imageFilenameBase = `keyframes-${basename(videoPath, extname(videoPath))}`;
-        const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.png`);
+        const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.jpg`);
         // generate tiles for key frames every 1 second
         await this.runCommand('ffmpeg', ['-y', '-i', videoPath,
             '-vf',
