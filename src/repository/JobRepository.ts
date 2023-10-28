@@ -69,6 +69,14 @@ export class JobRepository extends BaseEntityRepository<Job> {
         })
     }
 
+    public async getRunningJobs(): Promise<Job[]> {
+        return await this.find({ $and: [{status: JobStatus.Running}, {status: JobStatus.MetaData}]}, {
+            orderBy: {
+                createTime: 'DESC'
+            }
+        })
+    }
+
     public async getRecentJobs(): Promise<Job[]> {
         return await this.find({}, {
             orderBy: {

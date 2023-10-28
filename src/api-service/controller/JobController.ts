@@ -59,6 +59,8 @@ export class JobController extends BaseHttpController implements interfaces.Cont
         try {
             if (status === 'all') {
                 jobs = await this._databaseService.getJobRepository(true).getRecentJobs();
+            } else if (status === 'Running') {
+                jobs = await this._databaseService.getJobRepository(true).getRunningJobs();
             } else {
                 jobs = await this._databaseService.getJobRepository(true).getJobsByStatus(status);
             }
