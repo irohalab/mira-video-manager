@@ -24,6 +24,7 @@ import { MediaContainer } from '../utils/Runtime/MediaContainer';
 import { VideoStream } from '../utils/Runtime/VideoStream';
 import { AudioStream } from '../utils/Runtime/AudioStream';
 import { injectable } from 'inversify';
+import { rename } from 'fs/promises';
 
 @injectable()
 export class LocalVideoValidateProcessor implements VideoProcessor {
@@ -46,10 +47,13 @@ export class LocalVideoValidateProcessor implements VideoProcessor {
         return Promise.resolve(undefined);
     }
 
-    public prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
+    public async prepare(jobMessage: JobMessage, vertex: Vertex): Promise<void> {
         const action = vertex.action as ValidateAction;
         action.videoFilePath = this._fileManager.getLocalPath(jobMessage.videoFile.filename, jobMessage.id);
-        vertex.outputPath = action.videoFilePath;
+        // TODO: this is only a workaround to solve the mediafile not print any information path contains non-ACSII
+        const outputFilename = vertex.id + '.mp4';
+        vertex.outputPath = this._fileManager.getLocalPath(outputFilename, jobMessage.id);
+        await rename(action.videoFilePath, vertex.outputPath);
         return Promise.resolve(undefined);
     }
 
