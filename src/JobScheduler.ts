@@ -32,17 +32,16 @@ import {
     DOWNLOAD_MESSAGE_QUEUE,
     DownloadMQMessage,
     JOB_EXCHANGE,
-    JOB_QUEUE,
+    JOB_QUEUE, MQMessage,
     RabbitMQService,
     Sentry,
     TYPES,
     VIDEO_MANAGER_COMMAND,
-    VIDEO_MANAGER_EXCHANGE,
-    VIDEO_MANAGER_GENERAL
+    VIDEO_MANAGER_EXCHANGE
 } from '@irohalab/mira-shared';
 import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
-import { META_JOB_KEY, NORMAL_JOB_KEY } from './TYPES';
+import { META_JOB_KEY, META_JOB_QUEUE, NORMAL_JOB_KEY } from './TYPES';
 import { JobType } from './domains/JobType';
 import { ValidateAction } from './domains/ValidateAction';
 
@@ -56,6 +55,7 @@ export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
     private _commandMessageConsumeTag: string;
     private _jobMessageConsumeTag: string;
+    private _metaJobMessageConsumeTag: string;
     private _jobStatusCheckerTimerId: NodeJS.Timeout;
 
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
@@ -92,25 +92,34 @@ export class JobScheduler implements JobApplication {
             }
         });
         this._jobMessageConsumeTag = await this._rabbitmqService.consume(JOB_QUEUE, async (msg) => {
-            try {
-                const jobMessage = msg as JobMessage;
-                const job = await this._databaseService.getJobRepository().findOne({ id: jobMessage.jobId });
-                if (job.status === JobStatus.Canceled) {
-                    logger.info('remove canceled job (' + job.id +') from message queue');
-                    // remove from Message Queue
-                    return true;
-                }
-            } catch (ex) {
-                logger.error(ex);
-                this._sentry.capture(ex);
-            }
-            return false;
+            return await this.removeJobMessageFromQueue(msg);
         });
+
+        this._metaJobMessageConsumeTag = await this._rabbitmqService.consume(META_JOB_QUEUE, async (msg) => {
+            return await this.removeJobMessageFromQueue(msg);
+        });
+
         this.checkJobStatus();
     }
 
     public async stop(): Promise<void> {
         clearTimeout(this._jobStatusCheckerTimerId);
+    }
+
+    private async removeJobMessageFromQueue(msg: MQMessage): Promise<boolean> {
+        try {
+            const jobMessage = msg as JobMessage;
+            const job = await this._databaseService.getJobRepository().findOne({ id: jobMessage.jobId });
+            if (job.status === JobStatus.Canceled) {
+                logger.info('remove canceled job (' + job.id +') from message queue');
+                // remove from Message Queue
+                return true;
+            }
+        } catch (ex) {
+            logger.error(ex);
+            this._sentry.capture(ex);
+        }
+        return false;
     }
 
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
