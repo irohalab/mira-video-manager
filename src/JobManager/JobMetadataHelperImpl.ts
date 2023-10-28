@@ -29,9 +29,11 @@ import { getAverageColor } from 'fast-average-color-node';
 import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
 import { JobMetadataHelper } from './JobMetadataHelper';
 import { readdir } from 'fs/promises';
+import { StringDecoder } from 'string_decoder';
 
 const COMMAND_TIMEOUT = 5000;
 
+const TILE_SIZE = 10; // fixed tile size to avoid large image
 const SCALE_HEIGHT = 120;
 const FRAMES_INTERVAL = 5000; // milliseconds
 const MAX_PIC_WIDTH = 16256; // this is based on formula ((Width * 8) + 1024)*(Height + 128) < INT_MAX.
@@ -92,15 +94,16 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
      * @param jobLogger
      */
     public async generatePreviewImage(videoPath: string, metaData: VideoOutputMetadata, jobLogger: pino.Logger): Promise<void> {
-        metaData.tileSize = Math.ceil(Math.sqrt(metaData.duration / FRAMES_INTERVAL));
+        metaData.tileSize = TILE_SIZE;
         metaData.frameHeight = SCALE_HEIGHT;
         metaData.frameWidth = Math.round(SCALE_HEIGHT * (metaData.width/metaData.height));
-        if (metaData.tileSize * metaData.frameWidth > MAX_PIC_WIDTH) {
-            metaData.tileSize = Math.floor(MAX_PIC_WIDTH / metaData.frameWidth);
-        }
+        // unlikely we need to calculate this as tileSize will be a small value
+        // if (metaData.tileSize * metaData.frameWidth > MAX_PIC_WIDTH) {
+        //     metaData.tileSize = Math.floor(MAX_PIC_WIDTH / metaData.frameWidth);
+        // }
         const imageDirPath = dirname(videoPath);
         const imageFilenameBase = `keyframes-${basename(videoPath, extname(videoPath))}`;
-        const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.png`);
+        const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.jpg`);
         // generate tiles for key frames every 1 second
         await this.runCommand('ffmpeg', ['-y', '-i', videoPath,
             '-vf',
@@ -109,11 +112,12 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         ], jobLogger);
 
         const filenameList = await readdir(imageDirPath);
-        metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.png') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
+        metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.jpg') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
     }
 
     private async runCommand(cmdExc: string, cmdArgs: string[], logger: pino.Logger): Promise<any> {
         console.log(cmdExc + ' ' + cmdArgs.join(' '));
+        const decoder = new StringDecoder('utf8');
         return new Promise((resolve, reject) => {
             try {
                 const child = spawn(cmdExc, cmdArgs, {
@@ -121,10 +125,10 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
                     stdio: 'pipe'
                 });
                 child.stdout.on('data', (data) => {
-                    logger.info(data);
+                    logger.info(decoder.end(data));
                 });
                 child.stderr.on('data', (data) => {
-                    logger.error(data);
+                    logger.error(decoder.end(data));
                 });
                 child.on('close', (code) => {
                     if (code !== 0) {
