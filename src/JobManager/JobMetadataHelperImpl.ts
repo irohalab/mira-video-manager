@@ -31,7 +31,7 @@ import { JobMetadataHelper } from './JobMetadataHelper';
 import { readdir } from 'fs/promises';
 import { StringDecoder } from 'string_decoder';
 
-const COMMAND_TIMEOUT = 5000;
+const COMMAND_TIMEOUT = 30 * 60 * 1000;
 
 const TILE_SIZE = 10; // fixed tile size to avoid large image
 const SCALE_HEIGHT = 120;
@@ -60,30 +60,22 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
             throw new Error('No video output found!');
         }
         const metadata = new VideoOutputMetadata();
-        try {
-            const outputPath = videoVertex.outputPath;
-            const trackInfos = await getStreamsInfo(outputPath);
-            const container = new MediaContainer(trackInfos);
-            const videoStream = new VideoStream(container.getDefaultVideoStreamInfo());
-            const thumbnailPath = join(dirname(outputPath), `thumb-${basename(outputPath)}.png`);
-            jobLogger.info(`Generating thumbnail of the video at 00:00:01.000, output is ${thumbnailPath}`);
-            await this.runCommand('ffmpeg', ['-y','-ss', '00:00:01.000', '-i', outputPath, '-vframes','1', thumbnailPath], jobLogger);
-            jobLogger.info(`Thumbnail generated, getting dominant color of the thumbnail`);
-            const dominantColor = await getAverageColor(thumbnailPath, {algorithm: 'dominant'});
-            metadata.width = videoStream.getWidth();
-            metadata.height = videoStream.getHeight();
-            metadata.duration = container.getDuration() * 1000;
-            metadata.dominantColorOfThumbnail = dominantColor.hex;
-            metadata.thumbnailPath = thumbnailPath;
-            jobLogger.info('Generating keyframes preview tile');
-            await this.generatePreviewImage(outputPath, metadata, jobLogger);
-        } catch (ex) {
-            jobLogger.error(ex);
-            this._sentry.capture(ex);
-        }
-        if (!metadata) {
-            throw new Error('no metadata for this job, check the job logs for more information');
-        }
+        const outputPath = videoVertex.outputPath;
+        const trackInfos = await getStreamsInfo(outputPath);
+        const container = new MediaContainer(trackInfos);
+        const videoStream = new VideoStream(container.getDefaultVideoStreamInfo());
+        const thumbnailPath = join(dirname(outputPath), `thumb-${basename(outputPath)}.png`);
+        jobLogger.info(`Generating thumbnail of the video at 00:00:01.000, output is ${thumbnailPath}`);
+        await this.runCommand('ffmpeg', ['-y','-ss', '00:00:01.000', '-i', outputPath, '-vframes','1', thumbnailPath], jobLogger);
+        jobLogger.info(`Thumbnail generated, getting dominant color of the thumbnail`);
+        const dominantColor = await getAverageColor(thumbnailPath, {algorithm: 'dominant'});
+        metadata.width = videoStream.getWidth();
+        metadata.height = videoStream.getHeight();
+        metadata.duration = container.getDuration() * 1000;
+        metadata.dominantColorOfThumbnail = dominantColor.hex;
+        metadata.thumbnailPath = thumbnailPath;
+        jobLogger.info('Generating keyframes preview tile');
+        await this.generatePreviewImage(outputPath, metadata, jobLogger);
         return metadata;
     }
 
@@ -106,11 +98,13 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         const keyframeImagePath = join(imageDirPath, `${imageFilenameBase}-%3d.jpg`);
         // generate tiles for key frames every 1 second
         await this.runCommand('ffmpeg', ['-y', '-i', videoPath,
+            '-an',
+            '-vsync', '0',
             '-vf',
             `select=isnan(prev_selected_t)+gte(t-prev_selected_t\\,2),scale=${metaData.frameWidth}:${metaData.frameHeight},tile=${metaData.tileSize}x${metaData.tileSize}`,
-            '-an', '-vsync', '0', keyframeImagePath
+             keyframeImagePath
         ], jobLogger);
-
+        jobLogger.info('keyframes generated!');
         const filenameList = await readdir(imageDirPath);
         metaData.keyframeImagePathList = filenameList.filter(f => f.endsWith('.jpg') && f.startsWith(imageFilenameBase)).map(f => join(imageDirPath, f));
     }
@@ -128,11 +122,12 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
                     logger.info(decoder.end(data));
                 });
                 child.stderr.on('data', (data) => {
-                    logger.error(decoder.end(data));
+                    logger.info(decoder.end(data));
                 });
                 child.on('close', (code) => {
+                    logger.info('command finished, exit code = ' + code);
                     if (code !== 0) {
-                        reject();
+                        reject('ffmpeg command failed with non-0 exit code');
                         return;
                     }
                     resolve(undefined);
