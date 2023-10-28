@@ -90,20 +90,8 @@ export class JobManager {
             }
         });
 
-        this._vm.events.on(EVENT_VERTEX_FAIL, async (error) => {
-            try {
-                this._jobLogger.error(error);
-                this._job.status = JobStatus.UnrecoverableError;
-                this._job = await jobRepo.save(this._job) as Job;
-                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-                this._jobLogger.error('Job failed with vertex failure');
-                this._jobLogger.info(LOG_END_FLAG);
-            } catch (err) {
-                this._jobLogger.error(err);
-                this._jobLogger.info(LOG_END_FLAG);
-                this._sentry.capture(err);
-                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-            }
+        this._vm.events.on(EVENT_VERTEX_FAIL, (error) => {
+            this.onVxFailed(error);
         });
 
         this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
@@ -125,10 +113,9 @@ export class JobManager {
                     this._jobLogger.info(LOG_END_FLAG);
                 }
             } catch (error) {
-                this._jobLogger.error(error);
-                this._jobLogger.info(LOG_END_FLAG);
                 this._sentry.capture(error);
-                this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+                await this.onVxFailed(error);
+                this._jobLogger.error(error);
             }
         });
 
@@ -136,6 +123,23 @@ export class JobManager {
         if (await this.prepareFiles(this._job.jobMessage)) {
             this._jobLogger.info('Files Downloaded');
             await this._vm.start(this._job, this._logPath);
+        }
+    }
+
+    private async onVxFailed(error:any): Promise<any> {
+        const jobRepo = this._databaseService.getJobRepository();
+        try {
+            this._jobLogger.error(error);
+            this._job.status = JobStatus.UnrecoverableError;
+            this._job = await jobRepo.save(this._job) as Job;
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+            this._jobLogger.error('Job failed with vertex failure');
+            this._jobLogger.info(LOG_END_FLAG);
+        } catch (err) {
+            this._jobLogger.error(err);
+            this._jobLogger.info(LOG_END_FLAG);
+            this._sentry.capture(err);
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
         }
     }
 

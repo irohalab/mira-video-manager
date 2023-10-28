@@ -184,17 +184,17 @@ export class VertexManagerImpl implements VertexManager {
             const vertex = vertexMap[vertexId];
             const vertexLogger = this._vertexLoggerDict[vertexId];
             if (vertex.status === VertexStatus.Running && this._runningVertexDict[vertexId]) {
-                vertexLogger.warn('trying to cancel vertex');
+                vertexLogger.info('trying to cancel vertex');
                 vertex.status = VertexStatus.Canceled;
                 allPromise.push(vertexRepo.save(vertex)
                     .then(() => {
                         return this._runningVertexDict[vertexId].videoProcessor.cancel()
                     })
                     .then(() => {
-                        vertexLogger.warn('vertex canceled');
+                        vertexLogger.info('vertex canceled');
                     })
                     .catch((error) => {
-                        vertexLogger.error(error);
+                        vertexLogger.info(error);
                     }));
             }
         });
@@ -258,7 +258,7 @@ export class VertexManagerImpl implements VertexManager {
         vertex.videoProcessor = this._processorFactory(vertex.actionType);
         vertex.videoProcessor.registerLogHandler((logChunk, ch) => {
             if (ch === 'stderr') {
-                vertexLogger.error(logChunk);
+                vertexLogger.info(logChunk);
             } else {
                 vertexLogger.info(logChunk);
             }
@@ -284,7 +284,7 @@ export class VertexManagerImpl implements VertexManager {
             await vertex.videoProcessor.dispose();
             this.onVertexFinished(vertex.id);
         } catch (error) {
-            vertexLogger.error(error);
+            vertexLogger.info(error);
             this.onVertexError(vertex.id, error);
             await vertex.videoProcessor.dispose();
         } finally {
@@ -342,7 +342,7 @@ export class VertexManagerImpl implements VertexManager {
             .catch((err) => {
                 // save error
                 this._sentry.capture(err);
-                this._vertexLoggerDict[vertexId].error(err);
+                this._vertexLoggerDict[vertexId].info(err);
                 this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
             });
     }
