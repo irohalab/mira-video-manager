@@ -63,3 +63,6 @@ jobExpireTime:
 
 # fonts directory that can be used by ffmpeg
 fontsDir: ${project_root}/fonts
+
+# will deprecate once Albireo is deprecated
+albireoRPC: 'http://localhost:8080'

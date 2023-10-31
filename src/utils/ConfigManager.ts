@@ -70,4 +70,9 @@ export interface ConfigManager extends BaseConfigManager {
      * Get fonts directory
      */
     fontsDir(): string;
+
+    /**
+     * Temp solution to communicate with Albireo
+     */
+    albireoRPCUrl(): string;
 }

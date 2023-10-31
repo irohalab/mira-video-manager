@@ -58,6 +58,7 @@ type AppConfg = {
     jobLogPath: string;
     jobExpireTime: {Canceled: number, UnrecoverableError: number, Finished: number};
     fontsDir: string;
+    albireoRPC: string;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -232,5 +233,9 @@ export class ConfigManagerImpl implements ConfigManager {
             return ConfigManagerImpl.processPath(fontsDirStr);
         }
         return null;
+    }
+
+    public albireoRPCUrl(): string {
+        return this._config.albireoRPC;
     }
 }

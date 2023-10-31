@@ -16,7 +16,14 @@
 
 import { ConfigManager } from "./utils/ConfigManager";
 import { inject, injectable, interfaces } from 'inversify';
-import { EXEC_MODE_META, META_JOB_KEY, META_JOB_QUEUE, NORMAL_JOB_KEY, TYPES_VM } from './TYPES';
+import {
+    EXEC_MODE_META,
+    META_JOB_KEY,
+    META_JOB_QUEUE,
+    NORMAL_JOB_KEY,
+    TYPES_VM,
+    VIDEO_JOB_RESULT_KEY
+} from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
 import { mkdir, stat } from 'fs/promises';
@@ -45,7 +52,7 @@ import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
 import { JobCleaner } from './JobManager/JobCleaner';
 import { JobType } from './domains/JobType';
-import { VideoOutputMetadata } from './domains/VideoOutputMetadata';
+import { JobFailureMessage } from './domains/JobFailureMessage';
 
 const logger = getStdLogger();
 
@@ -90,6 +97,7 @@ export class JobExecutor implements JobApplication {
         await this._jobCleaner.start(this.id);
 
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_KEY);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND);
         if (this.execMode === EXEC_MODE_META) {
             await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, true);
@@ -232,10 +240,10 @@ export class JobExecutor implements JobApplication {
             }
         });
 
-        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, async (failedJob: Job) => {
-            // TODO: notify failed
+        this.currentJM.events.on(JobManager.EVENT_JOB_FAILED, async (jobId: string) => {
             try {
                 await this.finalizeJM();
+                await this.sendJobFailureMessage(jobId);
             } catch (err) {
                 logger.error(err);
                 this._sentry.capture(err);
@@ -292,6 +300,12 @@ export class JobExecutor implements JobApplication {
             // TODO: do something
             logger.info('TODO: after published to VIDEO_MANAGER_EXCHANGE');
         }
+    }
+
+    private async sendJobFailureMessage(jobId: string) {
+        const msg = new JobFailureMessage();
+        msg.jobId = jobId;
+        await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_JOB_RESULT_KEY, msg);
     }
 
     /**
