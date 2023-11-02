@@ -42,7 +42,9 @@ export const EXEC_MODE_META = 'META_MODE';
 
 // job queues:
 export const META_JOB_QUEUE = 'meta_job_queue';
+export const VIDEO_JOB_RESULT_QUEUE = 'video_job_result_queue';
 
 // routing key
 export const NORMAL_JOB_KEY = 'normal_job';
 export const META_JOB_KEY = 'meta_job';
+export const VIDEO_JOB_RESULT_KEY = 'video_job_result_key';

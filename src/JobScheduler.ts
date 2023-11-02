@@ -41,9 +41,11 @@ import {
 } from '@irohalab/mira-shared';
 import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
-import { META_JOB_KEY, META_JOB_QUEUE, NORMAL_JOB_KEY } from './TYPES';
+import { META_JOB_KEY, META_JOB_QUEUE, NORMAL_JOB_KEY, VIDEO_JOB_RESULT_KEY, VIDEO_JOB_RESULT_QUEUE } from './TYPES';
 import { JobType } from './domains/JobType';
 import { ValidateAction } from './domains/ValidateAction';
+import axios from 'axios';
+import { JobFailureMessage } from './domains/JobFailureMessage';
 
 const JOB_STATUS_CHECK_INTERVAL = 15 * 60 * 1000;
 const sleep = promisify(setTimeout);
@@ -53,6 +55,7 @@ const logger = getStdLogger();
 @injectable()
 export class JobScheduler implements JobApplication {
     private _downloadMessageConsumeTag: string;
+    private _videoManagerJobMessageConsumeTag: string;
     private _commandMessageConsumeTag: string;
     private _jobMessageConsumeTag: string;
     private _metaJobMessageConsumeTag: string;
@@ -70,6 +73,7 @@ export class JobScheduler implements JobApplication {
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', META_JOB_KEY);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND, true);
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_QUEUE, VIDEO_JOB_RESULT_KEY, true);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, NORMAL_JOB_KEY, true);
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, true);
@@ -83,6 +87,17 @@ export class JobScheduler implements JobApplication {
                 return false;
             }
         });
+
+        this._videoManagerJobMessageConsumeTag = await this._rabbitmqService.consume(VIDEO_JOB_RESULT_QUEUE, async (msg) => {
+            try {
+                await this.sendJobFailureNotification(msg as JobFailureMessage);
+            } catch (ex) {
+                logger.error(ex);
+                this._sentry.capture(ex);
+            }
+            return true;
+        });
+
         this._commandMessageConsumeTag = await this._rabbitmqService.consume(COMMAND_QUEUE, async (msg) => {
             try {
                 return await this.onCommandMessage(msg as CommandMessage);
@@ -272,5 +287,29 @@ export class JobScheduler implements JobApplication {
             await this.newJob(jobMessage);
             await this._rabbitmqService.publish(JOB_EXCHANGE, NORMAL_JOB_KEY, jobMessage);
         }
+    }
+
+    private async sendJobFailureNotification(msg: JobFailureMessage): Promise<void> {
+        const job = await this._databaseService.getJobRepository().findOne({id: msg.jobId});
+        if (job) {
+            await this.callAlbireoRpc(job);
+            logger.info('sent notification for failed job ' + msg.jobId);
+        } else {
+            throw new Error('no job found for failed job message, job id is ' + msg.jobId);
+        }
+    }
+
+    private async callAlbireoRpc(job: Job): Promise<void> {
+        const rpcUrl = this._configManager.albireoRPCUrl();
+        await axios.post(`${rpcUrl}/video_job_failed`, {
+            job: {
+                id: job.id,
+                video_id: job.jobMessage.videoId,
+                bangumi_id: job.jobMessage.bangumiId,
+                jobType: job.jobMessage.jobType,
+                startTime: job.startTime.toISOString(),
+                endTIme: (job.finishedTime ?? new Date()).toISOString()
+            }
+        });
     }
 }
