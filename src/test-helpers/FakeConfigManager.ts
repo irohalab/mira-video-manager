@@ -115,4 +115,8 @@ export class FakeConfigManager implements ConfigManager {
     public fontsDir(): string {
         return '';
     }
+
+    public albireoRPCUrl(): string {
+        return 'http://localhost:8080';
+    }
 }
