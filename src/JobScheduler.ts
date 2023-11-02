@@ -308,7 +308,7 @@ export class JobScheduler implements JobApplication {
                 bangumi_id: job.jobMessage.bangumiId,
                 jobType: job.jobMessage.jobType,
                 startTime: job.startTime.toISOString(),
-                endTIme: (job.finishedTime ?? new Date()).toISOString()
+                endTime: (job.finishedTime ?? new Date()).toISOString()
             }
         });
     }
