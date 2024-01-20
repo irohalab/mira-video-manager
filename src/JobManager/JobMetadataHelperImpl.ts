@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2024 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import { StringDecoder } from 'string_decoder';
 
 const COMMAND_TIMEOUT = 30 * 60 * 1000;
 
-const TILE_SIZE = 10; // fixed tile size to avoid large image
+const TILE_SIZE = 5; // fixed tile size to avoid large image
 const SCALE_HEIGHT = 120;
 const FRAMES_INTERVAL = 5000; // milliseconds
 const MAX_PIC_WIDTH = 16256; // this is based on formula ((Width * 8) + 1024)*(Height + 128) < INT_MAX.
