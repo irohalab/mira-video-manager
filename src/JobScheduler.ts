@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2024 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -143,7 +143,7 @@ export class JobScheduler implements JobApplication {
         const rules = await this._databaseService.getVideoProcessRuleRepository().findByBangumiId(msg.bangumiId);
 
         if (rules && rules.length > 0) {
-            if (rules.length === 1 && rules[0].condition === null) {
+            if (rules.length === 1 && rules[0].condition === null && (!rules[0].videoFileId || rules[0].videoFileId === msg.videoId)) {
                 appliedRule = rules[0];
             } else {
                 // take the first matched condition as the rule is already returned as higher priority first.
