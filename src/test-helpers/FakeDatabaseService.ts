@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import { injectable } from 'inversify';
 import { DatabaseService } from '../services/DatabaseService';
 import { JobRepository } from '../repository/JobRepository';
 import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleRepository';
-import { NotImplementException } from '@irohalab/mira-shared';
 import { NextFunction, Request, Response } from 'express';
 import { VertexRepository } from '../repository/VertexRepository';
 import { FakeVertexRepository } from './FakeVertexRepository';
@@ -30,6 +29,8 @@ import { Job } from '../entity/Job';
 import { SessionRepository } from '../repository/SessionRepository';
 import { FakeSessionRepository } from './FakeSessionRepository';
 import { Session } from '../entity/Session';
+import { VideoProcessRule } from '../entity/VideoProcessRule';
+import { FakeVideoProcessRuleRepository } from './FakeVideoProcessRuleRepository';
 
 @injectable()
 export class FakeDatabaseService implements DatabaseService {
@@ -37,6 +38,8 @@ export class FakeDatabaseService implements DatabaseService {
     private vertexRepo = new FakeVertexRepository({} as SqlEntityManager, Vertex);
     private jobRepo = new FakeJobRepository({} as SqlEntityManager, Job);
     private sessionRepo = new FakeSessionRepository({} as SqlEntityManager, Session);
+    private videoProcessRuleRepo = new FakeVideoProcessRuleRepository({} as SqlEntityManager, VideoProcessRule);
+
     public getSessionRepository(useRequestContext?: boolean): SessionRepository {
         return this.sessionRepo;
     }
@@ -45,7 +48,7 @@ export class FakeDatabaseService implements DatabaseService {
     }
 
     public getVideoProcessRuleRepository(): VideoProcessRuleRepository {
-        throw new NotImplementException();
+        return this.videoProcessRuleRepo;
     }
 
     public getVertexRepository(useRequestContext?: boolean): VertexRepository {

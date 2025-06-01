@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import { VertexRepository } from '../repository/VertexRepository';
 import { VertexMap } from '../domains/VertexMap';
 import { Vertex } from '../entity/Vertex';
-import { FilterQuery, FindOneOptions } from '@mikro-orm/core';
+import { FilterQuery, FindOneOptions, FindOptions } from '@mikro-orm/core';
 import { Loaded } from '@mikro-orm/core/typings';
 
 let vertexMap: {[jobId: string]:VertexMap} = {};
@@ -35,6 +35,16 @@ export class FakeVertexRepository extends VertexRepository {
 
     public getVertexMap(jobId: string): Promise<VertexMap> {
         return Promise.resolve(vertexMap[jobId] || {});
+    }
+
+    public async find<P extends string = never>(where: FilterQuery<Vertex>,     options?: FindOptions<Vertex, P>, ): Promise<Loaded<Vertex, P>[]> {
+        // tslint:disable-next-line:no-string-literal
+        const id = where['jobId'] as string;
+        const vm = vertexMap[id];
+        if (vm) {
+            return Promise.resolve(Object.values(vm) as Loaded<Vertex, P>[]);
+        }
+        return Promise.resolve([]);
     }
 
     public async findOne<P extends string = never>(where: FilterQuery<Vertex>, options?: FindOneOptions<Vertex, P>): Promise<Loaded<Vertex, P> | null> {

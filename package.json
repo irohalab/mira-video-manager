@@ -21,12 +21,16 @@
       "migrate:generate": "ts-node src/migrate.ts --generate",
       "migrate:init": "ts-node src/migrate.ts --init",
       "migrate:sync": "ts-node src/migrate.ts --sync",
-      "migrate:sync:silent": "ts-node src/migrate.ts --sync --silent"
+      "migrate:sync:silent": "ts-node src/migrate.ts --sync --silent",
+      "e2e:jobscheduler": "cross-env START_AS=JOB_SCHEDULER JOB_DATA_PERSIST=true ts-node src/tests/starter.e2e.ts",
+      "e2e:jobexecutor": "cross-env START_AS=JOB_EXECUTOR JOB_DATA_PERSIST=true ts-node src/tests/starter.e2e.ts",
+      "e2e:command": "ts-node src/tests/command.e2e.ts"
    },
    "keywords": [],
    "author": "Everett Summer",
    "license": "Apache-2.0",
    "dependencies": {
+      "@aws-sdk/client-s3": "^3.820.0",
       "@cloudamqp/amqp-client": "^2.1.0",
       "@irohalab/mira-shared": "^3.7.0",
       "@mikro-orm/core": "^5.5.3",

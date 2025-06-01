@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import {
 } from '@irohalab/mira-shared';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { getStdLogger } from './utils/Logger';
+import { VIDEO_MANAGER_COMMAND_EXCHANGE } from './TYPES';
 
 const startAs = process.env.START_AS;
 
@@ -59,7 +60,7 @@ databaseService.start()
     .then(async () => {
         if (startAs === API_SERVER) {
             await rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct');
-            return await rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
+            return await rabbitMQService.initPublisher(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', '');
         }
     })
     .then(() => {

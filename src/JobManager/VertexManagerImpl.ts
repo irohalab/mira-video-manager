@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -177,6 +177,7 @@ export class VertexManagerImpl implements VertexManager {
      * waiting until all vertices canceled.
      */
     public async cancelVertices(jobId: string): Promise<void> {
+        clearTimeout(this._checkQueueTimer);
         const vertexRepo = this._databaseService.getVertexRepository();
         const vertexMap = await vertexRepo.getVertexMap(jobId);
         const allPromise = [];
@@ -196,6 +197,9 @@ export class VertexManagerImpl implements VertexManager {
                     .catch((error) => {
                         vertexLogger.info(error);
                     }));
+            } else {
+                vertex.status = VertexStatus.Canceled;
+                allPromise.push(vertexRepo.save(vertex));
             }
         });
         await Promise.all(allPromise);

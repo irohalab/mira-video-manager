@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import { CMD_CANCEL, CMD_PAUSE, CMD_RESUME, CommandMessage } from '../../domains
 import { getStdLogger } from '../../utils/Logger';
 import { BadRequestResult, InternalServerErrorResult } from 'inversify-express-utils/lib/results';
 import { Job } from '../../entity/Job';
+import { VIDEO_MANAGER_COMMAND_EXCHANGE } from '../../TYPES';
 
 type Operation = {action: string};
 
@@ -110,7 +111,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
         switch (op.action) {
             case OP_PAUSE:
                 cmd.command = CMD_PAUSE;
-                break;
+                return this.json({message: 'action unsupported', status: 1});
             case OP_CANCEL:
                 cmd.command = CMD_CANCEL;
                 break;
@@ -120,7 +121,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
             default:
                 return new BadRequestResult();
         }
-        await this._mqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_COMMAND, cmd);
+        await this._mqService.publish(VIDEO_MANAGER_COMMAND_EXCHANGE, '', cmd);
         return this.json({message: 'action sent', status: 0});
     }
 
