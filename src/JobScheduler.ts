@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,15 @@ import {
 } from '@irohalab/mira-shared';
 import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
-import { META_JOB_KEY, META_JOB_QUEUE, NORMAL_JOB_KEY, VIDEO_JOB_RESULT_KEY, VIDEO_JOB_RESULT_QUEUE } from './TYPES';
+import {
+    JS_COMMAND_QUEUE, JS_COMMAND,
+    META_JOB_KEY,
+    META_JOB_QUEUE,
+    NORMAL_JOB_KEY,
+    VIDEO_JOB_RESULT_KEY,
+    VIDEO_JOB_RESULT_QUEUE,
+    VIDEO_MANAGER_COMMAND_EXCHANGE
+} from './TYPES';
 import { JobType } from './domains/JobType';
 import { ValidateAction } from './domains/ValidateAction';
 import axios from 'axios';
@@ -71,8 +79,8 @@ export class JobScheduler implements JobApplication {
     public async start(): Promise<void> {
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', NORMAL_JOB_KEY);
         await this._rabbitmqService.initPublisher(JOB_EXCHANGE, 'direct', META_JOB_KEY);
-        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_COMMAND);
-        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND, true);
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', '');
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', JS_COMMAND_QUEUE, '', true);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_QUEUE, VIDEO_JOB_RESULT_KEY, true);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, NORMAL_JOB_KEY, true);
         await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
@@ -98,9 +106,10 @@ export class JobScheduler implements JobApplication {
             return true;
         });
 
-        this._commandMessageConsumeTag = await this._rabbitmqService.consume(COMMAND_QUEUE, async (msg) => {
+        this._commandMessageConsumeTag = await this._rabbitmqService.consume(JS_COMMAND_QUEUE, async (msg) => {
             try {
-                return await this.onCommandMessage(msg as CommandMessage);
+                await this.onCommandMessage(msg as CommandMessage);
+                return true;
             } catch (ex) {
                 logger.error(ex);
                 this._sentry.capture(ex);
@@ -180,7 +189,6 @@ export class JobScheduler implements JobApplication {
                 if (job && job.status === JobStatus.Queueing || job.status === JobStatus.Pause) {
                     job.status = JobStatus.Canceled;
                     await jobRepo.save(job);
-                    return true;
                 }
                 break;
             case CMD_RESUME:
@@ -189,13 +197,12 @@ export class JobScheduler implements JobApplication {
                     job.status = JobStatus.Queueing;
                     await jobRepo.save(job);
                     await this._rabbitmqService.publish(JOB_EXCHANGE, NORMAL_JOB_KEY, job.jobMessage);
-                    return true;
                 }
                 break;
             default:
                 logger.info(`${msg.command} command received, but not processed.`);
         }
-        return false;
+        return true;
     }
 
     private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
@@ -260,7 +267,7 @@ export class JobScheduler implements JobApplication {
     }
 
     private checkJobStatus(): void {
-        console.log('start to check job status');
+        logger.info('start to check job status');
         this._jobStatusCheckerTimerId = setTimeout(async () => {
             await this.doCheckJobStatus();
             this.checkJobStatus();

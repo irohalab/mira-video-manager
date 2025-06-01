@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import { JobStatus } from '../domains/JobStatus';
 import { Action } from '../domains/Action';
 
 export const projectRoot = resolve(__dirname, '../../');
+export const jobDataPath = join(projectRoot, 'temp/test/jobs.json');
 
 export async function ensureTempDir(videoTempDir: string): Promise<void> {
     try {

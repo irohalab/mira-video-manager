@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 import { ConfigManager } from "./utils/ConfigManager";
 import { inject, injectable, interfaces } from 'inversify';
 import {
-    EXEC_MODE_META,
+    EXEC_MODE_META, JE_COMMAND,
     META_JOB_KEY,
     META_JOB_QUEUE,
     NORMAL_JOB_KEY,
     TYPES_VM,
-    VIDEO_JOB_RESULT_KEY
+    VIDEO_JOB_RESULT_KEY, VIDEO_MANAGER_COMMAND_EXCHANGE
 } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
 import { DatabaseService } from './services/DatabaseService';
@@ -50,9 +50,9 @@ import {
 import { JobManager } from './JobManager/JobManager';
 import { randomUUID } from 'crypto';
 import { getStdLogger } from './utils/Logger';
-import { JobCleaner } from './JobManager/JobCleaner';
 import { JobType } from './domains/JobType';
 import { JobFailureMessage } from './domains/JobFailureMessage';
+import { hostname } from 'os';
 
 const logger = getStdLogger();
 
@@ -67,7 +67,6 @@ export class JobExecutor implements JobApplication {
                 @inject(TYPES.Sentry) private _sentry: Sentry,
                 @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService,
                 private _fileManageService: FileManageService,
-                private _jobCleaner: JobCleaner,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_VM.JobManagerFactory) private _jmFactory: interfaces.AutoFactory<JobManager>) {
         this.isIdle = true;
@@ -94,11 +93,9 @@ export class JobExecutor implements JobApplication {
 
         this.id = await this._configManager.jobExecutorId();
 
-        await this._jobCleaner.start(this.id);
-
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_KEY);
-        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', COMMAND_QUEUE, VIDEO_MANAGER_COMMAND);
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', this.getCommandQueueName(), '');
         if (this.execMode === EXEC_MODE_META) {
             await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, true);
             await this._rabbitmqService.consume(META_JOB_QUEUE, this.onJobReceived.bind(this));
@@ -106,12 +103,11 @@ export class JobExecutor implements JobApplication {
             await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, NORMAL_JOB_KEY, true);
             await this._rabbitmqService.consume(JOB_QUEUE, this.onJobReceived.bind(this));
         }
-        await this._rabbitmqService.consume(COMMAND_QUEUE, this.onCommandReceived.bind(this));
-        await this.resumeJob();
+        await this._rabbitmqService.consume(this.getCommandQueueName(), this.onCommandReceived.bind(this));
+        // await this.resumeJob();
     }
 
     public async stop(): Promise<void> {
-        await this._jobCleaner.stop();
         await this.pauseJob();
     }
 
@@ -161,21 +157,22 @@ export class JobExecutor implements JobApplication {
             case CMD_CANCEL:
                 job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
                 if (job) {
+                    logger.info(`${msg.command} command received, canceling job`);
                     await this.cancelJob(job, jobRepo);
-                    return true;
                 }
                 break;
-            case CMD_PAUSE:
-                job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
-                if (job) {
-                    await this.pauseJob();
-                    return true;
-                }
-                break;
+            // TODO: remove the commented out code in next release.
+            // case CMD_PAUSE:
+            //     job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
+            //     if (job) {
+            //         await this.pauseJob();
+            //         return true;
+            //     }
+            //     break;
             default:
                 logger.info(`${msg.command} command received, but not processed.`);
         }
-        return false;
+        return true;
     }
 
     private async cancelJob(job: Job, jobRepo: JobRepository): Promise<void> {
@@ -332,5 +329,13 @@ export class JobExecutor implements JobApplication {
             this.currentJM = null;
         }
         this.isIdle = true;
+    }
+
+    private getCommandQueueName(): string {
+        return `je_command_queue_${hostname()}_${this.id.substring(0, 5)}`;
+    }
+
+    private getCommandBindingKey(): string {
+        return `${JE_COMMAND}.${hostname()}.${this.id.substring(0, 5)}`;
     }
 }

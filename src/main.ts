@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,10 +104,15 @@ if (startAs === JOB_EXECUTOR) {
 
 const jobApplication = container.get<JobApplication>(TYPES_VM.JobApplication);
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
+const jobCleaner = container.get<JobCleaner>(JobCleaner);
 
 databaseService.start()
-    .then(() => {
-        return jobApplication.start();
+    .then(async () => {
+        await jobApplication.start();
+        if (startAs === JOB_EXECUTOR) {
+            const jobExecutorId = (jobApplication as JobExecutor).id;
+            await jobCleaner.start(jobExecutorId);
+        }
     })
     .then(() => {
         logger.info(startAs.toLowerCase() + ' started');
@@ -119,8 +124,11 @@ databaseService.start()
 
 function beforeExitHandler() {
     jobApplication.stop()
-        .then(() => {
-            return databaseService.stop();
+        .then(async () => {
+            if (startAs === JOB_EXECUTOR) {
+                await jobCleaner.stop();
+            }
+            await databaseService.stop();
         })
         .then(() => {
             process.exit(0);

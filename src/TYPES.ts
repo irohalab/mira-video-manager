@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,8 +43,14 @@ export const EXEC_MODE_META = 'META_MODE';
 // job queues:
 export const META_JOB_QUEUE = 'meta_job_queue';
 export const VIDEO_JOB_RESULT_QUEUE = 'video_job_result_queue';
+export const JS_COMMAND_QUEUE = 'js_command_queue';
 
 // routing key
 export const NORMAL_JOB_KEY = 'normal_job';
 export const META_JOB_KEY = 'meta_job';
 export const VIDEO_JOB_RESULT_KEY = 'video_job_result_key';
+export const JS_COMMAND = 'js.command';
+export const JE_COMMAND = 'je.command';
+
+// exchange
+export const VIDEO_MANAGER_COMMAND_EXCHANGE = 'video_manager_command_exchange';
