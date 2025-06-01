@@ -161,6 +161,7 @@ export class JobExecutor implements JobApplication {
                     await this.cancelJob(job, jobRepo);
                 }
                 break;
+            // TODO: remove the commented out code in next release.
             // case CMD_PAUSE:
             //     job = await jobRepo.getCurrentJobExecutorRunningJob(this.id, msg.jobId);
             //     if (job) {

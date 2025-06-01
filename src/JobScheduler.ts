@@ -135,7 +135,6 @@ export class JobScheduler implements JobApplication {
         try {
             const jobMessage = msg as JobMessage;
             const job = await this._databaseService.getJobRepository().findOne({ id: jobMessage.jobId });
-            console.log(`job ${jobMessage.jobId} ${job ? 'found': 'not found'} in database`);
             if (job.status === JobStatus.Canceled) {
                 logger.info('remove canceled job (' + job.id +') from message queue');
                 // remove from Message Queue
@@ -183,7 +182,6 @@ export class JobScheduler implements JobApplication {
 
     private async onCommandMessage(msg: CommandMessage): Promise<boolean> {
         let job: Job;
-        console.log('command msg received command: ' + msg.command + ' jobId: ' + msg.jobId);
         const jobRepo = this._databaseService.getJobRepository();
         switch (msg.command) {
             case CMD_CANCEL:
@@ -269,7 +267,7 @@ export class JobScheduler implements JobApplication {
     }
 
     private checkJobStatus(): void {
-        console.log('start to check job status');
+        logger.info('start to check job status');
         this._jobStatusCheckerTimerId = setTimeout(async () => {
             await this.doCheckJobStatus();
             this.checkJobStatus();

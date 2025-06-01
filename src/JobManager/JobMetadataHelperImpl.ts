@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2025 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,7 +110,7 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
     }
 
     private async runCommand(cmdExc: string, cmdArgs: string[], logger: pino.Logger): Promise<any> {
-        console.log(cmdExc + ' ' + cmdArgs.join(' '));
+        logger.info(cmdExc + ' ' + cmdArgs.join(' '));
         const decoder = new StringDecoder('utf8');
         return new Promise((resolve, reject) => {
             try {
