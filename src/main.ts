@@ -104,7 +104,10 @@ if (startAs === JOB_EXECUTOR) {
 
 const jobApplication = container.get<JobApplication>(TYPES_VM.JobApplication);
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
-const jobCleaner = container.get<JobCleaner>(JobCleaner);
+let jobCleaner: JobCleaner;
+if (startAs === JOB_EXECUTOR) {
+    jobCleaner = container.get<JobCleaner>(JobCleaner);
+}
 
 databaseService.start()
     .then(async () => {
