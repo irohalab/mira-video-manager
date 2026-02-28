@@ -81,7 +81,7 @@ export class ConfigManagerImpl implements ConfigManager {
     }
 
     public storageType(): 'S3' | 'Filesystem' {
-        return this._config.storage_type;
+        return this._config.storage_type ?? 'Filesystem';
     }
 
     public s3Config(): S3ClientConfig {
