@@ -1,10 +1,14 @@
 {
-   "type": "postgresql",
    "host": "localhost",
    "port": 5432,
    "user": "postgres",
    "password": "123456",
    "dbName": "mira",
+   "driverOptions": {
+      "connection": {
+         "ssl": false
+      }
+   },
    "entities": [
       "dist/entity/**/*.js",
       "node_modules/@irohalab/mira-shared/entity/**/*.js"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,8 +32,8 @@ import { FakeJobRepository } from '../test-helpers/FakeJobRepository';
 import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
 import { EVENT_VERTEX_FAIL, TERMINAL_VERTEX_FINISHED, VertexManager } from './VertexManager';
 import { VertexManagerImpl } from './VertexManagerImpl';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { JobStatus } from '../domains/JobStatus';
+import { FakeSentry } from '../test-helpers/FakeSentry';
 
 type Cxt = { container: Container };
 

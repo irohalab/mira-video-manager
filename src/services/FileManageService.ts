@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,16 @@ import { finished } from 'stream/promises';
 import axios from 'axios';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
 import { getStdLogger } from '../utils/Logger';
+import { S3Service } from './S3Service';
+
+const S3_URL_PATTERN = /^s3:\/\/.+/;
 
 const logger = getStdLogger();
 
 @injectable()
 export class FileManageService {
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
+                private s3Service: S3Service,
                 @inject(TYPES.Sentry) private _sentry: Sentry) {
     }
 
@@ -78,29 +82,8 @@ export class FileManageService {
         return convertedRemoteFile;
     }
 
-    public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
-        const convertedRemoteFile = this.getFileUrlOrLocalPath(remoteFile, appId);
-        const destPath = this.getLocalPath(remoteFile.filename, messageId);
-        // create folder if not exists
-        try {
-            await mkdir(dirname(destPath), { recursive: true });
-        } catch (err) {
-            this._sentry.capture(err);
-            logger.warn(err);
-        }
-        if (convertedRemoteFile.fileLocalPath) {
-            // COPY local file
-            try {
-                await copyFile(convertedRemoteFile.fileLocalPath, destPath);
-            } catch (err) {
-                this._sentry.capture(err);
-                logger.warn(err);
-            }
-        } else {
-            await FileManageService.getVideoViaHttp(convertedRemoteFile.fileUri, destPath);
-        }
-
-        return destPath;
+    private static isS3Url(uri: string): boolean {
+        return S3_URL_PATTERN.test(uri);
     }
 
     public async cleanUpFiles(jobMessageId: string): Promise<void> {
@@ -149,5 +132,34 @@ export class FileManageService {
 
     private static trimEndSlash(pathSeg: string) {
         return pathSeg.endsWith('/') ? pathSeg.substring(0, pathSeg.length - 1) : pathSeg;
+    }
+
+    public async downloadFile(remoteFile: RemoteFile, appId: string, messageId: string): Promise<string> {
+        const convertedRemoteFile = this.getFileUrlOrLocalPath(remoteFile, appId);
+        const destPath = this.getLocalPath(remoteFile.filename, messageId);
+        // create folder if not exists
+        try {
+            await mkdir(dirname(destPath), { recursive: true });
+        } catch (err) {
+            this._sentry.capture(err);
+            logger.warn(err);
+        }
+        if (convertedRemoteFile.fileLocalPath) {
+            // COPY local file
+            try {
+                await copyFile(convertedRemoteFile.fileLocalPath, destPath);
+            } catch (err) {
+                this._sentry.capture(err);
+                logger.warn(err);
+            }
+        } else {
+            if (FileManageService.isS3Url(convertedRemoteFile.fileUri)) {
+                await this.s3Service.download(convertedRemoteFile.fileUri, destPath);
+            } else {
+                await FileManageService.getVideoViaHttp(convertedRemoteFile.fileUri, destPath);
+            }
+        }
+
+        return destPath;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import { FileManageService } from './FileManageService';
 import { v4 as uuid4 } from 'uuid';
 import { cleanDir, ensureTempDir, projectRoot } from '../test-helpers/helpers';
 import { RemoteFile, Sentry, TYPES } from '@irohalab/mira-shared';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { FakeSentry } from '../test-helpers/FakeSentry';
 
 const testVideoFilename = 'test-video-1.mp4';
 const testVideoFilePath = join(__dirname, '../../tests/', testVideoFilename);

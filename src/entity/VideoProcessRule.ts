@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import { VideoProcessRuleRepository } from '../repository/VideoProcessRuleReposi
 import { randomUUID } from 'crypto';
 import { ActionMap } from '../domains/ActionMap';
 
-@Entity({customRepository: () => VideoProcessRuleRepository})
+@Entity({repository: () => VideoProcessRuleRepository})
 export class VideoProcessRule {
 
     @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})

@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,10 +31,13 @@ import { Request, Response as ExpressResponse } from 'express';
 import { DatabaseService } from '../../services/DatabaseService';
 import { inject } from 'inversify';
 import { JobStatus } from '../../domains/JobStatus';
-import { RabbitMQService, TYPES, VIDEO_MANAGER_COMMAND, VIDEO_MANAGER_EXCHANGE } from '@irohalab/mira-shared';
+import {
+    JsonResultFactory,
+    RabbitMQService,
+    TYPES
+} from '@irohalab/mira-shared';
 import { CMD_CANCEL, CMD_PAUSE, CMD_RESUME, CommandMessage } from '../../domains/CommandMessage';
 import { getStdLogger } from '../../utils/Logger';
-import { BadRequestResult, InternalServerErrorResult } from 'inversify-express-utils/lib/results';
 import { Job } from '../../entity/Job';
 import { VIDEO_MANAGER_COMMAND_EXCHANGE } from '../../TYPES';
 
@@ -54,24 +57,18 @@ export class JobController extends BaseHttpController implements interfaces.Cont
     }
 
     @httpGet('/')
-    public async listJobs(@queryParam('status') jobStatus: string): Promise<IHttpActionResult> {
+    public async listJobs(@queryParam('status') jobStatus: string, @queryParam('bangumiId') bangumiId: string): Promise<IHttpActionResult> {
         const status = jobStatus as JobStatus | 'all';
-        let jobs: Job[];
+        let jobs: Partial<Job>[];
         try {
-            if (status === 'all') {
-                jobs = await this._databaseService.getJobRepository(true).getRecentJobs();
-            } else if (status === 'Running') {
-                jobs = await this._databaseService.getJobRepository(true).getRunningJobs();
-            } else {
-                jobs = await this._databaseService.getJobRepository(true).getJobsByStatus(status);
-            }
+            jobs = await this._databaseService.getJobRepository(true).listJobs(status, bangumiId);
             return this.json({
                 data: jobs,
                 status: 0
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -85,7 +82,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -98,7 +95,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
                 status: 0
             });
         } catch (ex) {
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -119,7 +116,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
                 cmd.command = CMD_RESUME;
                 break;
             default:
-                return new BadRequestResult();
+                return JsonResultFactory(400);
         }
         await this._mqService.publish(VIDEO_MANAGER_COMMAND_EXCHANGE, '', cmd);
         return this.json({message: 'action sent', status: 0});
@@ -136,7 +133,7 @@ export class JobController extends BaseHttpController implements interfaces.Cont
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
 
     }

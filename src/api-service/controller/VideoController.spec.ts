@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,11 @@ import { copyFile } from 'fs/promises';
 import { v4 as uuid4 } from 'uuid';
 import { bootstrap, JOB_EXECUTOR } from '../bootstrap';
 import { Server } from 'http';
-import * as supertest from 'supertest';
+import supertest = require('supertest');
 import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { FakeDatabaseService } from '../../test-helpers/FakeDatabaseService';
 import { DatabaseService } from '../../services/DatabaseService';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
+import { FakeSentry } from '../../test-helpers/FakeSentry';
 
 type Ctx = { container: Container, server: Server };
 

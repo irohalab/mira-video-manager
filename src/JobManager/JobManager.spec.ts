@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,9 @@ import { join } from 'path';
 import { JobManager } from './JobManager';
 import { FakeJobRepository } from '../test-helpers/FakeJobRepository';
 import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { FakeJobMetadataHelper } from '../test-helpers/FakeJobMetadataHelper';
 import { JobMetadataHelper } from './JobMetadataHelper';
+import { FakeSentry } from '../test-helpers/FakeSentry';
 
 type Cxt = { container: Container };
 

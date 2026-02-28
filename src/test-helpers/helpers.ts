@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,14 +25,12 @@ import { FakeDatabaseService } from './FakeDatabaseService';
 import { ProcessorFactory, ProcessorFactoryInitiator } from '../processors/ProcessorFactory';
 import { TYPES_VM } from '../TYPES';
 import { VideoProcessor } from '../processors/VideoProcessor';
-import { ProfileFactory, ProfileFactoryInitiator } from '../processors/profiles/ProfileFactory';
-import { BaseProfile } from '../processors/profiles/BaseProfile';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { JobMessage } from '../domains/JobMessage';
 import { randomUUID } from 'crypto';
 import { Job } from '../entity/Job';
 import { JobStatus } from '../domains/JobStatus';
 import { Action } from '../domains/Action';
+import { FakeSentry } from './FakeSentry';
 
 export const projectRoot = resolve(__dirname, '../../');
 export const jobDataPath = join(projectRoot, 'temp/test/jobs.json');

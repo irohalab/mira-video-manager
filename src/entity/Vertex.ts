@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import { VertexRepository } from '../repository/VertexRepository';
 import { ActionType } from '../domains/ActionType';
 import { FileMapping } from '@irohalab/mira-shared/domain/FileMapping';
 
-@Entity({ customRepository: () => VertexRepository })
+@Entity({ repository: () => VertexRepository })
 export class Vertex {
 
     @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})

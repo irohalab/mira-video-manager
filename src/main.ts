@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ import { JobCleaner } from './JobManager/JobCleaner';
 import { LocalVideoValidateProcessor } from './processors/LocalVideoValidateProcessor';
 import { JobMetadataHelper } from './JobManager/JobMetadataHelper';
 import { JobMetadataHelperImpl } from './JobManager/JobMetadataHelperImpl';
+import { S3Service } from './services/S3Service';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';
@@ -101,6 +102,7 @@ if (startAs === JOB_EXECUTOR) {
     logger.error('failed to start, START_AS environment variable is not valid');
     process.exit(-1);
 }
+container.bind<S3Service>(S3Service).toSelf().inSingletonScope();
 
 const jobApplication = container.get<JobApplication>(TYPES_VM.JobApplication);
 const databaseService = container.get<DatabaseService>(TYPES.DatabaseService);
@@ -115,6 +117,10 @@ databaseService.start()
         if (startAs === JOB_EXECUTOR) {
             const jobExecutorId = (jobApplication as JobExecutor).id;
             await jobCleaner.start(jobExecutorId);
+        }
+        if (startAs === JOB_SCHEDULER) {
+            const s3Service = container.get<S3Service>(S3Service);
+            await s3Service.ensureBucket();
         }
     })
     .then(() => {

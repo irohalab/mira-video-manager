@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,11 +38,11 @@ import { JobApplication } from '../JobApplication';
 import { FakeTimeVideoProcessor } from '../test-helpers/FakeTimeVideoProcessor';
 import { FakeTimeVideoProcessorFactory } from '../test-helpers/FakeTimeVideoProcessorFactory';
 import { FakeJobMetadataHelper } from '../test-helpers/FakeJobMetadataHelper';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { FakeDatabaseService } from '../test-helpers/FakeDatabaseService';
 import { VideoProcessRule } from '../entity/VideoProcessRule';
 import { ConvertAction } from '../domains/ConvertAction';
 import { Action } from '../domains/Action';
+import { FakeSentry } from '../test-helpers/FakeSentry';
 
 const JOB_EXECUTOR = 'JOB_EXECUTOR';
 const JOB_SCHEDULER = 'JOB_SCHEDULER';

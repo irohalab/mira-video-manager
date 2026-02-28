@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 import { WebServerConfig } from '../TYPES';
 import { BaseConfigManager } from '@irohalab/mira-shared';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 export interface ConfigManager extends BaseConfigManager {
 
@@ -75,4 +76,13 @@ export interface ConfigManager extends BaseConfigManager {
      * Temp solution to communicate with Albireo
      */
     albireoRPCUrl(): string;
+
+    storageType(): 'S3' | 'Filesystem';
+
+    s3Config(): S3ClientConfig;
+
+    /**
+     * bucket to store processed files.
+     */
+    s3Bucket(): string;
 }

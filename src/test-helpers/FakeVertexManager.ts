@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ export class FakeVertexManager implements VertexManager {
     constructor(@inject(TYPES.DatabaseService) private _database: DatabaseService) {
     }
 
-    public cancelVertices(): Promise<void> {
+    public stopAllVertices(): Promise<void> {
         this.vxCanceled = true;
         return Promise.resolve(undefined);
     }
@@ -56,7 +56,7 @@ export class FakeVertexManager implements VertexManager {
     }
 
     public async stop(): Promise<void> {
-        await this.cancelVertices();
+        await this.stopAllVertices();
         return Promise.resolve(undefined);
     }
 

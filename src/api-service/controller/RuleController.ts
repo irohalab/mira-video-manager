@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import { Request } from 'express';
 import { VideoProcessRule } from '../../entity/VideoProcessRule';
 import { ConditionParser } from '../../utils/ConditionParser';
 import {
-    DOWNLOAD_MESSAGE_EXCHANGE,
+    DOWNLOAD_MESSAGE_EXCHANGE, JsonResultFactory,
     RabbitMQService,
     RemoteFile,
     TokenCheckException,
@@ -38,11 +38,10 @@ import { ActionType } from '../../domains/ActionType';
 import { ExtractAction } from '../../domains/ExtractAction';
 import { DatabaseService } from '../../services/DatabaseService';
 import { getStdLogger } from '../../utils/Logger';
-import { BadRequestResult, InternalServerErrorResult } from 'inversify-express-utils/lib/results';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { readdir } from 'fs/promises';
 import { extname, join } from 'path';
-import { open as openFont } from 'fontkit';
+import { Font, FontCollection, open as openFont } from 'fontkit';
 import { inject } from 'inversify';
 import { ConvertMessage } from '../../domains/ConvertMessage';
 
@@ -69,7 +68,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -83,7 +82,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -105,7 +104,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
                     }
                 });
             } else {
-                return new BadRequestResult();
+                return JsonResultFactory(400);
             }
             const result = await this._databaseService.getVideoProcessRuleRepository(true).save(rule);
             return this.json({
@@ -115,9 +114,9 @@ export class RuleController extends BaseHttpController implements interfaces.Con
         } catch (ex) {
             logger.warn(ex);
             if (ex.message && ex.message === 'No extractorId') {
-                return new BadRequestResult();
+                return JsonResultFactory(400);
             }
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -139,7 +138,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -154,7 +153,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
             });
         } catch (ex) {
             logger.warn(ex);
-            return new InternalServerErrorResult();
+            return JsonResultFactory(500);
         }
     }
 
@@ -232,8 +231,15 @@ export class RuleController extends BaseHttpController implements interfaces.Con
 
     private async readFontName(fontPath: string): Promise<string> {
         try {
-            const font = await openFont(fontPath);
-            return font.fullName;
+            const result = await openFont(fontPath);
+            const fontCollection = result as FontCollection;
+            let fontNames: string;
+            if (fontCollection && fontCollection.fonts) {
+                fontNames = fontCollection.fonts.map(f => f.fullName).join(', ');
+            } else {
+                fontNames = (result as Font).fullName;
+            }
+            return fontNames;
         } catch (ex) {
             logger.warn(ex);
             return null;

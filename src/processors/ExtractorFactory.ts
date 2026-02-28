@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ import { ExtractAction } from '../domains/ExtractAction';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
 import { interfaces } from 'inversify';
 import { Vertex } from '../entity/Vertex';
-import * as assert from 'assert';
+import assert = require('assert');
 import { ActionType } from '../domains/ActionType';
 import { FileExtractor } from './extractors/FileExtractor';
 import { SubtitleExtractor } from './extractors/SubtitleExtractor';

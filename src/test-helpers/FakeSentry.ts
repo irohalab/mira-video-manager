@@ -14,22 +14,14 @@
  * limitations under the License.
  */
 
-import { randomUUID } from 'crypto';
-import { DateTimeType, Entity, EntityRepositoryType, PrimaryKey, Property } from '@mikro-orm/core';
-import { SessionRepository } from '../repository/SessionRepository';
+import { injectable } from 'inversify';
+import { Sentry } from '@irohalab/mira-shared';
 
-@Entity({repository: () => SessionRepository})
-export class Session {
+@injectable()
+export class FakeSentry implements Sentry {
+    public capture(obj: any, context?: { [p: string]: string }): void {
+    }
 
-    @PrimaryKey({type: 'uuid', defaultRaw: 'uuid_generate_v4()'})
-    public id: string = randomUUID();
-
-    @Property({
-        type: DateTimeType,
-        columnType: 'timestamp',
-        nullable: false
-    })
-    public expire: Date;
-
-    [EntityRepositoryType]?: SessionRepository;
+    public setup(serverName: string): void {
+    }
 }

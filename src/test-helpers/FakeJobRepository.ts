@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,14 +77,14 @@ export class FakeJobRepository extends JobRepository {
         throw new NotImplementException();
     }
 
-    public async findOne<P extends string = never>(where: FilterQuery<Job>, options?: FindOneOptions<Job, P>): Promise<Loaded<Job, P> | null> {
+    public async findOne<Hint extends string = never, Fields extends string = '*', Excludes extends string = never>(where: FilterQuery<Job>, options?: FindOneOptions<Job, Hint, Fields, Excludes>): Promise<Loaded<Job, Hint, Fields, Excludes> | null> {
         const jobs = await getJobData();
         return Promise.resolve(jobs.find(job => {
             // tslint:disable-next-line:no-string-literal
             return Object.keys(where).every(key => {
                 return job[key] === where[key];
             })
-        }) as Loaded<Job, P>);
+        }) as Loaded<Job, Hint, Fields, Excludes>);
     }
 
     public async save(job: Job|Job[]): Promise<Job|Job[]> {
