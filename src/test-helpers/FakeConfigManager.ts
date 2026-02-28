@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,11 +21,22 @@ import { resolve, join } from 'path';
 import { WebServerConfig } from '../TYPES';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { MikroORMOptions } from '@mikro-orm/core';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 import { nanoid } from 'nanoid';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
+    storageType(): 'S3' | 'Filesystem' {
+        return 'Filesystem';
+    }
+    s3Config(): S3ClientConfig {
+        throw new Error('Method not implemented.');
+    }
+    s3Bucket(): string {
+        throw new Error('Method not implemented.');
+    }
+
     failedFileRetentionDays(): number {
         return 5;
     }
@@ -84,7 +95,7 @@ export class FakeConfigManager implements ConfigManager {
         return join(this.jobProfileDirPath(), 'video');
     }
 
-    databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+    databaseConfig(): MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>> {
         throw new NotImplementException();
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,6 @@ export class DefaultProfile extends BaseProfile {
     public static profileName = 'default';
 
     public getCommandArgs(): Promise<string[]> {
-        return Promise.resolve([...this.getInputCommandArgs(), '-strict', '-2']);
+        return Promise.resolve([...this.getInputCommandArgs(), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-strict', '-2']);
     }
 }

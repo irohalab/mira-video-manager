@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,11 @@ import { readFileSync } from 'fs';
 import { load as loadYaml } from 'js-yaml';
 import { WebServerConfig } from "../TYPES";
 import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
-import { PostgreSqlDriver } from '@mikro-orm/postgresql';
+import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
-import { TSMigrationGenerator } from '@mikro-orm/migrations';
+import { Migrator, TSMigrationGenerator } from '@mikro-orm/migrations';
 import { randomUUID } from 'crypto';
+import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 type AppConfg = {
     amqp: {
@@ -59,6 +60,9 @@ type AppConfg = {
     jobExpireTime: {Canceled: number, UnrecoverableError: number, Finished: number};
     fontsDir: string;
     albireoRPC: string;
+    storage_type: 'S3' | 'Filesystem';
+    s3_config: S3ClientConfig;
+    s3_bucket: string;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -74,6 +78,18 @@ export class ConfigManagerImpl implements ConfigManager {
         const appConfigPath = process.env.APPCONFIG || resolve(__dirname, '../../config.yml');
         this._ormConfig = JSON.parse(readFileSync(ormConfigPath, { encoding: 'utf-8' }));
         this._config = loadYaml(readFileSync(appConfigPath, { encoding: 'utf-8'})) as AppConfg;
+    }
+
+    public storageType(): 'S3' | 'Filesystem' {
+        return this._config.storage_type;
+    }
+
+    public s3Config(): S3ClientConfig {
+        return this._config.s3_config;
+    }
+
+    public s3Bucket(): string {
+        return this._config.s3_bucket;
     }
 
     public amqpServerUrl(): string {
@@ -189,9 +205,27 @@ export class ConfigManagerImpl implements ConfigManager {
         return `${this.WebServerConfig().enableHttps ? 'https' : 'http'}://${this.WebServerConfig().host}:${this.WebServerConfig().port}/video/output/${jobMessageId}/${filename}`;
     }
 
-    public databaseConfig(): MikroORMOptions<PostgreSqlDriver> {
+    public databaseConfig(): MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>> {
         return Object.assign({
-            namingStrategy: MiraNamingStrategy as new()=> NamingStrategy}, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver>;
+            debug: process.env.NODE_ENV !== 'production',
+            driver: PostgreSqlDriver,
+            namingStrategy: MiraNamingStrategy,
+            extensions: [Migrator],
+            migrations: {
+                tableName: 'mikro_orm_migrations',
+                path: 'dist/migrations',
+                pathTs: 'src/migrations',
+                glob: '!(*.d).{js,ts}',
+                transactional: true,
+                disableForeignKeys: true,
+                allOrNothing: true,
+                dropTables: true,
+                safe: false,
+                snapshot: true,
+                emit: 'ts',
+                generator: TSMigrationGenerator
+            }
+        }, this._ormConfig) as unknown as MikroORMOptions<PostgreSqlDriver, SqlEntityManager<PostgreSqlDriver>>;
     }
 
     private static async writeNewProfile(profilePath): Promise<string> {

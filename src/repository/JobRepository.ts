@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ import { Job } from "../entity/Job";
 import { JobStatus } from '../domains/JobStatus';
 import { BaseEntityRepository } from '@irohalab/mira-shared/repository/BaseEntityRepository';
 import { JobType } from '../domains/JobType';
+import { EntityManager } from '@mikro-orm/postgresql';
+import { FilterQuery, FindOptions } from '@mikro-orm/core';
 
 export class JobRepository extends BaseEntityRepository<Job> {
     public async getExpiredJobsByStatusOfCurrentExecutor(jobExecutorId: string, status: JobStatus, expire: number): Promise<Job[]> {
@@ -46,43 +48,32 @@ export class JobRepository extends BaseEntityRepository<Job> {
         return await this.findOne({ jobExecutorId, id: jobId, status: JobStatus.Running});
     }
 
-    // public async getPausedAndQueuedJobs(maxTime: number): Promise<Job[]> {
-    //     const tolerantTime = new Date(Date.now() - (maxTime * 60 * 1000));
-    //     return await this.find({
-    //         $and: [
-    //             {
-    //                 $or: [
-    //                     {status: JobStatus.Pause},
-    //                     {status: JobStatus.Queueing}
-    //                 ]
-    //             },
-    //             {createTime: {$lt: tolerantTime}}
-    //         ]
-    //     });
-    // }
-
-    public async getJobsByStatus(status: JobStatus): Promise<Job[]> {
-        return await this.find({status}, {
-            orderBy: {
-                createTime: 'DESC'
-            }
-        })
-    }
-
-    public async getRunningJobs(): Promise<Job[]> {
-        return await this.find({ $and: [{status: JobStatus.Running}, {status: JobStatus.MetaData}]}, {
-            orderBy: {
-                createTime: 'DESC'
-            }
-        })
-    }
-
-    public async getRecentJobs(): Promise<Job[]> {
-        return await this.find({}, {
+    public async listJobs(status: string, bangumiId?: string): Promise<Partial<Job>[]> {
+        const filterQuery: FilterQuery<Job> = {};
+        const findOptions: FindOptions<Job, never, "id" | "jobMessage" | "status" | "createTime" | "startTime" | "finishedTime", never> = {
             orderBy: {
                 createTime: 'DESC'
             },
-            limit: 30
-        })
+            fields: ['id', 'jobMessage', 'status', 'createTime', 'startTime', 'finishedTime']
+        };
+        if (bangumiId) {
+            filterQuery.jobMessage = { bangumiId };
+        }
+        if (status === 'Running') {
+            filterQuery.$or = [{status: JobStatus.Running}, {status: JobStatus.MetaData}];
+        } else if (status === 'all') {
+            findOptions.limit = 30;
+        } else {
+            filterQuery.status = status as JobStatus;
+        }
+        return await this.find(filterQuery, findOptions);
+    }
+
+    public remove(job: Job | Job[]): EntityManager {
+        return this.em.remove(job);
+    }
+
+    public async removeAndFlush(job: Job | Job[]): Promise<void> {
+        await this.remove(job).flush();
     }
 }

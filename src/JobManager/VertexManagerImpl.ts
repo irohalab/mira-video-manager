@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,10 +74,10 @@ export class VertexManagerImpl implements VertexManager {
     public async stop(jobId: string = null): Promise<void> {
         clearTimeout(this._checkQueueTimer);
         if (jobId) {
-            await this.cancelVertices(jobId);
+            await this.stopAllVertices(jobId);
         } else if (this._job) {
             // job not started yet
-            await this.cancelVertices(this._job.id);
+            await this.stopAllVertices(this._job.id);
         }
     }
 
@@ -173,10 +173,10 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     /**
-     * cancel all running vertices, save each vertex status to VertexStatus.Canceled.
+     * cancel all running and pending vertices, save each vertex status to VertexStatus.Canceled.
      * waiting until all vertices canceled.
      */
-    public async cancelVertices(jobId: string): Promise<void> {
+    public async stopAllVertices(jobId: string): Promise<void> {
         clearTimeout(this._checkQueueTimer);
         const vertexRepo = this._databaseService.getVertexRepository();
         const vertexMap = await vertexRepo.getVertexMap(jobId);
@@ -184,22 +184,23 @@ export class VertexManagerImpl implements VertexManager {
         Object.keys(vertexMap).forEach(vertexId => {
             const vertex = vertexMap[vertexId];
             const vertexLogger = this._vertexLoggerDict[vertexId];
-            if (vertex.status === VertexStatus.Running && this._runningVertexDict[vertexId]) {
+            if (vertex.status === VertexStatus.Running) {
                 vertexLogger.info('trying to cancel vertex');
                 vertex.status = VertexStatus.Canceled;
-                allPromise.push(vertexRepo.save(vertex)
-                    .then(() => {
-                        return this._runningVertexDict[vertexId].videoProcessor.cancel()
-                    })
-                    .then(() => {
-                        vertexLogger.info('vertex canceled');
-                    })
-                    .catch((error) => {
-                        vertexLogger.info(error);
-                    }));
-            } else {
-                vertex.status = VertexStatus.Canceled;
-                allPromise.push(vertexRepo.save(vertex));
+                if (this._runningVertexDict[vertexId]) {
+                    allPromise.push(vertexRepo.save(vertex)
+                        .then(() => {
+                            return this._runningVertexDict[vertexId].videoProcessor.cancel()
+                        })
+                        .then(() => {
+                            vertexLogger.info('vertex canceled');
+                        })
+                        .catch((error) => {
+                            vertexLogger.info(error);
+                        }));
+                } else {
+                    allPromise.push(vertexRepo.save(vertex));
+                }
             }
         });
         await Promise.all(allPromise);
@@ -222,6 +223,9 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     private async checkAndExecuteVertexFromQueue(): Promise<void> {
+        if (this._job.status !== JobStatus.Running) {
+            return;
+        }
         const vxQueueNode = this._pendingExecutingVertexQueue.peek();
         if (vxQueueNode) {
             const vertexId = vxQueueNode.value;
@@ -337,10 +341,10 @@ export class VertexManagerImpl implements VertexManager {
                 errorDict.errorType = 'ERR_VERTEX_FAIL';
                 vertex.status = VertexStatus.Error;
                 vertex.error = errorDict;
-                this.events.emit(EVENT_VERTEX_FAIL, error);
                 return vertexRepo.save(vertex);
             })
             .then(() => {
+                this.events.emit(EVENT_VERTEX_FAIL, error);
                 this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
             })
             .catch((err) => {

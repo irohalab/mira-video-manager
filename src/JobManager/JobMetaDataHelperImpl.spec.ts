@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import 'reflect-metadata';
 import { Container } from 'inversify';
 import test from 'ava';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
-import { FakeSentry } from '@irohalab/mira-shared/test-helpers/FakeSentry';
 import { join } from 'path';
 import { projectRoot } from '../test-helpers/helpers';
 import { JobMetadataHelperImpl } from './JobMetadataHelperImpl';
@@ -27,6 +26,7 @@ import { copyFile, mkdir, readdir, stat, unlink } from 'fs/promises';
 import { getStdLogger } from '../utils/Logger';
 import { JobMetadataHelper } from './JobMetadataHelper';
 import { TYPES_VM } from '../TYPES';
+import { FakeSentry } from '../test-helpers/FakeSentry';
 
 type Cxt = { container: Container };
 const testVideoDir = join(projectRoot, 'tests');

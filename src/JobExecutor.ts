@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@ import { getStdLogger } from './utils/Logger';
 import { JobType } from './domains/JobType';
 import { JobFailureMessage } from './domains/JobFailureMessage';
 import { hostname } from 'os';
+import { S3Service } from './services/S3Service';
 
 const logger = getStdLogger();
 
@@ -67,6 +68,7 @@ export class JobExecutor implements JobApplication {
                 @inject(TYPES.Sentry) private _sentry: Sentry,
                 @inject(TYPES.RabbitMQService) private _rabbitmqService: RabbitMQService,
                 private _fileManageService: FileManageService,
+                private s3Service: S3Service,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
                 @inject(TYPES_VM.JobManagerFactory) private _jmFactory: interfaces.AutoFactory<JobManager>) {
         this.isIdle = true;
@@ -123,6 +125,7 @@ export class JobExecutor implements JobApplication {
                     resume = true;
                 } else if (job.jobExecutorId && job.jobExecutorId !== this.id) {
                     // this job is paused previously but ran on another JobExecutor instance
+                    logger.info(`Job ${job.id} with jobExecutorId ${job.jobExecutorId} isn't equal to current JobExecutor's id ${this.id}. requeue.`);
                     return false;
                 } else {
                     // newly created job
@@ -141,6 +144,7 @@ export class JobExecutor implements JobApplication {
                 const error = new Error('no job found in database');
                 logger.error(error);
                 this._sentry.capture(error);
+                return true;
             } else {
                 // we don't process the other status Job.
                 return false;
@@ -230,10 +234,11 @@ export class JobExecutor implements JobApplication {
                     return vx.outputPath;
                 });
                 await this.notifyFinished(job, outputPathList);
-                await this.finalizeJM();
             } catch (err) {
                 logger.error(err);
                 this._sentry.capture(err);
+            } finally {
+                await this.finalizeJM();
             }
         });
 
@@ -251,9 +256,9 @@ export class JobExecutor implements JobApplication {
         } catch (error) {
             job.status = JobStatus.UnrecoverableError;
             await this._databaseService.getJobRepository().save(job);
-            await this.finalizeJM();
             logger.error(error);
             this._sentry.capture(error);
+            await this.finalizeJM();
         }
     }
 
@@ -276,6 +281,7 @@ export class JobExecutor implements JobApplication {
             remoteFile.fileUri = this._configManager.getFileUrl(remoteFile.filename, job.jobMessageId);
             return remoteFile;
         });
+
         const thumbnailPath = new RemoteFile();
         thumbnailPath.filename = basename(job.metadata.thumbnailPath);
         thumbnailPath.fileLocalPath = job.metadata.thumbnailPath;
@@ -287,6 +293,18 @@ export class JobExecutor implements JobApplication {
             keyframeImagePath.fileUri = this._configManager.getFileUrl(keyframeImagePath.filename, job.jobMessageId);
             return keyframeImagePath;
         });
+
+        if (this._configManager.storageType() === 'S3') {
+            for (const processedFile of msg.processedFiles) {
+                processedFile.fileUri = await this.s3Service.upload(processedFile.fileLocalPath);
+                logger.info(`Uploaded ${processedFile.fileUri}`);
+            }
+            for (const keyframeImagePath of keyframeImagePathList) {
+                keyframeImagePath.fileUri = await this.s3Service.upload(keyframeImagePath.fileLocalPath);
+                logger.info(`Uploaded ${keyframeImagePath.fileUri}`);
+            }
+        }
+
         msg.metadata = Object.assign({}, job.metadata, {thumbnailPath, keyframeImagePathList});
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
@@ -305,27 +323,14 @@ export class JobExecutor implements JobApplication {
         await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_JOB_RESULT_KEY, msg);
     }
 
-    /**
-     * @deprecated
-     * @param job
-     * @private
-     */
-    private async sendNoNeedToProcessMessage(job: Job) {
-        const vmMsg = new VideoManagerMessage();
-        vmMsg.id = randomUUID();
-        vmMsg.bangumiId = job.jobMessage.bangumiId;
-        vmMsg.videoId = job.jobMessage.videoId;
-        vmMsg.isProcessed = false;
-        vmMsg.processedFiles = null;
-        vmMsg.jobExecutorId = null;
-        vmMsg.downloadTaskId = job.jobMessage.downloadTaskId;
-        await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, vmMsg);
-    }
-
     private async finalizeJM(): Promise<void> {
         if (this.currentJM) {
-            this.currentJM.events.removeAllListeners();
-            await this.currentJM.dispose();
+            try {
+                this.currentJM.events.removeAllListeners();
+                await this.currentJM.dispose();
+            } catch (e) {
+                logger.error(e);
+            }
             this.currentJM = null;
         }
         this.isIdle = true;

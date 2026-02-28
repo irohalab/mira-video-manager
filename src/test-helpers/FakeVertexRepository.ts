@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,22 +37,22 @@ export class FakeVertexRepository extends VertexRepository {
         return Promise.resolve(vertexMap[jobId] || {});
     }
 
-    public async find<P extends string = never>(where: FilterQuery<Vertex>,     options?: FindOptions<Vertex, P>, ): Promise<Loaded<Vertex, P>[]> {
+    public async find<Hint extends string = never, Fields extends string = '*', Excludes extends string = never>(where: FilterQuery<Vertex>,     options?: FindOneOptions<Vertex, Hint, Fields, Excludes> ): Promise<Loaded<Vertex, Hint, Fields, Excludes>[]> {
         // tslint:disable-next-line:no-string-literal
         const id = where['jobId'] as string;
         const vm = vertexMap[id];
         if (vm) {
-            return Promise.resolve(Object.values(vm) as Loaded<Vertex, P>[]);
+            return Promise.resolve(Object.values(vm) as Loaded<Vertex, Hint, Fields, Excludes>[]);
         }
         return Promise.resolve([]);
     }
 
-    public async findOne<P extends string = never>(where: FilterQuery<Vertex>, options?: FindOneOptions<Vertex, P>): Promise<Loaded<Vertex, P> | null> {
+    public async findOne<Hint extends string = never, Fields extends string = '*', Excludes extends string = never>(where: FilterQuery<Vertex>, options?: FindOneOptions<Vertex, Hint, Fields, Excludes>): Promise<Loaded<Vertex, Hint, Fields, Excludes> | null> {
         // tslint:disable-next-line:no-string-literal
         const id = where['id'] as string;
         const vx = dbDict[id];
         if (vx) {
-            return vx as Loaded<Vertex, P>;
+            return vx as Loaded<Vertex, Hint, Fields, Excludes>;
         } else {
             return null;
         }

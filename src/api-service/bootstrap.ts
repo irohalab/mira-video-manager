@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import { InversifyExpressServer } from 'inversify-express-utils';
 import { ConfigManager } from '../utils/ConfigManager';
 import { createServer, Server as HttpServer } from 'http';
 import * as bodyParser from 'body-parser';
-import * as cors from 'cors';
+import cors = require('cors');
 import pino from 'pino';
 import { TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
@@ -83,6 +83,7 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
             },
             path: '/rt-log/'
         });
+        // @ts-ignore
         const iss = new InversifySocketServer(container, io);
         iss.build();
     }

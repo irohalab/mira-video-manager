@@ -1,15 +1,16 @@
 {
    "compilerOptions": {
       "lib": [
-         "es2017",
+         "es2022",
          "esnext.asynciterable",
          "dom"
       ],
-      "target": "es2017",
+      "target": "es2022",
       "module": "commonjs",
       "moduleResolution": "node",
       "emitDecoratorMetadata": true,
       "experimentalDecorators": true,
+      "esModuleInterop": true,
       "importHelpers": true,
       "sourceMap": true,
       "baseUrl": "src",

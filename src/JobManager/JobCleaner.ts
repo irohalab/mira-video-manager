@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -43,9 +43,9 @@ export class JobCleaner {
 
     public async start(jobExecutorId: string): Promise<void> {
         this._jobExecutorId = jobExecutorId;
-        this.checkCanceledJobs();
-        this.checkCompleteJobs();
-        this.checkErrorJobs();
+        await this.checkCanceledJobs();
+        await this.checkCompleteJobs();
+        await this.checkErrorJobs();
     }
 
     public async stop(): Promise<void> {
@@ -54,36 +54,36 @@ export class JobCleaner {
         clearTimeout(this._checkErrorJobsTimer);
     }
 
-    private checkCanceledJobs(): void {
+    private async checkCanceledJobs(): Promise<void> {
+        try {
+            await this.doCheckJobs(JobStatus.Canceled);
+        } catch (ex) {
+            logger.error(ex);
+        }
         this._checkCanceledJobsTimer = setTimeout(async () => {
-            try {
-                await this.doCheckJobs(JobStatus.Canceled);
-            } catch (ex) {
-                logger.error(ex);
-            }
-            this.checkCanceledJobs();
+            this.checkCanceledJobs().then(() => {/* Do nothing */});
         }, CHECK_INTERVAL + Math.round(Math.random() * 10 * 1000));
     }
 
-    private checkCompleteJobs(): void {
+    private async checkCompleteJobs(): Promise<void> {
+        try {
+            await this.doCheckJobs(JobStatus.Finished);
+        } catch (ex) {
+            logger.error(ex);
+        }
         this._checkCompleteJobsTimer = setTimeout(async () => {
-            try {
-                await this.doCheckJobs(JobStatus.Finished);
-            } catch (ex) {
-                logger.error(ex);
-            }
-            this.checkCompleteJobs();
+            this.checkCompleteJobs().then(() => {/* Do nothing */});
         }, CHECK_INTERVAL + Math.round(Math.random() * 10 * 1000));
     }
 
-    private checkErrorJobs(): void {
+    private async checkErrorJobs(): Promise<void> {
+        try {
+            await this.doCheckJobs(JobStatus.UnrecoverableError);
+        } catch (ex) {
+            logger.error(ex);
+        }
         this._checkErrorJobsTimer = setTimeout(async () => {
-            try {
-                await this.doCheckJobs(JobStatus.UnrecoverableError);
-            } catch (ex) {
-                logger.error(ex);
-            }
-            this.checkErrorJobs();
+            this.checkErrorJobs().then(() => {/* Do nothing */});
         }, CHECK_INTERVAL + Math.round(Math.random() * 10 * 1000));
     }
 
