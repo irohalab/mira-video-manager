@@ -44,6 +44,7 @@ import { extname, join } from 'path';
 import { Font, FontCollection, open as openFont } from 'fontkit';
 import { inject } from 'inversify';
 import { ConvertMessage } from '../../domains/ConvertMessage';
+import { KEY_DOWNLOAD_MESSAGE } from '../../TYPES';
 
 const logger = getStdLogger();
 
@@ -225,7 +226,7 @@ export class RuleController extends BaseHttpController implements interfaces.Con
         convertMessage.videoFile.fileUri = data.fileUrl;
         convertMessage.videoFile.filename = data.filename;
         convertMessage.otherFiles = [];
-        await this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, '', convertMessage);
+        await this._mqService.publish(DOWNLOAD_MESSAGE_EXCHANGE, KEY_DOWNLOAD_MESSAGE, convertMessage);
         return this.json({'message': 'OK', status: 0});
     }
 
