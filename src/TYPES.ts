@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ export const VIDEO_JOB_RESULT_QUEUE = 'video_job_result_queue';
 export const JS_COMMAND_QUEUE = 'js_command_queue';
 
 // routing key
+export const KEY_DOWNLOAD_MESSAGE = 'key_download_message'; // TODO: move to mira_shared
 export const NORMAL_JOB_KEY = 'normal_job';
 export const META_JOB_KEY = 'meta_job';
 export const VIDEO_JOB_RESULT_KEY = 'video_job_result_key';

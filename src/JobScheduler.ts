@@ -48,7 +48,7 @@ import {
     NORMAL_JOB_KEY,
     VIDEO_JOB_RESULT_KEY,
     VIDEO_JOB_RESULT_QUEUE,
-    VIDEO_MANAGER_COMMAND_EXCHANGE
+    VIDEO_MANAGER_COMMAND_EXCHANGE, KEY_DOWNLOAD_MESSAGE
 } from './TYPES';
 import { JobType } from './domains/JobType';
 import { ValidateAction } from './domains/ValidateAction';
@@ -83,7 +83,7 @@ export class JobScheduler implements JobApplication {
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', JS_COMMAND_QUEUE, '', 1);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_QUEUE, VIDEO_JOB_RESULT_KEY, 1);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', JOB_QUEUE, NORMAL_JOB_KEY, 1);
-        await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE);
+        await this._rabbitmqService.initConsumer(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', DOWNLOAD_MESSAGE_QUEUE, KEY_DOWNLOAD_MESSAGE);
         await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, 1);
         this._downloadMessageConsumeTag = await this._rabbitmqService.consume(DOWNLOAD_MESSAGE_QUEUE, async (msg) => {
             try {
