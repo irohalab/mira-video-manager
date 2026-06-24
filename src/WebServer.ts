@@ -30,7 +30,8 @@ import {
     SentryImpl,
     TYPES,
     VIDEO_MANAGER_COMMAND,
-    VIDEO_MANAGER_EXCHANGE
+    VIDEO_MANAGER_EXCHANGE,
+    VIDEO_MANAGER_GENERAL
 } from '@irohalab/mira-shared';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { getStdLogger } from './utils/Logger';
@@ -60,6 +61,7 @@ databaseService.start()
     .then(async () => {
         if (startAs === API_SERVER) {
             await rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
+            await rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
             return await rabbitMQService.initPublisher(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', '');
         }
     })

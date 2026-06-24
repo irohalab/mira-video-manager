@@ -28,6 +28,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import { interfaces, InversifySocketServer, TYPE } from 'inversify-socket-utils';
 import { JobLogController } from './socket-controller/JobLogController';
 import { VertexLogController } from './socket-controller/VertexLogController';
+import { JobReconciliationService } from '../services/JobReconciliationService';
 
 export const JOB_EXECUTOR = 'JOB_EXECUTOR';
 export const API_SERVER = 'API_SERVER';
@@ -46,6 +47,7 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
         // tslint:disable-next-line:no-var-requires
         require('./controller/JobController');
 
+        container.bind<JobReconciliationService>(JobReconciliationService).toSelf().inSingletonScope();
         container.bind<interfaces.Controller>(TYPE.Controller).to(JobLogController).whenTargetNamed('JobLogController');
         container.bind<interfaces.Controller>(TYPE.Controller).to(VertexLogController).whenTargetNamed('VertexLogController');
     } else {

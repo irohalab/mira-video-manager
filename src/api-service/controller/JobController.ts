@@ -24,6 +24,7 @@ import {
     interfaces,
     queryParam,
     request,
+    requestBody,
     requestParam,
     response
 } from 'inversify-express-utils';
@@ -40,6 +41,7 @@ import { CMD_CANCEL, CMD_PAUSE, CMD_RESUME, CommandMessage } from '../../domains
 import { getStdLogger } from '../../utils/Logger';
 import { Job } from '../../entity/Job';
 import { VIDEO_MANAGER_COMMAND_EXCHANGE } from '../../TYPES';
+import { JobReconciliationService } from '../../services/JobReconciliationService';
 
 type Operation = {action: string};
 
@@ -52,7 +54,8 @@ const logger = getStdLogger();
 @controller('/job')
 export class JobController extends BaseHttpController implements interfaces.Controller {
     constructor(@inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
-                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService) {
+                @inject(TYPES.RabbitMQService) private _mqService: RabbitMQService,
+                private _reconciliationService: JobReconciliationService) {
         super();
     }
 
@@ -64,6 +67,36 @@ export class JobController extends BaseHttpController implements interfaces.Cont
             jobs = await this._databaseService.getJobRepository(true).listJobs(status, bangumiId);
             return this.json({
                 data: jobs,
+                status: 0
+            });
+        } catch (ex) {
+            logger.warn(ex);
+            return JsonResultFactory(500);
+        }
+    }
+
+    /**
+     * Reconcile finished jobs whose completion notification was never delivered
+     * to the streaming platform (e.g. jobs finished while the legacy RPC endpoint
+     * was unavailable). Re-publishes the VideoManagerMessage so the download
+     * manager re-runs its pipeline and emits the download_complete message.
+     *
+     * The request body must provide the `videoFileIds` to reconcile (the UI knows
+     * which video files are still pending), so only the matching finished jobs are
+     * replayed.
+     */
+    @httpPost('/reconcile')
+    public async reconcileFinishedJobs(@requestBody() body: { videoFileIds: string[] }): Promise<IHttpActionResult> {
+        const videoFileIds = body && Array.isArray(body.videoFileIds)
+            ? body.videoFileIds.filter(id => typeof id === 'string' && id.length > 0)
+            : [];
+        if (videoFileIds.length === 0) {
+            return JsonResultFactory(400, { message: 'videoFileIds is required and must be a non-empty array', status: 1 });
+        }
+        try {
+            const result = await this._reconciliationService.reconcileFinishedJobs(videoFileIds);
+            return this.json({
+                data: result,
                 status: 0
             });
         } catch (ex) {
