@@ -48,6 +48,22 @@ export class JobRepository extends BaseEntityRepository<Job> {
         return await this.findOne({ jobExecutorId, id: jobId, status: JobStatus.Running});
     }
 
+    /**
+     * List finished jobs for the given video file ids that haven't been cleaned
+     * yet, so their output vertices and files are still available for
+     * reconciliation (re-notification). Both NORMAL_JOB and META_JOB are
+     * included: video files without a process rule always run as META_JOB.
+     */
+    public async getReconcilableFinishedJobs(videoFileIds: string[]): Promise<Job[]> {
+        return await this.find({
+            $and: [
+                {status: JobStatus.Finished},
+                {cleaned: false},
+                {jobMessage: {videoId: {$in: videoFileIds}}}
+            ]
+        }, {orderBy: {createTime: 'DESC'}});
+    }
+
     public async listJobs(status: string, bangumiId?: string): Promise<Partial<Job>[]> {
         const filterQuery: FilterQuery<Job> = {};
         const findOptions: FindOptions<Job, never, "id" | "jobMessage" | "status" | "createTime" | "startTime" | "finishedTime", never> = {
