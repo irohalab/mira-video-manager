@@ -51,9 +51,10 @@ export class S3Service {
     private static parseS3Url(s3Url: string): { bucket: string, key: string } {
         const url = new URL(s3Url);
         const bucket = url.hostname;
-        const key = url.pathname.startsWith("/")
+        const encodedKey = url.pathname.startsWith("/")
             ? url.pathname.substring(1)
             : url.pathname;
+        const key = decodeURIComponent(encodedKey);
         if (!bucket || !key) {
             throw new Error("Invalid S3 URL format (s3://).");
         }
