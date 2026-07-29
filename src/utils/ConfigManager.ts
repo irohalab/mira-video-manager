@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { WebServerConfig } from '../TYPES';
+import { s3PublicConfig, WebServerConfig } from '../TYPES';
 import { BaseConfigManager } from '@irohalab/mira-shared';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 
@@ -84,5 +84,5 @@ export interface ConfigManager extends BaseConfigManager {
     /**
      * bucket to store processed files.
      */
-    s3Bucket(): string;
+    s3publicConfig(): s3PublicConfig;
 }

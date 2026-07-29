@@ -68,7 +68,7 @@ fontsDir: ${project_root}/fonts
 albireoRPC: 'http://localhost:8080'
 
 # S3 or Filesystem
-storage_type: 'Filesystem'
+storage_type: 'S3'
 
 # this will be passed into S3Client() as configuration
 s3_config:
@@ -84,8 +84,10 @@ s3_config:
   requestChecksumCalculation: 'WHEN_REQUIRED'
   # credentials is mandatory and s3 authorization should be enabled with `s3.configure`
   credentials:
-    accessKeyId: 'admin'
-    secretAccessKey: 'admin'
+    accessKeyId: 'YOUR_SECURE_ACCESS_KEY'
+    secretAccessKey: 'YOUR_SECURE_SECRET_KEY'
 
 # This bucket is used to upload processed files
-s3_bucket: 'public-static'
+s3PublicConfig:
+  videoBucket: 'public-video'
+  imageBucket: 'public-image'

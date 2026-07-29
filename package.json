@@ -1,6 +1,6 @@
 {
    "name": "mira-video-manager",
-   "version": "1.9.0",
+   "version": "2.0.0",
    "description": "Video Process for mira project",
    "main": "index.js",
    "scripts": {
@@ -33,14 +33,14 @@
    "dependencies": {
       "@aws-sdk/client-s3": "^3.820.0",
       "@cloudamqp/amqp-client": "^3.2.1",
-      "@irohalab/mira-shared": "^5.1.1",
-      "@mikro-orm/core": "^6.5.2",
-      "@mikro-orm/migrations": "^6.5.2",
-      "@mikro-orm/postgresql": "^6.5.2",
+      "@irohalab/mira-shared": "^5.3.0",
+      "@mikro-orm/core": "^6.6.16",
+      "@mikro-orm/migrations": "^6.6.16",
+      "@mikro-orm/postgresql": "^6.6.16",
       "@sentry/node": "^7.0.0",
       "amqplib": "^0.10.9",
-      "axios": "1.13.6",
-      "body-parser": "^1.19.0",
+      "axios": "1.18.1",
+      "body-parser": "2.3.0",
       "cors": "^2.8.5",
       "esprima": "^4.0.1",
       "express": "^4.17.3",
@@ -60,7 +60,7 @@
       "tail": "^2.2.4"
    },
    "devDependencies": {
-      "@mikro-orm/cli": "^6.5.2",
+      "@mikro-orm/cli": "^6.6.16",
       "@types/amqplib": "^0.8.0",
       "@types/cors": "^2.8.19",
       "@types/esprima": "^4.0.3",

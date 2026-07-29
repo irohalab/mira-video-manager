@@ -60,8 +60,15 @@ export function bootstrap(container: Container, startAs: string): HttpServer {
     expressServer.setConfig((theApp) => {
         theApp.use(bodyParser.urlencoded({
             extended: true
-        }))
-        theApp.use(bodyParser.json())
+        }));
+        theApp.use(bodyParser.json());
+        // body-parser 2.x leaves the body undefined when no parser handles the request.
+        theApp.use((req, _res, next) => {
+            if (req.body === undefined) {
+                req.body = {};
+            }
+            next();
+        });
         if (DEBUG) {
             theApp.use(cors());
         }

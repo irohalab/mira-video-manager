@@ -21,7 +21,7 @@ import {
     META_JOB_KEY,
     META_JOB_QUEUE,
     NORMAL_JOB_KEY,
-    TYPES_VM,
+    TYPES_VM, VIDEO_COMPLETE_KEY, VIDEO_COMPLETE_QUEUE,
     VIDEO_JOB_RESULT_KEY, VIDEO_MANAGER_COMMAND_EXCHANGE
 } from './TYPES';
 import { JobMessage } from './domains/JobMessage';
@@ -97,6 +97,7 @@ export class JobExecutor implements JobApplication {
 
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_KEY);
+        await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_COMPLETE_KEY);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', this.getCommandQueueName(), '');
         if (this.execMode === EXEC_MODE_META) {
             await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, 1);
@@ -294,26 +295,26 @@ export class JobExecutor implements JobApplication {
             return keyframeImagePath;
         });
 
-        if (this._configManager.storageType() === 'S3') {
-            for (const processedFile of msg.processedFiles) {
-                processedFile.fileUri = await this.s3Service.upload(processedFile.fileLocalPath);
-                logger.info(`Uploaded ${processedFile.fileUri}`);
-            }
-            for (const keyframeImagePath of keyframeImagePathList) {
-                keyframeImagePath.fileUri = await this.s3Service.upload(keyframeImagePath.fileLocalPath);
-                logger.info(`Uploaded ${keyframeImagePath.fileUri}`);
-            }
-        }
-
         msg.metadata = Object.assign({}, job.metadata, {thumbnailPath, keyframeImagePathList});
         msg.jobExecutorId = this.id;
         msg.bangumiId = job.jobMessage.bangumiId;
         msg.videoId = job.jobMessage.videoId;
         msg.downloadTaskId = job.jobMessage.downloadTaskId;
         msg.isProcessed = job.jobMessage.jobType === JobType.NORMAL_JOB;
-        if (await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg)) {
-            // TODO: do something
-            logger.info('TODO: after published to VIDEO_MANAGER_EXCHANGE');
+
+        if (this._configManager.storageType() === 'S3') {
+            for (const processedFile of msg.processedFiles) {
+                processedFile.fileUri = await this.s3Service.upload(processedFile.fileLocalPath, 'video');
+                logger.info(`Uploaded ${processedFile.fileUri}`);
+            }
+            for (const keyframeImagePath of keyframeImagePathList) {
+                keyframeImagePath.fileUri = await this.s3Service.upload(keyframeImagePath.fileLocalPath, 'image');
+                logger.info(`Uploaded ${keyframeImagePath.fileUri}`);
+            }
+            msg.metadata.thumbnailPath.fileUri = await this.s3Service.upload(thumbnailPath.fileLocalPath, 'image');
+            await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_COMPLETE_QUEUE, msg);
+        } else {
+            await this._rabbitmqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg);
         }
     }
 

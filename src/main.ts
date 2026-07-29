@@ -120,7 +120,7 @@ databaseService.start()
         }
         if (startAs === JOB_SCHEDULER) {
             const s3Service = container.get<S3Service>(S3Service);
-            await s3Service.ensureBucket();
+            await s3Service.ensureBuckets();
         }
     })
     .then(() => {

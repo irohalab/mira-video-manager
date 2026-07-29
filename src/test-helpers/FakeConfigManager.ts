@@ -18,7 +18,7 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Options } from 'amqplib';
 import { injectable } from 'inversify';
 import { resolve, join } from 'path';
-import { WebServerConfig } from '../TYPES';
+import { s3PublicConfig, WebServerConfig } from '../TYPES';
 import { NotImplementException } from '@irohalab/mira-shared';
 import { MikroORMOptions } from '@mikro-orm/core';
 import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
@@ -27,13 +27,13 @@ import { S3ClientConfig } from '@aws-sdk/client-s3';
 
 @injectable()
 export class FakeConfigManager implements ConfigManager {
+    s3publicConfig(): s3PublicConfig {
+        throw new Error('Method not implemented.');
+    }
     storageType(): 'S3' | 'Filesystem' {
         return 'Filesystem';
     }
     s3Config(): S3ClientConfig {
-        throw new Error('Method not implemented.');
-    }
-    s3Bucket(): string {
         throw new Error('Method not implemented.');
     }
 
