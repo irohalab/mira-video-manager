@@ -34,7 +34,7 @@ const tempDestPath = join(__dirname, '../../temp/test/gochuusa-cm.mkv');
 const s3Service = container.get<S3Service>(S3Service);
 
 console.log(`upload: ${testFilePath}`);
-s3Service.upload(testFilePath)
+s3Service.upload(testFilePath, 'video')
 .then((result) => {
     console.log(`s3 path: ${result}`);
     return s3Service.download(result, tempDestPath);

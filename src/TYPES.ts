@@ -36,6 +36,10 @@ export type WebServerConfig = {
     enableHttps: boolean;
 };
 
+export type s3PublicConfig = {
+    videoBucket: string;
+    imageBucket: string;
+};
 
 export const EXEC_MODE_NORMAL = 'NORMAL_MODE';
 export const EXEC_MODE_META = 'META_MODE';
@@ -55,3 +59,7 @@ export const JE_COMMAND = 'je.command';
 
 // exchange
 export const VIDEO_MANAGER_COMMAND_EXCHANGE = 'video_manager_command_exchange';
+
+// used for directly receive the complete message from video manager when using S3 mode
+export const VIDEO_COMPLETE_QUEUE = 'video_complete';
+export const VIDEO_COMPLETE_KEY = 'video_complete';

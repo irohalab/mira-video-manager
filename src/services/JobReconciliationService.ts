@@ -40,7 +40,7 @@ export interface ReconciliationResult {
     /** number of finished jobs that were skipped (e.g. no output files) */
     skipped: number;
     /** jobIds/videoIds that were re-notified */
-    jobs: Array<{ jobId: string, videoId: string, bangumiId: string }>;
+    jobs: { jobId: string, videoId: string, bangumiId: string }[];
 }
 
 /**
@@ -115,11 +115,11 @@ export class JobReconciliationService {
     private buildVideoManagerMessage(job: Job, outputPathList: string[]): VideoManagerMessage {
         const msg = new VideoManagerMessage();
         msg.id = randomUUID();
-        msg.processedFiles = outputPathList.map((outputPath) => this.toRemoteFile(outputPath, job.jobMessageId));
+        msg.processedFiles = outputPathList.map((outputPath) => this.toRemoteFile(outputPath, 'video', job.jobMessageId));
 
-        const thumbnailPath = this.toRemoteFile(job.metadata.thumbnailPath, job.jobMessageId);
+        const thumbnailPath = this.toRemoteFile(job.metadata.thumbnailPath, 'image', job.jobMessageId);
         const keyframeImagePathList = (job.metadata.keyframeImagePathList || [])
-            .map((p) => this.toRemoteFile(p, job.jobMessageId));
+            .map((p) => this.toRemoteFile(p, 'image', job.jobMessageId));
 
         msg.metadata = Object.assign({}, job.metadata, { thumbnailPath, keyframeImagePathList });
         msg.jobExecutorId = job.jobExecutorId;
@@ -130,12 +130,18 @@ export class JobReconciliationService {
         return msg;
     }
 
-    private toRemoteFile(localPath: string, jobMessageId: string): RemoteFile {
+    private toRemoteFile(localPath: string, fileType: 'image'|'video', jobMessageId: string): RemoteFile {
         const remoteFile = new RemoteFile();
         remoteFile.filename = basename(localPath);
         remoteFile.fileLocalPath = localPath;
         if (this._configManager.storageType() === 'S3') {
-            remoteFile.fileUri = `s3://${this._configManager.s3Bucket()}/${remoteFile.filename}`;
+            let bucket = '';
+            if (fileType === 'image') {
+                bucket = this._configManager.s3publicConfig().imageBucket;
+            } else {
+                bucket = this._configManager.s3publicConfig().videoBucket;
+            }
+            remoteFile.fileUri = `s3://${bucket}/${remoteFile.filename}`;
         } else {
             remoteFile.fileUri = this._configManager.getFileUrl(remoteFile.filename, jobMessageId);
         }

@@ -88,4 +88,6 @@ s3_config:
     secretAccessKey: 'YOUR_SECURE_SECRET_KEY'
 
 # This bucket is used to upload processed files
-s3_bucket: 'public-static'
+s3PublicConfig:
+  videoBucket: 'public-video'
+  imageBucket: 'public-image'

@@ -23,7 +23,7 @@ import { mkdir, readFile, stat, writeFile } from 'fs/promises';
 import { injectable } from 'inversify';
 import { readFileSync } from 'fs';
 import { load as loadYaml } from 'js-yaml';
-import { WebServerConfig } from "../TYPES";
+import { s3PublicConfig, WebServerConfig } from "../TYPES";
 import { MikroORMOptions, NamingStrategy } from '@mikro-orm/core';
 import { PostgreSqlDriver, SqlEntityManager } from '@mikro-orm/postgresql';
 import { MiraNamingStrategy, ORMConfig } from '@irohalab/mira-shared';
@@ -62,7 +62,7 @@ type AppConfg = {
     albireoRPC: string;
     storage_type: 'S3' | 'Filesystem';
     s3_config: S3ClientConfig;
-    s3_bucket: string;
+    s3PublicConfig: s3PublicConfig;
 };
 
 const CWD_PATTERN = /\${cwd}/;
@@ -88,8 +88,8 @@ export class ConfigManagerImpl implements ConfigManager {
         return this._config.s3_config;
     }
 
-    public s3Bucket(): string {
-        return this._config.s3_bucket;
+    public s3publicConfig(): s3PublicConfig {
+        return this._config.s3PublicConfig;
     }
 
     public amqpServerUrl(): string {

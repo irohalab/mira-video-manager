@@ -98,7 +98,7 @@ export class JobScheduler implements JobApplication {
 
         this._videoManagerJobMessageConsumeTag = await this._rabbitmqService.consume(VIDEO_JOB_RESULT_QUEUE, async (msg) => {
             try {
-                await this.sendJobFailureNotification(msg as JobFailureMessage);
+                // await this.sendJobFailureNotification(msg as JobFailureMessage);
             } catch (ex) {
                 logger.error(ex);
                 this._sentry.capture(ex);
@@ -294,29 +294,5 @@ export class JobScheduler implements JobApplication {
             await this.newJob(jobMessage);
             await this._rabbitmqService.publish(JOB_EXCHANGE, NORMAL_JOB_KEY, jobMessage);
         }
-    }
-
-    private async sendJobFailureNotification(msg: JobFailureMessage): Promise<void> {
-        const job = await this._databaseService.getJobRepository().findOne({id: msg.jobId});
-        if (job) {
-            await this.callAlbireoRpc(job);
-            logger.info('sent notification for failed job ' + msg.jobId);
-        } else {
-            throw new Error('no job found for failed job message, job id is ' + msg.jobId);
-        }
-    }
-
-    private async callAlbireoRpc(job: Job): Promise<void> {
-        const rpcUrl = this._configManager.albireoRPCUrl();
-        await axios.post(`${rpcUrl}/video_job_failed`, {
-            job: {
-                id: job.id,
-                video_id: job.jobMessage.videoId,
-                bangumi_id: job.jobMessage.bangumiId,
-                jobType: job.jobMessage.jobType,
-                startTime: job.startTime.toISOString(),
-                endTime: (job.finishedTime ?? new Date()).toISOString()
-            }
-        });
     }
 }
