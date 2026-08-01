@@ -98,6 +98,7 @@ export class JobExecutor implements JobApplication {
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_JOB_RESULT_KEY);
         await this._rabbitmqService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_COMPLETE_KEY);
+        await this._rabbitmqService.initConsumer(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_COMPLETE_QUEUE, VIDEO_COMPLETE_KEY, 1);
         await this._rabbitmqService.initConsumer(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', this.getCommandQueueName(), '');
         if (this.execMode === EXEC_MODE_META) {
             await this._rabbitmqService.initConsumer(JOB_EXCHANGE, 'direct', META_JOB_QUEUE, META_JOB_KEY, 1);
