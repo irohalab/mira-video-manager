@@ -31,6 +31,7 @@ import { ConfigManager } from '../utils/ConfigManager';
 import { Job } from '../entity/Job';
 import { JobType } from '../domains/JobType';
 import { getStdLogger } from '../utils/Logger';
+import { VIDEO_COMPLETE_KEY } from '../TYPES';
 
 const logger = getStdLogger();
 
@@ -49,6 +50,10 @@ export interface ReconciliationResult {
  * download_complete AMQP message). This is used to recover VideoFiles/Episodes
  * that never received the original completion notification (e.g. jobs that
  * finished while the legacy Albireo RPC endpoint was unavailable).
+ *
+ * The routing key mirrors JobExecutor.notifyFinished: in S3 mode the message is
+ * sent to the video_complete queue of the video manager, otherwise it is sent
+ * with the general video manager routing key.
  *
  * The caller (UI) provides the specific video file ids to reconcile. Only jobs
  * that are Finished and not cleaned are eligible, because their output vertices
@@ -89,7 +94,8 @@ export class JobReconciliationService {
                     continue;
                 }
                 const msg = this.buildVideoManagerMessage(job, outputPathList);
-                const published = await this._mqService.publish(VIDEO_MANAGER_EXCHANGE, VIDEO_MANAGER_GENERAL, msg);
+                const routingKey = this._configManager.storageType() === 'S3' ? VIDEO_COMPLETE_KEY : VIDEO_MANAGER_GENERAL;
+                const published = await this._mqService.publish(VIDEO_MANAGER_EXCHANGE, routingKey, msg);
                 if (published) {
                     result.reconciled++;
                     result.jobs.push({ jobId: job.id, videoId: msg.videoId, bangumiId: msg.bangumiId });
