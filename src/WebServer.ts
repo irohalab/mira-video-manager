@@ -35,7 +35,7 @@ import {
 } from '@irohalab/mira-shared';
 import { RascalImpl } from '@irohalab/mira-shared/services/RascalImpl';
 import { getStdLogger } from './utils/Logger';
-import { KEY_DOWNLOAD_MESSAGE, VIDEO_MANAGER_COMMAND_EXCHANGE } from './TYPES';
+import { KEY_DOWNLOAD_MESSAGE, VIDEO_COMPLETE_KEY, VIDEO_MANAGER_COMMAND_EXCHANGE } from './TYPES';
 
 const startAs = process.env.START_AS;
 
@@ -62,6 +62,7 @@ databaseService.start()
         if (startAs === API_SERVER) {
             await rabbitMQService.initPublisher(DOWNLOAD_MESSAGE_EXCHANGE, 'direct', KEY_DOWNLOAD_MESSAGE);
             await rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_MANAGER_GENERAL);
+            await rabbitMQService.initPublisher(VIDEO_MANAGER_EXCHANGE, 'direct', VIDEO_COMPLETE_KEY);
             return await rabbitMQService.initPublisher(VIDEO_MANAGER_COMMAND_EXCHANGE, 'fanout', '');
         }
     })
