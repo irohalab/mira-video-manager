@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ const ID_OTHER_FILENAMES = 'other_filenames';
 const ID_VIDEO_CONTAINER = 'video_container';
 const ID_VIDEO_STREAM = 'video_stream';
 const ID_AUDIO_STREAM = 'audio_stream';
+const VIDEO_INFO_IDENTIFIERS = [ID_VIDEO_CONTAINER, ID_VIDEO_STREAM, ID_AUDIO_STREAM];
 
 const TOKEN_TYPE = {
     Punctuator: 'Punctuator',
@@ -71,6 +72,14 @@ export class ConditionParser {
 
     }
 
+    public static requiresVideoInfo(condition: string): boolean {
+        if (!condition) {
+            return false;
+        }
+        const tokens = tokenize(condition) as Token[];
+        return tokens.some(token => token.type === TOKEN_TYPE.Identifier && VIDEO_INFO_IDENTIFIERS.includes(token.value));
+    }
+
     public tokenCheck(): void {
         const tokens = tokenize(this._condition, {range: true}) as Token[];
         for(const token of tokens) {
@@ -102,7 +111,9 @@ export class ConditionParser {
             basename,
             extname
         };
-        await this.getVideoInfo(sandbox);
+        if (ConditionParser.requiresVideoInfo(this._condition)) {
+            await this.getVideoInfo(sandbox);
+        }
         vm.createContext(sandbox);
         return vm.runInContext(this._condition, sandbox);
     }

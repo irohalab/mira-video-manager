@@ -74,4 +74,39 @@ test('test download locally', async (t) => {
     t.true(await fileManager.checkExists(testVideoFilename, messageId));
 });
 
+test('preserve S3 URI when an application host mapping exists', t => {
+    const context = t.context as Cx;
+    const fileManager = context.container.get<FileManageService>(FileManageService);
+    const remoteFile = new RemoteFile();
+    remoteFile.filename = testVideoFilename;
+    remoteFile.fileUri = 's3://internal-download-files/path/to/test-video-1.mp4';
+
+    const convertedRemoteFile = fileManager.getFileUrlOrLocalPath(remoteFile, 'test_instance');
+
+    t.is(convertedRemoteFile.fileUri, remoteFile.fileUri);
+});
+
+test('download S3 URI through S3 service', async t => {
+    const context = t.context as Cx;
+    const configManager = context.container.get<ConfigManager>(TYPES.ConfigManager);
+    const sentry = context.container.get<Sentry>(TYPES.Sentry);
+    let downloadedUri: string;
+    const s3Service = {
+        download: async (uri: string, destPath: string) => {
+            downloadedUri = uri;
+            await writeFile(destPath, 'video');
+        }
+    };
+    const fileManager = new FileManageService(configManager, s3Service as any, sentry);
+    const messageId = uuid4();
+    const remoteFile = new RemoteFile();
+    remoteFile.filename = testVideoFilename;
+    remoteFile.fileUri = 's3://internal-download-files/path/to/test-video-1.mp4';
+
+    await fileManager.downloadFile(remoteFile, 'test_instance', messageId);
+
+    t.is(downloadedUri, remoteFile.fileUri);
+    t.true(await fileManager.checkExists(testVideoFilename, messageId));
+});
+
 // TODO: write test download from network.

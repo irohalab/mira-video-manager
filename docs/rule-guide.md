@@ -32,6 +32,10 @@ the audio file. read [the code](src/utils/Runtime/AudioStream.ts) to see all met
 5. You can use `video_container.getContainerInfo()`, `video_container.getDefaultVideoStreamInfo()`, `video_container.getDefaultAudioStreamInfo` to
 get information about container, video stream and audio stream, but instead of using dot operator, you have to use index operator
 with property name to get the properties of these info. like `video_container.getContainerInfo()['Duration']`
+
+Conditions that reference `video_container`, `video_stream`, or `audio_stream` require the scheduler to download the video to a
+temporary local file. The file is reused while matching rules for that message and removed after rule selection. Conditions that
+only reference `video_filename` or `other_filenames` do not download the video.
    
 ## Actions
 

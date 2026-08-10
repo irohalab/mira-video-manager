@@ -59,6 +59,10 @@ export class FileManageService {
         const host = appId ? idHostMap[appId]: null;
         const convertedRemoteFile =  new RemoteFile();
         convertedRemoteFile.filename = remoteFile.filename;
+        if (FileManageService.isS3Url(remoteFile.fileUri)) {
+            convertedRemoteFile.fileUri = remoteFile.fileUri;
+            return convertedRemoteFile;
+        }
         if (host) {
             const hostURLObj = new URL(host);
             if (hostURLObj.hostname === 'localhost') {
