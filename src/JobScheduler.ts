@@ -34,6 +34,7 @@ import {
     JOB_EXCHANGE,
     JOB_QUEUE, MQMessage,
     RabbitMQService,
+    RemoteFile,
     Sentry,
     TYPES,
     VIDEO_MANAGER_COMMAND,
@@ -148,31 +149,47 @@ export class JobScheduler implements JobApplication {
     }
 
     private async onDownloadMessage(msg: DownloadMQMessage): Promise<void> {
-        let appliedRule: VideoProcessRule;
+        let appliedRule: VideoProcessRule = null;
+        let conditionVideoFilePromise: Promise<RemoteFile>;
+        let conditionVideoFileDownloadStarted = false;
+        const conditionCheckId = randomUUID();
+        const getConditionVideoFile = (): Promise<RemoteFile> => {
+            if (!conditionVideoFilePromise) {
+                conditionVideoFileDownloadStarted = true;
+                conditionVideoFilePromise = this.downloadConditionVideoFile(msg, conditionCheckId);
+            }
+            return conditionVideoFilePromise;
+        };
         const rules = await this._databaseService.getVideoProcessRuleRepository().findByBangumiId(msg.bangumiId);
 
-        if (rules && rules.length > 0) {
-            if (rules.length === 1 && rules[0].condition === null && (!rules[0].videoFileId || rules[0].videoFileId === msg.videoId)) {
-                appliedRule = rules[0];
-            } else {
-                // take the first matched condition as the rule is already returned as higher priority first.
-                for (const rule of rules) {
-                    if (rule.videoFileId && msg.videoId && rule.videoFileId === msg.videoId) {
-                        appliedRule = rule;
-                        break;
-                    }
-                }
-                if (!appliedRule) {
-                    // check all bangumi wide rule, we need to exclude video file specified rules
-                    // since checkConditionMatch will return true for any rule.condition is none
-                    // see: https://github.com/irohalab/mira-video-manager/issues/57
+        try {
+            if (rules && rules.length > 0) {
+                if (rules.length === 1 && rules[0].condition === null && (!rules[0].videoFileId || rules[0].videoFileId === msg.videoId)) {
+                    appliedRule = rules[0];
+                } else {
+                    // take the first matched condition as the rule is already returned as higher priority first.
                     for (const rule of rules) {
-                        if (!rule.videoFileId && await this.checkConditionMatch(rule.condition, msg)) {
+                        if (rule.videoFileId && msg.videoId && rule.videoFileId === msg.videoId) {
                             appliedRule = rule;
                             break;
                         }
                     }
+                    if (!appliedRule) {
+                        // check all bangumi wide rule, we need to exclude video file specified rules
+                        // since checkConditionMatch will return true for any rule.condition is none
+                        // see: https://github.com/irohalab/mira-video-manager/issues/57
+                        for (const rule of rules) {
+                            if (!rule.videoFileId && await this.checkConditionMatch(rule.condition, msg, getConditionVideoFile)) {
+                                appliedRule = rule;
+                                break;
+                            }
+                        }
+                    }
                 }
+            }
+        } finally {
+            if (conditionVideoFileDownloadStarted) {
+                await this._fileManageService.cleanUpFiles(conditionCheckId);
             }
         }
 
@@ -205,21 +222,35 @@ export class JobScheduler implements JobApplication {
         return true;
     }
 
-    private async checkConditionMatch(condition: string, msg: DownloadMQMessage): Promise<boolean> {
+    private async checkConditionMatch(condition: string,
+                                      msg: DownloadMQMessage,
+                                      getConditionVideoFile: () => Promise<RemoteFile>): Promise<boolean> {
         if (!condition) {
             return true;
         }
-        const videoFile = this._fileManageService.getFileUrlOrLocalPath(msg.videoFile, msg.downloadManagerId);
-        const otherFiles = msg.otherFiles.map(f => this._fileManageService.getFileUrlOrLocalPath(f, msg.downloadManagerId));
-        const conditionParser = new ConditionParser(condition, videoFile, otherFiles);
         try {
+            let conditionParser = new ConditionParser(condition, msg.videoFile, msg.otherFiles);
             await conditionParser.tokenCheck();
+            if (ConditionParser.requiresVideoInfo(condition)) {
+                conditionParser = new ConditionParser(condition, await getConditionVideoFile(), msg.otherFiles);
+            }
             return await conditionParser.evaluate();
         } catch (e) {
             logger.error(e);
             this._sentry.capture(e);
             return false;
         }
+    }
+
+    private async downloadConditionVideoFile(msg: DownloadMQMessage, conditionCheckId: string): Promise<RemoteFile> {
+        const videoFile = new RemoteFile();
+        videoFile.filename = msg.videoFile.filename;
+        videoFile.fileLocalPath = await this._fileManageService.downloadFile(
+            msg.videoFile,
+            msg.downloadManagerId,
+            conditionCheckId
+        );
+        return videoFile;
     }
 
     /**
