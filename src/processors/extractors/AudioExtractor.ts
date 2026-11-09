@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import { getStreamsWithFfprobe } from '../../utils/VideoProber';
  */
 type ExtraData = { propertyName: string, propertyValueRegex: string, selectDefault: boolean };
 const DEFAULT_PROPERTY = 'tags.language';
-const DEFAULT_PROPERTY_VALUE_REGEX = '(chinese|zh)';
+const DEFAULT_PROPERTY_VALUE_REGEX = '(jpn|jp|ja|japanese)';
 const CODE_NAME_EXT_MAPPING = {
     mp3: '.mp3',
     aac: '.aac',
@@ -78,7 +78,7 @@ export class AudioExtractor implements Extractor {
                         audioCount++;
                         let prop = info;
                         for (const p of pvNamePaths) {
-                            prop = info[p];
+                            prop = prop[p];
                             if (!prop) {
                                 break;
                             }
