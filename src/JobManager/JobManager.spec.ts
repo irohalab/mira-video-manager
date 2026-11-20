@@ -35,6 +35,7 @@ import { FakeVertexRepository } from '../test-helpers/FakeVertexRepository';
 import { FakeJobMetadataHelper } from '../test-helpers/FakeJobMetadataHelper';
 import { JobMetadataHelper } from './JobMetadataHelper';
 import { FakeSentry } from '../test-helpers/FakeSentry';
+import { FileManageService } from '../services/FileManageService';
 
 type Cxt = { container: Container };
 
@@ -144,3 +145,110 @@ test.serial('Should call VertexManager.cancelVertices() when cancelling job', as
     t.true(vx._job.status === JobStatus.Canceled, '_job.status should be JobStatus.Canceled');
     t.true(vx.vxCanceled, 'VertexManager.cancelVertices() should be called');
 });
+
+test.serial('Should finalize job only once when multiple terminal vertices finish concurrently', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const metaHelper = container.get<JobMetadataHelper>(TYPES_VM.JobMetadataHelper);
+    const jm = container.get<JobManager>(JobManager);
+    const jobExecutorId = await configManager.jobExecutorId();
+    const job = createJob(jobExecutorId, JobStatus.Queueing);
+    const jobRepo = dbService.getJobRepository();
+    const vxRepo = dbService.getVertexRepository();
+    await jobRepo.save(job);
+
+    let processMetaCount = 0;
+    const origProcessMeta = metaHelper.processMetaData.bind(metaHelper);
+    metaHelper.processMetaData = async (vertexMap, logger) => {
+        processMetaCount++;
+        await new Promise(r => setTimeout(r, 20));
+        return origProcessMeta(vertexMap, logger);
+    };
+
+    const origGetVertexMap = vxRepo.getVertexMap.bind(vxRepo);
+    vxRepo.getVertexMap = async (jobId: string) => {
+        await new Promise(r => setTimeout(r, 20));
+        return origGetVertexMap(jobId);
+    };
+
+    await jm.start(job.id, jobExecutorId, false);
+    const vx = jm['_vm'] as FakeVertexManager;
+
+    let finishedEventCount = 0;
+    await new Promise<void>((resolve, reject) => {
+        jm.events.on(JobManager.EVENT_JOB_FINISHED, () => {
+            finishedEventCount++;
+            setTimeout(resolve, 40);
+        });
+        jm.events.on(JobManager.EVENT_JOB_FAILED, reject);
+        // Simulate two terminal vertices finishing nearly simultaneously across async DB reads
+        vx.completeAllVertices();
+        vx.completeAllVertices();
+    });
+
+    t.is(processMetaCount, 1);
+    t.is(finishedEventCount, 1);
+});
+
+test.serial('Should immediately stop VertexManager and emit failure once when vertex fails', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const jm = container.get<JobManager>(JobManager);
+    const jobExecutorId = await configManager.jobExecutorId();
+    const job = createJob(jobExecutorId, JobStatus.Queueing);
+    await dbService.getJobRepository().save(job);
+
+    await jm.start(job.id, jobExecutorId, false);
+    const vx = jm['_vm'] as FakeVertexManager;
+
+    let failEventCount = 0;
+    await new Promise<void>((resolve) => {
+        jm.events.on(JobManager.EVENT_JOB_FAILED, () => {
+            failEventCount++;
+            setTimeout(resolve, 30);
+        });
+        vx.failAnyVertex();
+        vx.failAnyVertex();
+    });
+
+    t.true(vx.vxCanceled, 'VertexManager.stop() should be called immediately on vertex failure');
+    t.is(failEventCount, 1);
+});
+
+test.serial('Should not start VertexManager if job is canceled while prepareFiles is downloading', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const fileManager = container.get<FileManageService>(FileManageService);
+    let releaseDownload: () => void;
+    const downloadGate = new Promise<void>((resolve) => {
+        releaseDownload = resolve;
+    });
+    fileManager.checkExists = async () => false;
+    fileManager.downloadFile = async () => {
+        await downloadGate;
+        return '';
+    };
+    container.rebind<FileManageService>(FileManageService).toConstantValue(fileManager);
+
+    const jm = container.get<JobManager>(JobManager);
+    const jobExecutorId = await configManager.jobExecutorId();
+    const job = createJob(jobExecutorId, JobStatus.Queueing);
+    await dbService.getJobRepository().save(job);
+
+    const startPromise = jm.start(job.id, jobExecutorId, false);
+    await new Promise(r => setTimeout(r, 20));
+    await jm.cancel();
+    releaseDownload();
+    await startPromise;
+
+    const vx = jm['_vm'] as FakeVertexManager;
+    t.falsy(vx._job, 'VertexManager.start() should not be called after job was canceled during prepareFiles');
+});
+
+

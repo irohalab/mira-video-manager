@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,13 +95,16 @@ export class JobManager {
         });
 
         this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
+            if (this._job.status !== JobStatus.Running) {
+                return;
+            }
             try {
                 const vertexRepo = this._databaseService.getVertexRepository();
                 const vertexMap = await vertexRepo.getVertexMap(this._job.id);
                 const allVerticesFinished = Object.keys(vertexMap).every((vertexId: string) => {
                     return vertexMap[vertexId].status === VertexStatus.Finished;
                 });
-                if (allVerticesFinished) {
+                if (allVerticesFinished && this._job.status === JobStatus.Running) {
                     this._job.status = JobStatus.MetaData;
                     this._job = await jobRepo.save(this._job) as Job;
                     this._job.metadata = await this._metaDataHelper.processMetaData(vertexMap, this._jobLogger);
@@ -120,18 +123,22 @@ export class JobManager {
         });
 
         this._jobLogger.info('start running');
-        if (await this.prepareFiles(this._job.jobMessage)) {
+        if (await this.prepareFiles(this._job.jobMessage) && this._job.status === JobStatus.Running) {
             this._jobLogger.info('Files Downloaded');
             await this._vm.start(this._job, this._logPath);
         }
     }
 
-    private async onVxFailed(error:any): Promise<any> {
+    private async onVxFailed(error: any): Promise<any> {
+        if (this._job.status === JobStatus.UnrecoverableError) {
+            return;
+        }
         const jobRepo = this._databaseService.getJobRepository();
         try {
             this._jobLogger.error(error);
             this._job.status = JobStatus.UnrecoverableError;
             this._job = await jobRepo.save(this._job) as Job;
+            await this._vm.stop(this._job.id);
             this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
             this._jobLogger.error('Job failed with vertex failure');
             this._jobLogger.info(LOG_END_FLAG);

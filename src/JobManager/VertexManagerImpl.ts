@@ -20,7 +20,6 @@ import { Job } from '../entity/Job';
 import { Vertex } from '../entity/Vertex';
 import { ProcessorFactoryInitiator } from '../processors/ProcessorFactory';
 import pino from 'pino';
-import { JobStatus } from '../domains/JobStatus';
 import { Sentry, TYPES } from '@irohalab/mira-shared';
 import { DatabaseService } from '../services/DatabaseService';
 import { VertexStatus } from '../domains/VertexStatus';
@@ -35,8 +34,10 @@ import { clearTimeout } from 'timers';
 import { VertexRepository } from '../repository/VertexRepository';
 import { FileManageService } from '../services/FileManageService';
 import { Action } from '../domains/Action';
+import { ActionType } from '../domains/ActionType';
 
 const CHECK_QUEUE_INTERVAL = 500;
+const MAX_CONCURRENT_CPU_VERTICES = 1;
 const logger = getStdLogger();
 
 @injectable()
@@ -48,6 +49,7 @@ export class VertexManagerImpl implements VertexManager {
     private _pendingExecutingVertexQueue = new TaskQueue<string>();
     private _checkQueueTimer: NodeJS.Timeout;
     private _runningVertexDict: {[vxId: string]: Vertex} = {};
+    private _stopped = false;
 
     constructor(@inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator,
                 @inject(TYPES.DatabaseService) private _databaseService: DatabaseService,
@@ -56,19 +58,8 @@ export class VertexManagerImpl implements VertexManager {
                 private _fileManagerService: FileManageService) {
     }
 
-    public async start(job: Job, jobLogPath: string): Promise<void> {
-        this._job = job;
-        this._logPath = jobLogPath;
-        const vertexRepo = this._databaseService.getVertexRepository();
-        const vertexMap = await vertexRepo.getVertexMap(this._job.id);
-        // Start executing vertex from all initiator vertices
-        Object.keys(vertexMap).forEach((vertexId) => {
-            this._vertexLoggerDict[vertexId] = getFileLogger(join(this._logPath, `vertex-${vertexId}.json`));
-            if (vertexMap[vertexId].upstreamVertexIds.length === 0) {
-                this.addVertexToQueue(vertexId);
-            }
-        });
-        await this.checkAndExecuteVertexFromQueue();
+    private static isAllUpstreamFinished(vertex: Vertex, vertexMap: VertexMap): boolean {
+        return vertex.upstreamVertexIds.every(upVxId => vertexMap[upVxId].status === VertexStatus.Finished);
     }
 
     public async stop(jobId: string = null): Promise<void> {
@@ -172,14 +163,47 @@ export class VertexManagerImpl implements VertexManager {
         await vertexRepo.save(vertices);
     }
 
+    private static isCpuIntensiveAction(actionType: ActionType): boolean {
+        return actionType === ActionType.Convert;
+    }
+
+    public async start(job: Job, jobLogPath: string): Promise<void> {
+        this._job = job;
+        this._logPath = jobLogPath;
+        const vertexRepo = this._databaseService.getVertexRepository();
+        const vertexMap = await vertexRepo.getVertexMap(this._job.id);
+        const vertexIds = Object.keys(vertexMap);
+        if (vertexIds.every((vertexId) => vertexMap[vertexId].status === VertexStatus.Finished)) {
+            this.events.emit(TERMINAL_VERTEX_FINISHED);
+            return;
+        }
+        // Enqueue Pending vertices whose upstream dependencies are already Finished.
+        // On fresh start, this selects root vertices; on resume, this skips already-Finished subgraphs.
+        vertexIds.forEach((vertexId) => {
+            const vertex = vertexMap[vertexId];
+            if (vertex.status !== VertexStatus.Finished) {
+                this._vertexLoggerDict[vertexId] = getFileLogger(join(this._logPath, `vertex-${vertexId}.json`));
+            }
+            if (vertex.status === VertexStatus.Pending && VertexManagerImpl.isAllUpstreamFinished(vertex, vertexMap)) {
+                this.addVertexToQueue(vertexId);
+            }
+        });
+        await this.checkAndExecuteVertexFromQueue();
+    }
+
     /**
      * cancel all running and pending vertices, save each vertex status to VertexStatus.Canceled.
      * waiting until all vertices canceled.
      */
     public async stopAllVertices(jobId: string): Promise<void> {
+        this._stopped = true;
         clearTimeout(this._checkQueueTimer);
+        this._pendingExecutingVertexQueue.clear();
         const vertexRepo = this._databaseService.getVertexRepository();
         const vertexMap = await vertexRepo.getVertexMap(jobId);
+        if (!vertexMap) {
+            return;
+        }
         const allPromise = [];
         Object.keys(vertexMap).forEach(vertexId => {
             const vertex = vertexMap[vertexId];
@@ -187,10 +211,11 @@ export class VertexManagerImpl implements VertexManager {
             if (vertex.status === VertexStatus.Running) {
                 vertexLogger.info('trying to cancel vertex');
                 vertex.status = VertexStatus.Canceled;
-                if (this._runningVertexDict[vertexId]) {
+                const processor = this._runningVertexDict[vertexId]?.videoProcessor;
+                if (processor) {
                     allPromise.push(vertexRepo.save(vertex)
                         .then(() => {
-                            return this._runningVertexDict[vertexId].videoProcessor.cancel()
+                            return processor.cancel();
                         })
                         .then(() => {
                             vertexLogger.info('vertex canceled');
@@ -212,10 +237,16 @@ export class VertexManagerImpl implements VertexManager {
         if (vertex.status === VertexStatus.Running || vertex.status === VertexStatus.Pending) {
             throw new Error('Running and Pending vertex cannot be removed, current vertex status is ' + vertex.status);
         }
-        if (await this._fileManagerService.localRemove(vertex.outputPath)) {
+        if (vertex.outputPath && await this._fileManagerService.localRemove(vertex.outputPath)) {
             logger.info('successfully removed vertex output: ' + vertex.outputPath);
         }
         await vertexRepo.removeAndFlush(vertex);
+    }
+
+    private getRunningCpuVertexCount(): number {
+        return Object.values(this._runningVertexDict)
+            .filter(vx => VertexManagerImpl.isCpuIntensiveAction(vx.actionType))
+            .length;
     }
 
     private addVertexToQueue(vertexId: string): void {
@@ -223,22 +254,25 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     private async checkAndExecuteVertexFromQueue(): Promise<void> {
-        if (this._job.status !== JobStatus.Running) {
+        if (this._stopped) {
             return;
         }
-        const vxQueueNode = this._pendingExecutingVertexQueue.peek();
+        let vxQueueNode = this._pendingExecutingVertexQueue.peek();
         if (vxQueueNode) {
-            const vertexId = vxQueueNode.value;
             const vertexRepo = this._databaseService.getVertexRepository();
             try {
                 const vertexMap = await vertexRepo.getVertexMap(this._job.id);
-                const vertex = vertexMap[vertexId];
-                const allUpstreamFinished = vertex.upstreamVertexIds
-                    .map(upVxId => vertexMap[upVxId])
-                    .every(vx => vx.status === VertexStatus.Finished);
-                if (allUpstreamFinished) {
-                    this._pendingExecutingVertexQueue.poll();
-                    this.executeVertex(vertex);
+                while (vxQueueNode && !this._stopped) {
+                    const nextNode = vxQueueNode.next;
+                    const vertexId = vxQueueNode.value;
+                    const vertex = vertexMap[vertexId];
+                    if (VertexManagerImpl.isAllUpstreamFinished(vertex, vertexMap) &&
+                        (!VertexManagerImpl.isCpuIntensiveAction(vertex.actionType) ||
+                            this.getRunningCpuVertexCount() < MAX_CONCURRENT_CPU_VERTICES)) {
+                        this._pendingExecutingVertexQueue.remove(vertexId);
+                        this.executeVertex(vertex);
+                    }
+                    vxQueueNode = nextNode;
                 }
             } catch (err) {
                 this.events.emit(VERTEX_MANAGER_LOG, {level: 'error', message: err});
@@ -246,19 +280,14 @@ export class VertexManagerImpl implements VertexManager {
             }
         }
 
-        this._checkQueueTimer = setTimeout(async () => {
-            const job = await this._databaseService.getJobRepository().findOne({ id: this._job.id });
-            if (job && job.status === JobStatus.Running) {
+        if (!this._stopped) {
+            this._checkQueueTimer = setTimeout(async () => {
                 await this.checkAndExecuteVertexFromQueue();
-            }
-        }, CHECK_QUEUE_INTERVAL);
+            }, CHECK_QUEUE_INTERVAL);
+        }
     }
 
     private executeVertex(vertex: Vertex): void {
-        if (vertex.status === VertexStatus.Finished) {
-            this.onVertexFinished(vertex.id);
-            return;
-        }
         this.events.emit(VERTEX_MANAGER_LOG, { level: 'info', message: 'start executing vertex ( ' + vertex.id + ' )' });
         const vertexLogger = this._vertexLoggerDict[vertex.id];
         const vertexRepo = this._databaseService.getVertexRepository();
@@ -284,9 +313,17 @@ export class VertexManagerImpl implements VertexManager {
         try {
             vertexLogger.info('prepare for processing');
             await vertex.videoProcessor.prepare(jobMessage, vertex);
+            if (this._stopped) {
+                await vertex.videoProcessor.dispose();
+                return;
+            }
             await vertexRepo.save(vertex);
             vertexLogger.info('start processing');
             vertex.outputPath = await vertex.videoProcessor.process(vertex);
+            if (this._stopped) {
+                await vertex.videoProcessor.dispose();
+                return;
+            }
             vertexLogger.info(`vertex finished, output: ${vertex.outputPath}`);
             await vertexRepo.save(vertex);
             await vertex.videoProcessor.dispose();
@@ -306,6 +343,9 @@ export class VertexManagerImpl implements VertexManager {
         vertexRepo.getVertexMap(this._job.id)
             .then((vertexMap: VertexMap) => {
                 const vertex = vertexMap[vertexId];
+                if (vertex.status === VertexStatus.Canceled) {
+                    return;
+                }
                 vertex.status = VertexStatus.Finished;
                 vertex.finishedTime = new Date();
                 vertexRepo.save(vertex)
@@ -313,14 +353,23 @@ export class VertexManagerImpl implements VertexManager {
                         if (vertex.downstreamVertexIds.length === 0) {
                             // this vertex is terminal vertex
                             this.events.emit(TERMINAL_VERTEX_FINISHED);
-                        } else {
-                            // find downstream vertices and execute them if all their upstream vertices are finished.
-                            for (const vxId of vertex.downstreamVertexIds) {
-                                this.addVertexToQueue(vxId);
-                            }
+                            this._vertexLoggerDict[vertexId].info(`vertex finalized`);
+                            this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+                            return;
                         }
-                        this._vertexLoggerDict[vertexId].info(`vertex finalized`);
-                        this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+                        // find downstream vertices and enqueue them if all their upstream vertices are finished.
+                        return this._databaseService.getVertexRepository().getVertexMap(this._job.id)
+                            .then((latestVertexMap: VertexMap) => {
+                                for (const vxId of vertex.downstreamVertexIds) {
+                                    const downVx = latestVertexMap[vxId];
+                                    if (downVx.status === VertexStatus.Pending &&
+                                        VertexManagerImpl.isAllUpstreamFinished(downVx, latestVertexMap)) {
+                                        this.addVertexToQueue(vxId);
+                                    }
+                                }
+                                this._vertexLoggerDict[vertexId].info(`vertex finalized`);
+                                this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+                            });
                     })
                     .catch((error) => {
                         this._vertexLoggerDict[vertexId].info(error);
