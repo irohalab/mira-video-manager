@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,8 +54,46 @@ export class TaskQueue<T> {
     }
 
     public poll(): TaskQueue<T> {
+        if (!this.head) {
+            return null;
+        }
         const oldHead = this.head;
         this.head = this.head.next;
+        if (!this.head) {
+            this.tail = null;
+        }
         return oldHead;
+    }
+
+    public remove(v: T): boolean {
+        if (!this.head) {
+            return false;
+        }
+        if (this.head.value === v) {
+            this.head = this.head.next;
+            if (!this.head) {
+                this.tail = null;
+            }
+            return true;
+        }
+        let prev = this.head;
+        let curr = this.head.next;
+        while (curr) {
+            if (curr.value === v) {
+                prev.next = curr.next;
+                if (curr === this.tail) {
+                    this.tail = prev;
+                }
+                return true;
+            }
+            prev = curr;
+            curr = curr.next;
+        }
+        return false;
+    }
+
+    public clear(): void {
+        this.head = null;
+        this.tail = null;
     }
 }

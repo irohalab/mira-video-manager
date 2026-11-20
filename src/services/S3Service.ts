@@ -27,7 +27,7 @@ import {
     S3Client, UploadPartCommand
 } from '@aws-sdk/client-s3';
 import { stat, unlink } from 'fs/promises';
-import { basename } from 'path';
+import { basename, extname } from 'path';
 import { createReadStream, createWriteStream } from 'fs';
 import { getStdLogger } from '../utils/Logger';
 import { Readable } from 'stream';
@@ -35,6 +35,49 @@ import { pipeline } from 'stream/promises';
 
 const FIVE_GIGABYTES = 5 * 1024 * 1024 * 1024;
 const MULTIPART_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (AWS recommends parts between 5MB and 5GB)
+
+const MIME_TYPES_BY_EXT: { [ext: string]: string } = {
+    '.mp4': 'video/mp4',
+    '.m4v': 'video/mp4',
+    '.mkv': 'video/x-matroska',
+    '.webm': 'video/webm',
+    '.avi': 'video/x-msvideo',
+    '.mov': 'video/quicktime',
+    '.wmv': 'video/x-ms-wmv',
+    '.ts': 'video/mp2t',
+    '.rm': 'application/vnd.rn-realmedia',
+    '.rmvb': 'application/vnd.rn-realmedia-vbr',
+    '.aac': 'audio/aac',
+    '.m4a': 'audio/mp4',
+    '.mp3': 'audio/mpeg',
+    '.flac': 'audio/flac',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.opus': 'audio/opus',
+    '.mka': 'audio/x-matroska',
+    '.wma': 'audio/x-ms-wma',
+    '.ac3': 'audio/ac3',
+    '.dts': 'audio/vnd.dts',
+    '.vtt': 'text/vtt; charset=utf-8',
+    '.srt': 'application/x-subrip',
+    '.ass': 'text/x-ssa',
+    '.ssa': 'text/x-ssa',
+    '.smi': 'application/x-sami',
+    '.scc': 'text/plain',
+    '.sbv': 'text/plain',
+    '.txt': 'text/plain',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.ttf': 'font/ttf',
+    '.otf': 'font/otf',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2'
+};
+
+export type S3UploadFileType = 'video' | 'image' | 'subtitle';
 
 const logger = getStdLogger();
 
@@ -78,6 +121,11 @@ export class S3Service {
         }
     }
 
+    public static getContentType(filePath: string): string {
+        const ext = extname(filePath).toLowerCase();
+        return MIME_TYPES_BY_EXT[ext] || 'application/octet-stream';
+    }
+
     public async ensureBuckets(): Promise<void> {
         if (this.configManager.storageType() !== 'S3') {
             return null;
@@ -87,12 +135,12 @@ export class S3Service {
         await this.ensureBucket(imageBucket);
     }
 
-    public async upload(localFilePath: string, fileType: 'video'|'image'): Promise<string> {
+    public async upload(localFilePath: string, fileType: S3UploadFileType): Promise<string> {
         if (this.configManager.storageType() !== 'S3') {
             return null;
         }
         let bucketName = null;
-        if (fileType === 'video') {
+        if (fileType === 'video' || fileType === 'subtitle') {
             bucketName = this.configManager.s3publicConfig().videoBucket;
         } else if (fileType === 'image') {
             bucketName = this.configManager.s3publicConfig().imageBucket;
@@ -101,6 +149,7 @@ export class S3Service {
         }
 
         const s3Key = basename(localFilePath);
+        const contentType = S3Service.getContentType(localFilePath);
 
         try {
             const stats = await stat(localFilePath);
@@ -115,6 +164,7 @@ export class S3Service {
                     Key: s3Key,
                     Body: fileStream,
                     ContentLength: fileSizeInBytes, // Important for progress tracking and some S3 features
+                    ContentType: contentType,
                 });
 
                 await this.s3Client.send(putObjectCommand);
@@ -127,6 +177,7 @@ export class S3Service {
                 const createMultipartUploadCommand = new CreateMultipartUploadCommand({
                     Bucket: bucketName,
                     Key: s3Key,
+                    ContentType: contentType,
                 });
                 const {UploadId} = await this.s3Client.send(createMultipartUploadCommand);
 

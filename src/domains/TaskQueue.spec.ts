@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,4 +47,30 @@ test('poll should remove head element', (t) => {
     const head = queue.head.value;
     t.true(queue.poll().value === 'a' && head === 'a', 'poll should be "a"');
     t.true(queue.head.value === 'b');
+});
+
+test('poll on empty queue returns null and remove/clear maintain tail correctly', (t) => {
+    const queue = new TaskQueue<string>();
+    t.is(queue.poll(), null);
+
+    ['a', 'b', 'c', 'd'].forEach(e => queue.add(e));
+
+    t.true(queue.remove('b'));
+    t.is(queue.head.value, 'a');
+    t.is(queue.head.next.value, 'c');
+
+    t.true(queue.remove('d'));
+    t.is(queue.tail.value, 'c');
+
+    t.true(queue.remove('a'));
+    t.is(queue.head.value, 'c');
+    t.is(queue.tail.value, 'c');
+
+    queue.add('e');
+    t.is(queue.head.value, 'c');
+    t.is(queue.tail.value, 'e');
+
+    queue.clear();
+    t.is(queue.peek(), null);
+    t.is(queue.tail, null);
 });

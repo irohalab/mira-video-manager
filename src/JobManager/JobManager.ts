@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,13 +95,16 @@ export class JobManager {
         });
 
         this._vm.events.on(TERMINAL_VERTEX_FINISHED, async () => {
+            if (this._job.status !== JobStatus.Running) {
+                return;
+            }
             try {
                 const vertexRepo = this._databaseService.getVertexRepository();
                 const vertexMap = await vertexRepo.getVertexMap(this._job.id);
                 const allVerticesFinished = Object.keys(vertexMap).every((vertexId: string) => {
                     return vertexMap[vertexId].status === VertexStatus.Finished;
                 });
-                if (allVerticesFinished) {
+                if (allVerticesFinished && this._job.status === JobStatus.Running) {
                     this._job.status = JobStatus.MetaData;
                     this._job = await jobRepo.save(this._job) as Job;
                     this._job.metadata = await this._metaDataHelper.processMetaData(vertexMap, this._jobLogger);
@@ -120,26 +123,9 @@ export class JobManager {
         });
 
         this._jobLogger.info('start running');
-        if (await this.prepareFiles(this._job.jobMessage)) {
+        if (await this.prepareFiles(this._job.jobMessage) && this._job.status === JobStatus.Running) {
             this._jobLogger.info('Files Downloaded');
             await this._vm.start(this._job, this._logPath);
-        }
-    }
-
-    private async onVxFailed(error:any): Promise<any> {
-        const jobRepo = this._databaseService.getJobRepository();
-        try {
-            this._jobLogger.error(error);
-            this._job.status = JobStatus.UnrecoverableError;
-            this._job = await jobRepo.save(this._job) as Job;
-            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-            this._jobLogger.error('Job failed with vertex failure');
-            this._jobLogger.info(LOG_END_FLAG);
-        } catch (err) {
-            this._jobLogger.error(err);
-            this._jobLogger.info(LOG_END_FLAG);
-            this._sentry.capture(err);
-            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
         }
     }
 
@@ -148,11 +134,11 @@ export class JobManager {
      */
     public async cancel(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
-            const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Canceled;
             this._job.jobExecutorId = null;
-            this._job = await jobRepo.save(this._job) as Job;
             await this._vm.stop(this._job.id);
+            const jobRepo = this._databaseService.getJobRepository();
+            this._job = await jobRepo.save(this._job) as Job;
             this._jobLogger.warn('job canceled');
             this._jobLogger.info(LOG_END_FLAG);
         }
@@ -164,14 +150,37 @@ export class JobManager {
     public async pause(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
             this._jobLogger.info('trying to pause job.');
-            const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Pause;
-            this._job = await jobRepo.save(this._job) as Job;
             await this._vm.stop(this._job.id);
+            const jobRepo = this._databaseService.getJobRepository();
+            this._job = await jobRepo.save(this._job) as Job;
             this._jobLogger.info('job paused.');
             this._jobLogger.info(LOG_END_FLAG);
         }
         return null;
+    }
+
+    private async onVxFailed(error: any): Promise<any> {
+        if (this._job.status === JobStatus.UnrecoverableError ||
+            this._job.status === JobStatus.Canceled ||
+            this._job.status === JobStatus.Pause) {
+            return;
+        }
+        this._job.status = JobStatus.UnrecoverableError;
+        const jobRepo = this._databaseService.getJobRepository();
+        try {
+            this._jobLogger.error(error);
+            await this._vm.stop(this._job.id);
+            this._job = await jobRepo.save(this._job) as Job;
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+            this._jobLogger.error('Job failed with vertex failure');
+            this._jobLogger.info(LOG_END_FLAG);
+        } catch (err) {
+            this._jobLogger.error(err);
+            this._jobLogger.info(LOG_END_FLAG);
+            this._sentry.capture(err);
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+        }
     }
 
     public async dispose(): Promise<void> {

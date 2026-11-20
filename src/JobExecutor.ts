@@ -29,8 +29,9 @@ import { DatabaseService } from './services/DatabaseService';
 import { mkdir, stat } from 'fs/promises';
 import { JobStatus } from './domains/JobStatus';
 import { Job } from './entity/Job';
-import { basename } from "path";
+import { basename, extname } from "path";
 import { JobApplication } from './JobApplication';
+import { SUBTITLE_EXT } from './domains/FilenameExtensionConstants';
 import { FileManageService } from './services/FileManageService';
 import { CMD_CANCEL, CMD_PAUSE, CommandMessage } from './domains/CommandMessage';
 import { JobRepository } from './repository/JobRepository';
@@ -305,7 +306,9 @@ export class JobExecutor implements JobApplication {
 
         if (this._configManager.storageType() === 'S3') {
             for (const processedFile of msg.processedFiles) {
-                processedFile.fileUri = await this.s3Service.upload(processedFile.fileLocalPath, 'video');
+                const ext = extname(processedFile.fileLocalPath).toLowerCase();
+                const uploadFileType = SUBTITLE_EXT.includes(ext) ? 'subtitle' : 'video';
+                processedFile.fileUri = await this.s3Service.upload(processedFile.fileLocalPath, uploadFileType);
                 logger.info(`Uploaded ${processedFile.fileUri}`);
             }
             for (const keyframeImagePath of keyframeImagePathList) {

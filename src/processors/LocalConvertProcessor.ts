@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ const logger = getStdLogger();
 @injectable()
 export class LocalConvertProcessor implements VideoProcessor {
 
-    private _controller: AbortController;
+    private _controller = new AbortController();
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
     private upstreamVertices: Vertex[];
 
@@ -134,7 +134,11 @@ export class LocalConvertProcessor implements VideoProcessor {
             extra.subtitleFile = subtitleFilePath;
         }
         const convertProfile = this._profileFactory(currentAction.profile, currentAction, extra);
-        await this.runCommand(await convertProfile.getCommandArgs(), vertex.outputPath);
+        const cmdArgs = await convertProfile.getCommandArgs();
+        if (this._controller.signal.aborted) {
+            return vertex.outputPath;
+        }
+        await this.runCommand(cmdArgs, vertex.outputPath);
         return vertex.outputPath;
     }
 
@@ -152,7 +156,6 @@ export class LocalConvertProcessor implements VideoProcessor {
         const cmdFinal = 'ffmpeg -n ' + threadsLimit.join(' ') + (threadsLimit.length > 0 ? ' ' : '') + cmdArgs.join(' ') + ' ' + outputFilename;
         this.handleLog(Buffer.from(cmdFinal, 'utf-8'), 'stdout');
         logger.info(cmdFinal);
-        this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
                 // abort when output filename collision
