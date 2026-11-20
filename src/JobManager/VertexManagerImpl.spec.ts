@@ -373,3 +373,87 @@ test.serial('resume skips already-finished subgraph and runs only pending downst
     t.is(terminalEmittedCount, 1);
     t.is(s2Vertex.finishedTime.getTime(), originalFinishedTime.getTime());
 });
+
+test.serial('delayed parent callback on join vertex does not dispatch child twice', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+
+    const p1 = new Action();
+    p1.type = ActionType.Extract;
+    const p2 = new Action();
+    p2.type = ActionType.Extract;
+    const child = new Action();
+    child.type = ActionType.Extract;
+    p1.downstreamIds = [child.id];
+    p2.downstreamIds = [child.id];
+    child.upstreamActionIds = [p1.id, p2.id];
+
+    let childExecCount = 0;
+    let releaseDelayedSnapshot: () => void;
+    const childStarted = new Promise<void>((resolve) => {
+        releaseDelayedSnapshot = resolve;
+    });
+
+    container.rebind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(() => {
+        return () => ({
+            prepare: async () => undefined,
+            process: async (vertex: Vertex) => {
+                if (vertex.action.id === child.id) {
+                    childExecCount++;
+                    releaseDelayedSnapshot();
+                    // Stay running across at least one 500ms queue check tick
+                    await new Promise(r => setTimeout(r, 650));
+                }
+                return vertex.id;
+            },
+            cancel: async () => undefined,
+            dispose: async () => undefined,
+            registerLogHandler: () => undefined
+        });
+    });
+
+    const vm = container.get<VertexManager>(TYPES_VM.VertexManager);
+    const job = createJob(await configManager.jobExecutorId(), JobStatus.Running);
+    job.actionMap = { [p1.id]: p1, [p2.id]: p2, [child.id]: child };
+    job.jobMessage.actions = job.actionMap;
+    await dbService.getJobRepository().save(job);
+    await vm.createAllVertices(job);
+
+    const vxRepo = dbService.getVertexRepository() as FakeVertexRepository;
+    const origGetVertexMap = vxRepo.getVertexMap.bind(vxRepo);
+    let bothParentsFinishedReads = 0;
+    vxRepo.getVertexMap = async (jobId: string) => {
+        const rawMap = await origGetVertexMap(jobId);
+        const snapshot: {[id: string]: Vertex} = {};
+        for (const id of Object.keys(rawMap)) {
+            snapshot[id] = Object.assign(new Vertex(), rawMap[id]);
+        }
+        const vals = Object.values(snapshot);
+        const p1Vx = vals.find(v => v.action.id === p1.id);
+        const p2Vx = vals.find(v => v.action.id === p2.id);
+        const childVx = vals.find(v => v.action.id === child.id);
+        if (p1Vx?.status === VertexStatus.Finished &&
+            p2Vx?.status === VertexStatus.Finished &&
+            childVx?.status === VertexStatus.Pending) {
+            bothParentsFinishedReads++;
+            if (bothParentsFinishedReads === 2) {
+                // Simulate second parent's read resolving after child has already been dequeued and started
+                await childStarted;
+            }
+        }
+        return snapshot;
+    };
+
+    const donePromise = new Promise<void>((resolve, reject) => {
+        vm.events.on(EVENT_VERTEX_FAIL, reject);
+        vm.events.on(TERMINAL_VERTEX_FINISHED, () => resolve());
+    });
+
+    await vm.start(job, join(configManager.jobLogPath(), job.id));
+    await donePromise;
+    await vm.stop();
+
+    t.is(childExecCount, 1);
+});

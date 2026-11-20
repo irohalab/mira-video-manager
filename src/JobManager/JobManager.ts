@@ -129,37 +129,16 @@ export class JobManager {
         }
     }
 
-    private async onVxFailed(error: any): Promise<any> {
-        if (this._job.status === JobStatus.UnrecoverableError) {
-            return;
-        }
-        const jobRepo = this._databaseService.getJobRepository();
-        try {
-            this._jobLogger.error(error);
-            this._job.status = JobStatus.UnrecoverableError;
-            this._job = await jobRepo.save(this._job) as Job;
-            await this._vm.stop(this._job.id);
-            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-            this._jobLogger.error('Job failed with vertex failure');
-            this._jobLogger.info(LOG_END_FLAG);
-        } catch (err) {
-            this._jobLogger.error(err);
-            this._jobLogger.info(LOG_END_FLAG);
-            this._sentry.capture(err);
-            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
-        }
-    }
-
     /**
      * Cancel current running job if possible
      */
     public async cancel(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
+            await this._vm.stop(this._job.id);
             const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Canceled;
             this._job.jobExecutorId = null;
             this._job = await jobRepo.save(this._job) as Job;
-            await this._vm.stop(this._job.id);
             this._jobLogger.warn('job canceled');
             this._jobLogger.info(LOG_END_FLAG);
         }
@@ -171,14 +150,35 @@ export class JobManager {
     public async pause(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
             this._jobLogger.info('trying to pause job.');
+            await this._vm.stop(this._job.id);
             const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Pause;
             this._job = await jobRepo.save(this._job) as Job;
-            await this._vm.stop(this._job.id);
             this._jobLogger.info('job paused.');
             this._jobLogger.info(LOG_END_FLAG);
         }
         return null;
+    }
+
+    private async onVxFailed(error: any): Promise<any> {
+        if (this._job.status === JobStatus.UnrecoverableError) {
+            return;
+        }
+        this._job.status = JobStatus.UnrecoverableError;
+        const jobRepo = this._databaseService.getJobRepository();
+        try {
+            this._jobLogger.error(error);
+            await this._vm.stop(this._job.id);
+            this._job = await jobRepo.save(this._job) as Job;
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+            this._jobLogger.error('Job failed with vertex failure');
+            this._jobLogger.info(LOG_END_FLAG);
+        } catch (err) {
+            this._jobLogger.error(err);
+            this._jobLogger.info(LOG_END_FLAG);
+            this._sentry.capture(err);
+            this.events.emit(JobManager.EVENT_JOB_FAILED, this._job.id);
+        }
     }
 
     public async dispose(): Promise<void> {

@@ -49,6 +49,7 @@ export class VertexManagerImpl implements VertexManager {
     private _pendingExecutingVertexQueue = new TaskQueue<string>();
     private _checkQueueTimer: NodeJS.Timeout;
     private _runningVertexDict: {[vxId: string]: Vertex} = {};
+    private _dispatchedVertexIds = new Set<string>();
     private _stopped = false;
 
     constructor(@inject(TYPES_VM.ProcessorFactory) private _processorFactory: ProcessorFactoryInitiator,
@@ -250,23 +251,27 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     private addVertexToQueue(vertexId: string): void {
-        this._pendingExecutingVertexQueue.add(vertexId);
+        if (!this._dispatchedVertexIds.has(vertexId)) {
+            this._pendingExecutingVertexQueue.add(vertexId);
+        }
     }
 
     private async checkAndExecuteVertexFromQueue(): Promise<void> {
         if (this._stopped) {
             return;
         }
-        let vxQueueNode = this._pendingExecutingVertexQueue.peek();
-        if (vxQueueNode) {
+        if (this._pendingExecutingVertexQueue.peek()) {
             const vertexRepo = this._databaseService.getVertexRepository();
             try {
                 const vertexMap = await vertexRepo.getVertexMap(this._job.id);
+                let vxQueueNode = this._pendingExecutingVertexQueue.peek();
                 while (vxQueueNode && !this._stopped) {
                     const nextNode = vxQueueNode.next;
                     const vertexId = vxQueueNode.value;
                     const vertex = vertexMap[vertexId];
-                    if (VertexManagerImpl.isAllUpstreamFinished(vertex, vertexMap) &&
+                    if (!vertex || vertex.status !== VertexStatus.Pending || this._dispatchedVertexIds.has(vertexId)) {
+                        this._pendingExecutingVertexQueue.remove(vertexId);
+                    } else if (VertexManagerImpl.isAllUpstreamFinished(vertex, vertexMap) &&
                         (!VertexManagerImpl.isCpuIntensiveAction(vertex.actionType) ||
                             this.getRunningCpuVertexCount() < MAX_CONCURRENT_CPU_VERTICES)) {
                         this._pendingExecutingVertexQueue.remove(vertexId);
@@ -288,6 +293,7 @@ export class VertexManagerImpl implements VertexManager {
     }
 
     private executeVertex(vertex: Vertex): void {
+        this._dispatchedVertexIds.add(vertex.id);
         this.events.emit(VERTEX_MANAGER_LOG, { level: 'info', message: 'start executing vertex ( ' + vertex.id + ' )' });
         const vertexLogger = this._vertexLoggerDict[vertex.id];
         const vertexRepo = this._databaseService.getVertexRepository();
