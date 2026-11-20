@@ -251,4 +251,45 @@ test.serial('Should not start VertexManager if job is canceled while prepareFile
     t.falsy(vx._job, 'VertexManager.start() should not be called after job was canceled during prepareFiles');
 });
 
+test.serial('Should not overwrite Canceled or Pause job status when a late EVENT_VERTEX_FAIL arrives', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+    const jobRepo = dbService.getJobRepository();
+    const jobExecutorId = await configManager.jobExecutorId();
+
+    const pausedJob = createJob(jobExecutorId, JobStatus.Queueing);
+    await jobRepo.save(pausedJob);
+    const jmPause = container.get<JobManager>(JobManager);
+    let failEmitted = false;
+    jmPause.events.on(JobManager.EVENT_JOB_FAILED, () => {
+        failEmitted = true;
+    });
+    await jmPause.start(pausedJob.id, jobExecutorId, false);
+    const vxPause = jmPause['_vm'] as FakeVertexManager;
+    await jmPause.pause();
+    vxPause.failAnyVertex();
+    await new Promise(r => setTimeout(r, 20));
+    const savedPaused = await jobRepo.findOne({ id: pausedJob.id });
+    t.is(savedPaused.status, JobStatus.Pause);
+    t.false(failEmitted);
+
+    const canceledJob = createJob(jobExecutorId, JobStatus.Queueing);
+    await jobRepo.save(canceledJob);
+    const jmCancel = container.get<JobManager>(JobManager);
+    jmCancel.events.on(JobManager.EVENT_JOB_FAILED, () => {
+        failEmitted = true;
+    });
+    await jmCancel.start(canceledJob.id, jobExecutorId, false);
+    const vxCancel = jmCancel['_vm'] as FakeVertexManager;
+    await jmCancel.cancel();
+    vxCancel.failAnyVertex();
+    await new Promise(r => setTimeout(r, 20));
+    const savedCanceled = await jobRepo.findOne({ id: canceledJob.id });
+    t.is(savedCanceled.status, JobStatus.Canceled);
+    t.false(failEmitted);
+});
+
+
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ const logger = getStdLogger();
 
 @injectable()
 export class LocalExtractProcessor implements VideoProcessor {
-    private _controller: AbortController;
+    private _controller = new AbortController();
     private _logHandler: (logChunk: string, ch: 'stdout' | 'stderr') => void;
     constructor(@inject(TYPES.ConfigManager) private _configManager: ConfigManager,
                 @inject(TYPES_VM.ExtractorFactory) private _extractorFactory: ExtractorInitiator,
@@ -89,6 +89,10 @@ export class LocalExtractProcessor implements VideoProcessor {
 
         const extractor = this._extractorFactory(vertex, this.extractorLogger.bind(this));
         const cmd = await extractor.extractCMD();
+        if (this._controller.signal.aborted) {
+            extractor.logger = null;
+            return vertex.outputPath;
+        }
         if (!cmd) {
             // if cmd is null, we only need to copy source file to our outputPath
             if (extractor.getInputPath() !== vertex.outputPath) {
@@ -130,7 +134,6 @@ export class LocalExtractProcessor implements VideoProcessor {
         const finalCmd = 'extract cmd: ffmpeg -n ' + cmdArgs.join(' ') + ' ' + outputFilename;
         this.handleLog(Buffer.from(finalCmd, 'utf-8'), 'stdout');
         logger.info(finalCmd);
-        this._controller = new AbortController();
         return new Promise<void>((resolve, reject) => {
             try {
                 // abort when output filename collision

@@ -44,8 +44,9 @@ test('getContentType resolves MIME types for video, subtitle, image, and unknown
     t.is(S3Service.getContentType('/tmp/output.mp4'), 'video/mp4');
     t.is(S3Service.getContentType('/tmp/source.MKV'), 'video/x-matroska');
     t.is(S3Service.getContentType('/tmp/zh-Hans.vtt'), 'text/vtt; charset=utf-8');
-    t.is(S3Service.getContentType('/tmp/ja.ass'), 'text/x-ssa; charset=utf-8');
-    t.is(S3Service.getContentType('/tmp/en.srt'), 'application/x-subrip; charset=utf-8');
+    t.is(S3Service.getContentType('/tmp/ja.ass'), 'text/x-ssa');
+    t.is(S3Service.getContentType('/tmp/en.srt'), 'application/x-subrip');
+    t.is(S3Service.getContentType('/tmp/kr.smi'), 'application/x-sami');
     t.is(S3Service.getContentType('/tmp/thumb.png'), 'image/png');
     t.is(S3Service.getContentType('/tmp/keyframes-001.jpg'), 'image/jpeg');
     t.is(S3Service.getContentType('/tmp/font.ttf'), 'font/ttf');

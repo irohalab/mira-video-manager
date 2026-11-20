@@ -212,7 +212,11 @@ export class VertexManagerImpl implements VertexManager {
             if (vertex.status === VertexStatus.Running) {
                 vertexLogger.info('trying to cancel vertex');
                 vertex.status = VertexStatus.Canceled;
-                const processor = this._runningVertexDict[vertexId]?.videoProcessor;
+                const runningVertex = this._runningVertexDict[vertexId];
+                if (runningVertex) {
+                    runningVertex.status = VertexStatus.Canceled;
+                }
+                const processor = runningVertex?.videoProcessor;
                 if (processor) {
                     allPromise.push(vertexRepo.save(vertex)
                         .then(() => {
@@ -319,26 +323,23 @@ export class VertexManagerImpl implements VertexManager {
         try {
             vertexLogger.info('prepare for processing');
             await vertex.videoProcessor.prepare(jobMessage, vertex);
+            await vertexRepo.save(vertex);
             if (this._stopped) {
-                await vertex.videoProcessor.dispose();
                 return;
             }
-            await vertexRepo.save(vertex);
             vertexLogger.info('start processing');
             vertex.outputPath = await vertex.videoProcessor.process(vertex);
             if (this._stopped) {
-                await vertex.videoProcessor.dispose();
                 return;
             }
             vertexLogger.info(`vertex finished, output: ${vertex.outputPath}`);
             await vertexRepo.save(vertex);
-            await vertex.videoProcessor.dispose();
             this.onVertexFinished(vertex.id);
         } catch (error) {
             vertexLogger.info(error);
             this.onVertexError(vertex.id, error);
-            await vertex.videoProcessor.dispose();
         } finally {
+            await vertex.videoProcessor.dispose();
             vertex.videoProcessor = null;
             delete this._runningVertexDict[vertex.id];
         }
@@ -390,17 +391,20 @@ export class VertexManagerImpl implements VertexManager {
         vertexRepo.findOne({id: vertexId})
             .then((vertex: Vertex) => {
                 if (vertex.status === VertexStatus.Canceled) {
-                    return;
+                    this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+                    return false;
                 }
                 errorDict.vertexId = vertexId;
                 errorDict.errorType = 'ERR_VERTEX_FAIL';
                 vertex.status = VertexStatus.Error;
                 vertex.error = errorDict;
-                return vertexRepo.save(vertex);
+                return vertexRepo.save(vertex).then(() => true);
             })
-            .then(() => {
-                this.events.emit(EVENT_VERTEX_FAIL, error);
-                this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+            .then((shouldEmitFail: boolean) => {
+                if (shouldEmitFail) {
+                    this.events.emit(EVENT_VERTEX_FAIL, error);
+                    this._vertexLoggerDict[vertexId].info(LOG_END_FLAG);
+                }
             })
             .catch((err) => {
                 // save error

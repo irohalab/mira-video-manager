@@ -457,3 +457,68 @@ test.serial('delayed parent callback on join vertex does not dispatch child twic
 
     t.is(childExecCount, 1);
 });
+
+test.serial('stopping running vertex leaves Pending vertex Pending and does not emit EVENT_VERTEX_FAIL for Canceled vertex', async (t) => {
+    const context = t.context as Cxt;
+    const container = context.container;
+    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
+    const dbService = container.get<DatabaseService>(TYPES.DatabaseService);
+
+    const v1 = new Action();
+    v1.type = ActionType.Convert;
+    const v2 = new Action();
+    v2.type = ActionType.Convert;
+    v1.downstreamIds = [v2.id];
+    v2.upstreamActionIds = [v1.id];
+
+    let rejectProcessOnAbort: (err: Error) => void;
+    let processStartedResolve: () => void;
+    const processStarted = new Promise<void>((resolve) => {
+        processStartedResolve = resolve;
+    });
+
+    container.rebind<ProcessorFactoryInitiator>(TYPES_VM.ProcessorFactory).toFactory<VideoProcessor>(() => {
+        return () => ({
+            prepare: async () => undefined,
+            process: async () => {
+                processStartedResolve();
+                return new Promise<string>((_resolve, reject) => {
+                    rejectProcessOnAbort = reject;
+                });
+            },
+            cancel: async () => {
+                if (rejectProcessOnAbort) {
+                    rejectProcessOnAbort(new Error('ffmpeg exited with non 0 code'));
+                }
+            },
+            dispose: async () => undefined,
+            registerLogHandler: () => undefined
+        });
+    });
+
+    const vm = container.get<VertexManager>(TYPES_VM.VertexManager);
+    const job = createJob(await configManager.jobExecutorId(), JobStatus.Running);
+    job.actionMap = { [v1.id]: v1, [v2.id]: v2 };
+    job.jobMessage.actions = job.actionMap;
+    await dbService.getJobRepository().save(job);
+    await vm.createAllVertices(job);
+
+    let failEmitted = false;
+    vm.events.on(EVENT_VERTEX_FAIL, () => {
+        failEmitted = true;
+    });
+
+    await vm.start(job, join(configManager.jobLogPath(), job.id));
+    await processStarted;
+    await vm.stop(job.id);
+    await new Promise(r => setTimeout(r, 30));
+
+    const vertexMap = await dbService.getVertexRepository().getVertexMap(job.id);
+    const vertices = Object.values(vertexMap);
+    const runningVx = vertices.find(v => v.action.id === v1.id);
+    const pendingVx = vertices.find(v => v.action.id === v2.id);
+
+    t.is(runningVx.status, VertexStatus.Canceled);
+    t.is(pendingVx.status, VertexStatus.Pending);
+    t.false(failEmitted);
+});

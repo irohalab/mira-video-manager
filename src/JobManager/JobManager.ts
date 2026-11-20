@@ -134,10 +134,10 @@ export class JobManager {
      */
     public async cancel(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
-            await this._vm.stop(this._job.id);
-            const jobRepo = this._databaseService.getJobRepository();
             this._job.status = JobStatus.Canceled;
             this._job.jobExecutorId = null;
+            await this._vm.stop(this._job.id);
+            const jobRepo = this._databaseService.getJobRepository();
             this._job = await jobRepo.save(this._job) as Job;
             this._jobLogger.warn('job canceled');
             this._jobLogger.info(LOG_END_FLAG);
@@ -150,9 +150,9 @@ export class JobManager {
     public async pause(): Promise<void> {
         if (this._job && this._job.status === JobStatus.Running) {
             this._jobLogger.info('trying to pause job.');
+            this._job.status = JobStatus.Pause;
             await this._vm.stop(this._job.id);
             const jobRepo = this._databaseService.getJobRepository();
-            this._job.status = JobStatus.Pause;
             this._job = await jobRepo.save(this._job) as Job;
             this._jobLogger.info('job paused.');
             this._jobLogger.info(LOG_END_FLAG);
@@ -161,7 +161,9 @@ export class JobManager {
     }
 
     private async onVxFailed(error: any): Promise<any> {
-        if (this._job.status === JobStatus.UnrecoverableError) {
+        if (this._job.status === JobStatus.UnrecoverableError ||
+            this._job.status === JobStatus.Canceled ||
+            this._job.status === JobStatus.Pause) {
             return;
         }
         this._job.status = JobStatus.UnrecoverableError;
