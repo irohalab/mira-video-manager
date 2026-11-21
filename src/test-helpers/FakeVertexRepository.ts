@@ -17,8 +17,7 @@
 import { VertexRepository } from '../repository/VertexRepository';
 import { VertexMap } from '../domains/VertexMap';
 import { Vertex } from '../entity/Vertex';
-import { FilterQuery, FindOneOptions, FindOptions } from '@mikro-orm/core';
-import { Loaded } from '@mikro-orm/core/typings';
+import { FilterQuery, FindOneOptions, FindOptions, Loaded } from '@mikro-orm/core';
 
 let vertexMap: {[jobId: string]:VertexMap} = {};
 let dbDict: VertexMap = {};

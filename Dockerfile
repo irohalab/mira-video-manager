@@ -1,4 +1,4 @@
-FROM node:20-bullseye AS base
+FROM node:24-bullseye AS base
 RUN apt update
 RUN apt install software-properties-common -y && apt-add-repository non-free && apt update
 RUN apt install -y mediainfo ffmpeg unrar
