@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,19 +15,20 @@
  */
 
 
-import test from 'ava';
+import anyTest, { TestFn } from 'ava';
 import 'reflect-metadata';
 import { Container } from 'inversify';
-import { ConfigManager } from '../utils/ConfigManager';
-import { RemoteFile, TYPES } from '@irohalab/mira-shared';
+import { TYPES } from '@irohalab/mira-shared';
 import { FakeConfigManager } from '../test-helpers/FakeConfigManager';
-import { basename, join, resolve } from 'path';
+import { basename, extname, join } from 'path';
+import { tmpdir } from 'os';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { bindInjectablesForProcessorTest, prepareJobMessage, projectRoot } from '../test-helpers/helpers';
 import { TYPES_VM } from '../TYPES';
 import { ExtractorFactory, ExtractorInitiator } from './ExtractorFactory';
 import { Extractor } from './extractors/Extractor';
 import { FileManageService } from '../services/FileManageService';
-import { VideoProcessor } from './VideoProcessor';
 import { ExtractAction } from '../domains/ExtractAction';
 import { ExtractTarget } from '../domains/ExtractTarget';
 import { ExtractSource } from '../domains/ExtractSource';
@@ -35,127 +36,143 @@ import { LocalExtractProcessor } from './LocalExtractProcessor';
 import { Vertex } from '../entity/Vertex';
 import { ActionType } from '../domains/ActionType';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
-import { copyFile, rm } from 'fs/promises';
+import { AudioExtractor } from './extractors/AudioExtractor';
+import { FileExtractor } from './extractors/FileExtractor';
+import { SubtitleExtractor } from './extractors/SubtitleExtractor';
+import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { JobMessage } from '../domains/JobMessage';
-import { randomUUID } from 'crypto';
+import { getStreamsWithFfprobe } from '../utils/VideoProber';
 
-type Cxt = { container: Container };
-let videoTempDir: string;
+const test = anyTest as TestFn<{ container: Container }>;
+let tempDir: string;
+const multiTrackFile = 'multi-track.mkv';
 
-const testVideoFile = 'test-video-2.mkv';
-const testSubtitleFile = 'test-video-2.ass';
-
-test.beforeEach((t) => {
-    const context = t.context as Cxt;
-    const container = new Container({ autoBindInjectable: true });
-    context.container = container;
-    bindInjectablesForProcessorTest(container);
-    container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
-    const configManager = container.get<ConfigManager>(TYPES.ConfigManager);
-    (configManager as FakeConfigManager).profilePath = join(projectRoot, 'temp/local-extract-processor');
-    videoTempDir = configManager.videoFileTempDir();
+test.before(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'mira-extract-'));
+    const captions = join(tempDir, 'english.srt');
+    await writeFile(captions, '1\n00:00:00,000 --> 00:00:01,000\nEnglish captions\n');
+    await promisify(execFile)('ffmpeg', [
+        '-v', 'error', '-i', join(projectRoot, 'tests/test-video-with-sub.mkv'),
+        '-i', join(projectRoot, 'tests/test-video-2.mkv'), '-i', captions,
+        '-map', '0:v', '-map', '0:a', '-map', '1:a', '-map', '0:s', '-map', '2:s', '-c', 'copy',
+        '-metadata:s:a:0', 'language=fra', '-disposition:a:0', '0',
+        '-metadata:s:a:1', 'language=eng', '-disposition:a:1', 'default',
+        '-metadata:s:s:0', 'language=fra', '-metadata:s:s:1', 'language=eng',
+        join(tempDir, multiTrackFile)
+    ]);
 });
 
-test.after(async(t) => {
-    await rm(videoTempDir, { recursive: true });
-})
+test.after.always(async () => {
+    await rm(tempDir, { recursive: true });
+});
 
-// test.afterEach(async (t) => {
-//     try {
-//         const context = t.context as Cxt;
-//         const container = context.container;
-//         await afterTestForProcessorTest(container);
-//     } catch (err) {
-//         console.warn(err);
-//     }
-// });
+test.beforeEach((t) => {
+    const container = new Container({ autoBindInjectable: true });
+    t.context.container = container;
+    bindInjectablesForProcessorTest(container);
+    container.bind<ExtractorInitiator>(TYPES_VM.ExtractorFactory).toFactory<Extractor>(ExtractorFactory);
+    container.get<FakeConfigManager>(TYPES.ConfigManager).profilePath = tempDir;
+});
 
-// test('DefaultExtractor', async (t) => {
-//     const context = t.context as Cxt;
-//     const fileManager = context.container.get<FileManageService>(FileManageService);
-//     const videoProcessor1 = context.container.get<VideoProcessor>(LocalExtractProcessor);
-//
-//     videoProcessor1.registerLogHandler((log, ch) => {
-//         if (ch === 'stderr') {
-//             console.error(log);
-//         } else {
-//             console.log(log);
-//         }
-//     });
-//
-//     const jobMessage = prepareJobMessage(testVideoFile, [testSubtitleFile]);
-//
-//     const videoExtractAction = new ExtractAction();
-//     videoExtractAction.extractorId = DefaultExtractor.Id;
-//     videoExtractAction.extractTarget = ExtractTarget.KeepContainer;
-//     videoExtractAction.extractFrom = ExtractSource.VideoFile;
-//
-//     const videoExtractVertex = new Vertex();
-//     videoExtractVertex.actionType = ActionType.Extract;
-//     videoExtractVertex.action = videoExtractAction;
-//     videoExtractVertex.jobId = jobMessage.jobId;
-//
-//     await videoProcessor1.prepare(jobMessage, videoExtractVertex);
-//     await videoProcessor1.process(videoExtractVertex);
-//     console.log(videoExtractVertex.outputPath);
-//     t.true(videoExtractVertex.outputPath === fileManager.getLocalPath(jobMessage.videoFile.filename, jobMessage.id));
-//
-//     // subtitle extraction
-//     const videoProcessor2 = context.container.get<VideoProcessor>(LocalExtractProcessor);
-//
-//     videoProcessor2.registerLogHandler((log, ch) => {
-//         if (ch === 'stderr') {
-//             console.error(log);
-//         } else {
-//             console.log(log);
-//         }
-//     });
-//     const subExtractAction = new ExtractAction();
-//     subExtractAction.extractorId = 'Default';
-//     subExtractAction.extractTarget = ExtractTarget.Subtitle;
-//     subExtractAction.extractFrom = ExtractSource.OtherFiles;
-//     subExtractAction.outputExtname = 'ass'
-//
-//     const subExtractVertex = new Vertex();
-//     subExtractVertex.actionType = ActionType.Extract;
-//     subExtractVertex.action = subExtractAction;
-//     subExtractVertex.jobId = jobMessage.jobId;
-//
-//     await videoProcessor2.prepare(jobMessage, subExtractVertex);
-//     await videoProcessor2.process(subExtractVertex);
-//     console.log(subExtractVertex.outputPath);
-//     t.true(subExtractVertex.outputPath === fileManager.getLocalPath(jobMessage.otherFiles[0].filename, jobMessage.id));
-// });
+function multiTrackJob(): JobMessage {
+    const job = prepareJobMessage(multiTrackFile);
+    job.videoFile.fileLocalPath = join(tempDir, multiTrackFile);
+    return job;
+}
 
-test('DefaultExtractor extract ass from mkv', async (t) => {
-    const context = t.context as Cxt;
-    const fileManager = context.container.get<FileManageService>(FileManageService);
-    const videoProcessor = context.container.get<VideoProcessor>(LocalExtractProcessor);
-    videoProcessor.registerLogHandler((log, ch) => {
-        if (ch === 'stderr') {
-            console.error(log);
-        } else {
-            console.log(log);
-        }
-    });
-    const jobMessage = prepareJobMessage('test-video-with-sub.mkv');
-
-    // copy file to temp folder
-    await fileManager.downloadFile(jobMessage.videoFile, jobMessage.downloadAppId, jobMessage.id);
-
-    const action = new ExtractAction();
-    action.extractorId = DefaultExtractor.Id;
-    action.extractTarget = ExtractTarget.Subtitle;
-    action.extractFrom = ExtractSource.VideoFile;
-    action.outputExtname = 'ass'
-
+async function extract(container: Container, job: JobMessage, options: Partial<ExtractAction>): Promise<string> {
+    const fileManager = container.get(FileManageService);
+    for (const file of [job.videoFile, ...(job.otherFiles || [])]) {
+        await fileManager.downloadFile(file, job.downloadAppId, job.id);
+    }
     const vertex = new Vertex();
-    vertex.action = action;
     vertex.actionType = ActionType.Extract;
-    vertex.jobId = jobMessage.jobId;
+    vertex.action = Object.assign(new ExtractAction(), { extractFrom: ExtractSource.VideoFile }, options);
+    vertex.jobId = job.jobId;
+    const processor = container.get(LocalExtractProcessor);
+    try {
+        await processor.prepare(job, vertex);
+        return await processor.process(vertex);
+    } finally {
+        await processor.dispose();
+    }
+}
 
-    await videoProcessor.prepare(jobMessage, vertex);
-    await videoProcessor.process(vertex);
-    console.log('outputPath: ' + vertex.outputPath);
-    t.true(await fileManager.checkExists(basename(vertex.outputPath), jobMessage.id), 'outputPath should exists');
+function extractAudio(container: Container, extraData: { propertyName?: string; propertyValueRegex?: string; selectDefault?: boolean }) {
+    return extract(container, multiTrackJob(), {
+        extractorId: AudioExtractor.Id, extractTarget: ExtractTarget.AudioStream, extraData
+    });
+}
+
+test('AudioExtractor selects audio by a case-insensitive regex on an ffprobe tag', async t => {
+    for (const [regex, codec, extension] of [['^FR(A)?$', 'vorbis', '.ogg'], ['^EN(G)?$', 'aac', '.aac']]) {
+        const path = await extractAudio(t.context.container, { propertyName: 'tags.language', propertyValueRegex: regex });
+        t.is(extname(path), extension);
+        const streams = await getStreamsWithFfprobe(path);
+        t.deepEqual(streams.map(s => [s.codec_type, s.codec_name]), [['audio', codec]]);
+    }
+});
+
+test('AudioExtractor selects the stream with the default disposition', async t => {
+    const path = await extractAudio(t.context.container, { selectDefault: true });
+    t.deepEqual((await getStreamsWithFfprobe(path)).map(s => s.codec_name), ['aac']);
+});
+
+test('AudioExtractor selects an earlier property match before a later default stream', async t => {
+    const path = await extractAudio(t.context.container, {
+        selectDefault: true, propertyName: 'tags.language', propertyValueRegex: '^fra$'
+    });
+    t.deepEqual((await getStreamsWithFfprobe(path)).map(s => s.codec_name), ['vorbis']);
+});
+
+test('SubtitleExtractor extracts the captions matching a nested ffprobe property', async t => {
+    const path = await extract(t.context.container, multiTrackJob(), {
+        extractorId: SubtitleExtractor.Id, extractTarget: ExtractTarget.Subtitle,
+        extraData: { propertyName: 'tags.language', propertyValueRegex: '^EN(G)?$' }
+    });
+    t.is(extname(path), '.srt');
+    t.regex(await readFile(path, 'utf8'), /English captions/);
+});
+
+test('SubtitleExtractor does not pick an arbitrary track without a matching property', async t => {
+    await t.throwsAsync(extract(t.context.container, multiTrackJob(), {
+        extractorId: SubtitleExtractor.Id, extractTarget: ExtractTarget.Subtitle, extraData: {}
+    }), { message: 'Could not find track that match condition' });
+});
+
+test('FileExtractor passes through the original video path', async t => {
+    const job = prepareJobMessage('test-video-2.mkv');
+    const path = await extract(t.context.container, job, {
+        extractorId: FileExtractor.Id, extractTarget: ExtractTarget.KeepContainer
+    });
+    t.is(path, t.context.container.get(FileManageService).getLocalPath(job.videoFile.filename, job.id));
+});
+
+test('FileExtractor keeps the original video path even when an output filename is requested', async t => {
+    const job = prepareJobMessage('test-video-2.mkv');
+    const fileManager = t.context.container.get(FileManageService);
+    const outputFilename = 'next.mkv';
+    const path = await extract(t.context.container, job, {
+        extractorId: FileExtractor.Id, extractTarget: ExtractTarget.KeepContainer, outputFilename
+    });
+    t.is(path, fileManager.getLocalPath(job.videoFile.filename, job.id));
+    t.false(await fileManager.checkExists(outputFilename, job.id));
+    t.deepEqual(await readFile(path), await readFile(job.videoFile.fileLocalPath));
+});
+
+test('FileExtractor filters otherFiles by filename hint before falling back to extension', async t => {
+    const job = prepareJobMessage('test-video-2.mkv', ['test-video-1.mp4', 'test-video-with-sub.mkv']);
+    const path = await extract(t.context.container, job, {
+        extractorId: FileExtractor.Id, extractFrom: ExtractSource.OtherFiles, extractTarget: ExtractTarget.KeepContainer,
+        extraData: { fileNameHint: 'WITH-SUB\\.mkv$' }
+    });
+    t.is(path, t.context.container.get(FileManageService).getLocalPath('test-video-with-sub.mkv', job.id));
+});
+
+test('DefaultExtractor extract ass from mkv', async t => {
+    const job = prepareJobMessage('test-video-with-sub.mkv');
+    const path = await extract(t.context.container, job, {
+        extractorId: DefaultExtractor.Id, extractTarget: ExtractTarget.Subtitle, outputExtname: 'ass'
+    });
+    t.true(await t.context.container.get(FileManageService).checkExists(basename(path), job.id));
 });

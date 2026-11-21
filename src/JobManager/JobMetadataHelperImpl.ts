@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,6 @@ import { getStreamsInfo } from '../utils/VideoProber';
 import { MediaContainer } from '../utils/Runtime/MediaContainer';
 import { VideoStream } from '../utils/Runtime/VideoStream';
 import { basename, dirname, extname, join } from 'path';
-import { getAverageColor } from 'fast-average-color-node';
 import { VideoOutputMetadata } from '../domains/VideoOutputMetadata';
 import { JobMetadataHelper } from './JobMetadataHelper';
 import { readdir } from 'fs/promises';
@@ -68,6 +67,7 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         jobLogger.info(`Generating thumbnail of the video at 00:00:01.000, output is ${thumbnailPath}`);
         await this.runCommand('ffmpeg', ['-y','-ss', '00:00:01.000', '-i', outputPath, '-vframes','1', thumbnailPath], jobLogger);
         jobLogger.info(`Thumbnail generated, getting dominant color of the thumbnail`);
+        const { getAverageColor } = await import('fast-average-color-node');
         const dominantColor = await getAverageColor(thumbnailPath, {algorithm: 'dominant'});
         metadata.width = videoStream.getWidth();
         metadata.height = videoStream.getHeight();

@@ -7,6 +7,10 @@ If you are currently using prev-1.0 version. then you need to check the [migrati
 
 ## Development
 
+Use Node.js 24.16.0 or newer and TypeScript 5.9.2 or newer. The NodeNext
+compiler mode keeps the application CommonJS while preserving native dynamic
+imports for ESM-only dependencies such as `fast-average-color-node`.
+
 ### Start
 - Start JobScheduler: `npm run start:jobscheduler`
 - Start JobExecutor: `npm run start:jobexecutor`
