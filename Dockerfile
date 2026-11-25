@@ -1,7 +1,8 @@
-FROM node:24-bullseye AS base
-RUN apt update
-RUN apt install software-properties-common -y && apt-add-repository non-free && apt update
-RUN apt install -y ffmpeg unrar
+FROM node:24-trixie-slim AS base
+RUN sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg unrar \
+    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 FROM base AS dev
