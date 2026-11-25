@@ -16,7 +16,7 @@
 
 import { tokenize } from 'esprima';
 import * as vm from 'vm';
-import { getStreamsInfo } from './VideoProber';
+import { probeMedia } from './VideoProber';
 import { MediaContainer } from './Runtime/MediaContainer';
 import { VideoStream } from './Runtime/VideoStream';
 import { AudioStream } from './Runtime/AudioStream';
@@ -120,8 +120,8 @@ export class ConditionParser {
 
     private async getVideoInfo(sandbox: any): Promise<void> {
         const videoFilePath = this._videoFile.fileUri || this._videoFile.fileLocalPath;
-        const trackInfos = await getStreamsInfo(videoFilePath);
-        sandbox.video_container = new MediaContainer(trackInfos);
+        const probeResult = await probeMedia(videoFilePath);
+        sandbox.video_container = new MediaContainer(probeResult);
         sandbox.video_stream = new VideoStream(sandbox.video_container.getDefaultVideoStreamInfo());
         sandbox.audio_stream = new AudioStream(sandbox.video_container.getDefaultAudioStreamInfo());
     }

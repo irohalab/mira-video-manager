@@ -28,7 +28,7 @@
 - Prefer the existing processor pipeline and media runtime types under
   `src/utils/Runtime` instead of introducing a parallel media representation.
 - Runtime dependencies include PostgreSQL, RabbitMQ, S3-compatible storage,
-  ffmpeg, mediainfo, and local filesystem paths. Executor identity persists
+  ffmpeg (including ffprobe), and local filesystem paths. Executor identity persists
   under `~/.mira`; do not delete or replace it unless explicitly requested.
 
 ## Database And Rule Safety

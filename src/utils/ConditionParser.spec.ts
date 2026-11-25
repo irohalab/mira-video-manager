@@ -16,6 +16,7 @@
 
 import test from 'ava';
 import 'reflect-metadata';
+import { join } from 'path';
 import { RemoteFile } from '@irohalab/mira-shared';
 import { ConditionParser } from './ConditionParser';
 
@@ -49,4 +50,36 @@ test('evaluate filename-only conditions without probing the video', async t => {
     }
 
     t.deepEqual(matches, [false, true]);
+});
+
+test('evaluate media runtime conditions against probed MP4 and MKV files', async t => {
+    const mp4File = new RemoteFile();
+    mp4File.filename = 'test-video-1.mp4';
+    mp4File.fileLocalPath = join(__dirname, '../../tests/test-video-1.mp4');
+
+    const mp4Checks = [
+        'video_container.isPlayable() && video_stream.isPlayable() && audio_stream.isPlayable()',
+        'video_stream.getWidth() === 844 && video_stream.getHeight() === 480',
+        'video_stream.getInfo()["codec_name"] === "h264"',
+        'video_container.isStreamable()'
+    ];
+    const mp4Results = [];
+    for (const expr of mp4Checks) {
+        const parser = new ConditionParser(expr, mp4File, []);
+        parser.tokenCheck();
+        mp4Results.push(await parser.evaluate());
+    }
+    t.deepEqual(mp4Results, [true, true, true, false]);
+
+    const mkvFile = new RemoteFile();
+    mkvFile.filename = 'test-video-with-sub.mkv';
+    mkvFile.fileLocalPath = join(__dirname, '../../tests/test-video-with-sub.mkv');
+
+    const mkvParser = new ConditionParser(
+        '!video_container.isPlayable() && video_container.subtitlesCount() === 1 && !audio_stream.isPlayable()',
+        mkvFile,
+        []
+    );
+    mkvParser.tokenCheck();
+    t.true(await mkvParser.evaluate());
 });

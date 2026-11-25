@@ -29,7 +29,7 @@ import { Vertex } from '../entity/Vertex';
 import { getStdLogger } from '../utils/Logger';
 import pino from 'pino';
 import { ExtractSource } from '../domains/ExtractSource';
-import { getStreamsInfo, getStreamsWithFfprobe } from '../utils/VideoProber';
+import { getStreamsWithFfprobe } from '../utils/VideoProber';
 import { SubtitleExtractor } from './extractors/SubtitleExtractor';
 import { AudioExtractor } from './extractors/AudioExtractor';
 
