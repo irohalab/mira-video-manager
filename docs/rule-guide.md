@@ -29,9 +29,9 @@ read [the code](src/utils/Runtime/MediaContainer.ts) to see all methods.
 the video file. read [the code](src/utils/Runtime/VideoStream.ts) to see all methods.
    5. `audio_stream` is an instance of AudioStream class which contains the information of the default audio stream of
 the audio file. read [the code](src/utils/Runtime/AudioStream.ts) to see all methods.
-5. You can use `video_container.getContainerInfo()`, `video_container.getDefaultVideoStreamInfo()`, `video_container.getDefaultAudioStreamInfo` to
-get information about container, video stream and audio stream, but instead of using dot operator, you have to use index operator
-with property name to get the properties of these info. like `video_container.getContainerInfo()['Duration']`
+5. You can use `video_container.getContainerInfo()`, `video_container.getDefaultVideoStreamInfo()`, `video_container.getDefaultAudioStreamInfo()` (or `video_stream.getInfo()` and `audio_stream.getInfo()`) to
+get information about container, video stream and audio stream (matching `ffprobe -show_format -show_streams` JSON fields), using the index operator
+with property name when a field is not exposed as a method—for example `video_container.getContainerInfo()['duration']` or `video_stream.getInfo()['codec_name']`.
 
 Conditions that reference `video_container`, `video_stream`, or `audio_stream` require the scheduler to download the video to a
 temporary local file. The file is reused while matching rules for that message and removed after rule selection. Conditions that

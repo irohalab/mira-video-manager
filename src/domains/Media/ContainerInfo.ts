@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,20 @@
  * limitations under the License.
  */
 
-import { TrackInfo } from './TrackInfo';
+import { MediaTags } from './MediaTags';
 
-export interface TextInfo extends TrackInfo {
-    '@typeorder': number;
-    CodecID: string;
-    ElementCount: number;
-    Compression_Mode: string;
-    Title: string;
-    Language: string;
-    Default: boolean;
-    Forced: boolean;
+export interface ContainerInfo {
+    filename: string;
+    nb_streams: number;
+    nb_programs?: number;
+    format_name: string;
+    format_long_name?: string;
+    start_time?: string;
+    duration?: string;
+    size?: string;
+    bit_rate?: string;
+    probe_score?: number;
+    tags?: MediaTags;
+    isStreamable?: boolean;
+    [key: string]: any;
 }

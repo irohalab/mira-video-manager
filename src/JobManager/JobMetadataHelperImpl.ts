@@ -21,7 +21,7 @@ import { VertexMap } from '../domains/VertexMap';
 import { Vertex } from '../entity/Vertex';
 import { IsVideoFileContainer } from '../utils/FileHelper';
 import { spawn } from 'child_process';
-import { getStreamsInfo } from '../utils/VideoProber';
+import { probeMedia } from '../utils/VideoProber';
 import { MediaContainer } from '../utils/Runtime/MediaContainer';
 import { VideoStream } from '../utils/Runtime/VideoStream';
 import { basename, dirname, extname, join } from 'path';
@@ -60,8 +60,8 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         }
         const metadata = new VideoOutputMetadata();
         const outputPath = videoVertex.outputPath;
-        const trackInfos = await getStreamsInfo(outputPath);
-        const container = new MediaContainer(trackInfos);
+        const probeResult = await probeMedia(outputPath);
+        const container = new MediaContainer(probeResult);
         const videoStream = new VideoStream(container.getDefaultVideoStreamInfo());
         const thumbnailPath = join(dirname(outputPath), `thumb-${basename(outputPath)}.png`);
         jobLogger.info(`Generating thumbnail of the video at 00:00:01.000, output is ${thumbnailPath}`);
@@ -71,7 +71,7 @@ export class JobMetadataHelperImpl implements JobMetadataHelper {
         const dominantColor = await getAverageColor(thumbnailPath, {algorithm: 'dominant'});
         metadata.width = videoStream.getWidth();
         metadata.height = videoStream.getHeight();
-        metadata.duration = container.getDuration() * 1000;
+        metadata.duration = Math.round(container.getDuration() * 1000);
         metadata.dominantColorOfThumbnail = dominantColor.hex;
         metadata.thumbnailPath = thumbnailPath;
         jobLogger.info('Generating keyframes preview tile');

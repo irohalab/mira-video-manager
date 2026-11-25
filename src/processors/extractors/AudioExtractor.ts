@@ -17,6 +17,7 @@
 import { Extractor, ExtractorLogger } from './Extractor';
 import { Vertex } from '../../entity/Vertex';
 import { ExtractAction } from '../../domains/ExtractAction';
+import { StreamInfo } from '../../domains/Media/StreamInfo';
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
 
 /**
@@ -61,7 +62,7 @@ export class AudioExtractor implements Extractor {
         }
         const pvNamePaths = propertyName.split('.');
         const pvRegExp = new RegExp(propertyValueRegex, 'i');
-        const streamsInfo: any[] = await getStreamsWithFfprobe(this.inputPath);
+        const streamsInfo: StreamInfo[] = await getStreamsWithFfprobe(this.inputPath);
         let trackId = -1;
         let lastAudioTrack = -1;
         let info: any;

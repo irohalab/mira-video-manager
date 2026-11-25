@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 
-export interface TrackInfo {
-    '@type': string;
-    ID: string;
-    StreamOrder: number;
-    UniqueID: string;
-    Format: string;
-    Format_Profile: string;
-    FrameRate: number;
-    FrameCount: number;
+import { ContainerInfo } from './ContainerInfo';
+import { StreamInfo } from './StreamInfo';
+
+export interface MediaProbeResult {
+    format: ContainerInfo;
+    streams: StreamInfo[];
 }

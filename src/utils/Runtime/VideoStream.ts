@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,28 +14,36 @@
  * limitations under the License.
  */
 
-import { VideoInfo } from '../../domains/MediaInfo/VideoInfo';
+import { VideoStreamInfo } from '../../domains/Media/StreamInfo';
 
 const PLAYABLE_BIT_DEPTH = 8;
+const PLAYABLE_PIX_FMTS = new Set(['yuv420p', 'yuvj420p']);
 
 export class VideoStream {
-    constructor(private _info: VideoInfo) {
+    constructor(private _info: VideoStreamInfo | null) {
     }
 
-    public isPlayable() {
-        return this._info.Format === 'AVC' && parseInt(this._info.BitDepth, 10) === PLAYABLE_BIT_DEPTH
-            && this._info.ColorSpace === 'YUV' && this._info.ChromaSubsampling === '4:2:0'
+    public isPlayable(): boolean {
+        if (!this._info) {
+            return false;
+        }
+        const bitDepth = this._info.bits_per_raw_sample
+            ? parseInt(this._info.bits_per_raw_sample, 10)
+            : PLAYABLE_BIT_DEPTH;
+        return this._info.codec_name === 'h264'
+            && Boolean(this._info.pix_fmt && PLAYABLE_PIX_FMTS.has(this._info.pix_fmt))
+            && bitDepth === PLAYABLE_BIT_DEPTH;
     }
 
-    public getInfo(): VideoInfo {
+    public getInfo(): VideoStreamInfo | null {
         return this._info;
     }
 
     public getWidth(): number {
-        return parseInt(this._info.Width, 10);
+        return this._info ? Number(this._info.width) : 0;
     }
 
     public getHeight(): number {
-        return parseInt(this._info.Height, 10);
+        return this._info ? Number(this._info.height) : 0;
     }
 }

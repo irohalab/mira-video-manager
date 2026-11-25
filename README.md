@@ -1,6 +1,6 @@
 # Mira Video Manager
 
-system dependencies: ffmpeg, mediainfo
+system dependencies: ffmpeg (includes ffprobe)
 
 ## Migrate from 0.x to 1.0
 If you are currently using prev-1.0 version. then you need to check the [migration document](blob/master/pre1migrate.md)

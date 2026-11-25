@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import { ExtractAction } from '../../domains/ExtractAction';
 import { ExtractSource } from '../../domains/ExtractSource';
 import { extname } from 'path';
 import { AUDIO_FILE_EXT, SUBTITLE_EXT, VIDEO_FILE_EXT } from '../../domains/FilenameExtensionConstants';
+import { StreamInfo } from '../../domains/Media/StreamInfo';
 import { getStreamsWithFfprobe } from '../../utils/VideoProber';
 import { Vertex } from '../../entity/Vertex';
 
@@ -33,7 +34,7 @@ export class DefaultExtractor implements Extractor {
     public static Id = 'Default';
     public trackIdx: number;
     public inputPath: string;
-    public streamsInfo: any[];
+    public streamsInfo: StreamInfo[];
     public action: ExtractAction;
     constructor(public vertex: Vertex, public logger: ExtractorLogger) {
         this.inputPath = null;

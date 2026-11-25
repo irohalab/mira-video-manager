@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { AudioInfo } from '../../domains/MediaInfo/AudioInfo';
+import { AudioStreamInfo } from '../../domains/Media/StreamInfo';
 
 export class AudioStream {
-    constructor(private _info: AudioInfo) {
+    constructor(private _info: AudioStreamInfo | null) {
     }
 
     public isPlayable(): boolean {
-        return this._info.Format === 'AAC'
+        return Boolean(this._info) && this._info.codec_name === 'aac';
     }
 
-    public getInfo(): AudioInfo {
+    public getInfo(): AudioStreamInfo | null {
         return this._info;
     }
 }
