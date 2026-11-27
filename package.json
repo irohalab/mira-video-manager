@@ -1,6 +1,6 @@
 {
    "name": "mira-video-manager",
-   "version": "2.1.0",
+   "version": "2.1.1",
    "description": "Video Process for mira project",
    "main": "index.js",
    "scripts": {
@@ -49,7 +49,7 @@
       "inversify-binding-decorators": "^4.0.0",
       "inversify-express-utils": "^6.5.0",
       "inversify-logger-middleware": "^3.1.0",
-      "inversify-socket-utils": "1.0.1202",
+      "inversify-socket-utils": "1.0.1139",
       "js-yaml": "4.3.2",
       "nanoid": "5.1.16",
       "pg": "^8.4.0",
