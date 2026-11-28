@@ -43,8 +43,11 @@ import { ProfileFactory, ProfileFactoryInitiator } from './profiles/ProfileFacto
 import { TYPES_VM } from '../TYPES';
 import { BaseProfile } from './profiles/BaseProfile';
 import { ContainerOnlyProfile } from './profiles/ContainerOnlyProfile';
+import { ImageSubtitleExtraData, ImageSubtitleProfile } from './profiles/ImageSubtitleProfile';
 import { SoundOnlyProfile } from './profiles/SoundOnlyProfile';
 import { VideoOnlyProfile } from './profiles/VideoOnlyProfile';
+import { StreamDisposition } from '../domains/Media/StreamDisposition';
+import { StreamInfo } from '../domains/Media/StreamInfo';
 import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { DefaultExtractor } from './extractors/DefaultExtractor';
 import { JobMessage } from '../domains/JobMessage';
@@ -162,3 +165,160 @@ test('VideoOnlyProfile encodes H.264, copies audio, and optionally burns subtitl
     // Hash decoded pixels, not encoded packets: the caption must change the picture.
     t.not(await streamHash(captioned, 'v', 'rawvideo'), await streamHash(plain, 'v', 'rawvideo'));
 });
+
+const baseDisposition: StreamDisposition = {
+    default: 0, dub: 0, original: 0, comment: 0, lyrics: 0, karaoke: 0,
+    forced: 0, hearing_impaired: 0, visual_impaired: 0, clean_effects: 0,
+    attached_pic: 0, timed_thumbnails: 0
+};
+
+function pgsSampleStreams(): StreamInfo[] {
+    return [
+        {
+            index: 0,
+            codec_type: 'video',
+            codec_name: 'h264',
+            width: 1920,
+            height: 1080,
+            pix_fmt: 'yuv420p',
+            disposition: { ...baseDisposition, default: 1 }
+        },
+        {
+            index: 1,
+            codec_type: 'audio',
+            codec_name: 'aac',
+            channels: 2,
+            disposition: { ...baseDisposition },
+            tags: { language: 'jpn', title: 'AAC' }
+        },
+        {
+            index: 2,
+            codec_type: 'audio',
+            codec_name: 'eac3',
+            channels: 2,
+            disposition: { ...baseDisposition },
+            tags: { language: 'jpn', title: 'Dolby Digital Plus' }
+        },
+        {
+            index: 3,
+            codec_type: 'subtitle',
+            codec_name: 'hdmv_pgs_subtitle',
+            width: 1920,
+            height: 1080,
+            disposition: { ...baseDisposition },
+            tags: { language: 'chi', title: '中文（简体）' }
+        },
+        {
+            index: 4,
+            codec_type: 'subtitle',
+            codec_name: 'hdmv_pgs_subtitle',
+            width: 1920,
+            height: 1080,
+            disposition: { ...baseDisposition },
+            tags: { language: 'chi', title: '中文（繁體）' }
+        },
+        {
+            index: 5,
+            codec_type: 'video',
+            codec_name: 'png',
+            width: 2812,
+            height: 3996,
+            disposition: { ...baseDisposition, attached_pic: 1 },
+            tags: { filename: 'cover.png', mimetype: 'image/png' }
+        }
+    ];
+}
+
+function buildImageSubProfile(
+    streamsByPath: Record<string, StreamInfo[]>,
+    extraData?: ImageSubtitleExtraData,
+    audioFilePath?: string
+): ImageSubtitleProfile {
+    const action = new ConvertAction();
+    action.profile = ImageSubtitleProfile.profileName;
+    action.videoFilePath = '/tmp/ep01.mkv';
+    action.audioFilePath = audioFilePath;
+    return new ImageSubtitleProfile(action, extraData, '', async (input) => streamsByPath[input] || []);
+}
+
+test('ImageSubtitleProfile overlays selected PGS stream, ignores attached_pic, and copies AAC audio', async t => {
+    const factory = t.context.container.get<ProfileFactoryInitiator>(TYPES_VM.ProfileFactory);
+    const factoryAction = new ConvertAction();
+    factoryAction.profile = ImageSubtitleProfile.profileName;
+    t.true(factory(ImageSubtitleProfile.profileName, factoryAction, { data: {} }) instanceof ImageSubtitleProfile);
+
+    const defaultArgs = await buildImageSubProfile({ '/tmp/ep01.mkv': pgsSampleStreams() }).getCommandArgs();
+    t.deepEqual(defaultArgs, [
+        '-i', '/tmp/ep01.mkv',
+        '-filter_complex', '[0:0][0:3]overlay[v]',
+        '-map', '[v]',
+        '-map', '0:1',
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+        '-c:a', 'copy',
+        '-strict', '-2'
+    ]);
+
+    const tcArgs = await buildImageSubProfile(
+        { '/tmp/ep01.mkv': pgsSampleStreams() },
+        { propertyName: 'tags.title', propertyValueRegex: '繁體' }
+    ).getCommandArgs();
+    t.is(tcArgs[tcArgs.indexOf('-filter_complex') + 1], '[0:0][0:4]overlay[v]');
+
+    const streamsWithDefaultSecondSub = pgsSampleStreams();
+    streamsWithDefaultSecondSub[4].disposition = { ...baseDisposition, default: 1 };
+    const defaultSubArgs = await buildImageSubProfile(
+        { '/tmp/ep01.mkv': streamsWithDefaultSecondSub },
+        { selectDefault: true }
+    ).getCommandArgs();
+    t.is(defaultSubArgs[defaultSubArgs.indexOf('-filter_complex') + 1], '[0:0][0:4]overlay[v]');
+});
+
+test('ImageSubtitleProfile scales mismatched subtitle canvas and encodes non-AAC audio', async t => {
+    const streams: StreamInfo[] = [
+        { index: 0, codec_type: 'video', codec_name: 'h264', width: 1280, height: 720, disposition: { ...baseDisposition, default: 1 } },
+        { index: 1, codec_type: 'audio', codec_name: 'eac3', channels: 2, disposition: { ...baseDisposition, default: 1 } },
+        { index: 2, codec_type: 'subtitle', codec_name: 'dvd_subtitle', width: 1920, height: 1080, tags: { language: 'chi' } }
+    ];
+    const internalAudioArgs = await buildImageSubProfile({ '/tmp/ep01.mkv': streams }).getCommandArgs();
+    t.deepEqual(internalAudioArgs, [
+        '-i', '/tmp/ep01.mkv',
+        '-filter_complex', '[0:2]scale=1280:720[sub];[0:0][sub]overlay[v]',
+        '-map', '[v]',
+        '-map', '0:1',
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
+        '-c:a', 'aac',
+        '-strict', '-2'
+    ]);
+
+    const externalAudioArgs = await buildImageSubProfile(
+        {
+            '/tmp/ep01.mkv': streams,
+            '/tmp/extracted.ac3': [{ index: 0, codec_type: 'audio', codec_name: 'eac3', channels: 2 }]
+        },
+        {},
+        '/tmp/extracted.ac3'
+    ).getCommandArgs();
+    t.deepEqual(externalAudioArgs.slice(0, 10), [
+        '-i', '/tmp/ep01.mkv',
+        '-i', '/tmp/extracted.ac3',
+        '-filter_complex', '[0:2]scale=1280:720[sub];[0:0][sub]overlay[v]',
+        '-map', '[v]',
+        '-map', '1:0'
+    ]);
+    t.is(externalAudioArgs[externalAudioArgs.indexOf('-c:a') + 1], 'aac');
+
+    await t.throwsAsync(
+        buildImageSubProfile({
+            '/tmp/ep01.mkv': [
+                { index: 0, codec_type: 'video', codec_name: 'h264', width: 1920, height: 1080 },
+                { index: 1, codec_type: 'subtitle', codec_name: 'ass', tags: { language: 'chi' } }
+            ]
+        }).getCommandArgs(),
+        { message: 'Could not find image-based subtitle track' }
+    );
+});
+

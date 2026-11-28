@@ -73,6 +73,8 @@ export interface AudioStreamInfo extends BaseStreamInfo {
 export interface SubtitleStreamInfo extends BaseStreamInfo {
     codec_type: 'subtitle';
     codec_name: string;
+    width?: number;
+    height?: number;
 }
 
 export interface OtherStreamInfo extends BaseStreamInfo {
