@@ -41,7 +41,7 @@ only reference `video_filename` or `other_filenames` do not download the video.
 
 Actions define a pipeline operation that will apply to the video file. Actions will be executed by the defined order.
 Currently, there 2 types of actions.
-1. Convert Action: Convert video file format, a convert action need to specify a profile, there are 4 types of profile:
+1. Convert Action: Convert video file format, a convert action need to specify a profile, there are 6 types of profile:
    1. Default: take one video file (the default video file or the last output video file) and convert with default configuration
 this will process both video and audio stream by taking default video and audio stream and output a h264 video with aac audio in a
 mp4 container.
@@ -51,8 +51,10 @@ mp4 container.
       4. _preferredTrack is a format field:value, field is the name of property of audio stream when running ffprobe -v error -print_format json -show_format -show_streams
 value is the property value, if the property is a sub property, a dot is needed. only one level sub property is supported.
 If there is only one audio stream the _preferredTrack is ignored
-   3. Video Only: copy audio stream and only process audio stream to h264 YUV420 8bit, will convert container if it's not mp4.
-   4. Custom: accept user defined **ffmpeg** command line arguments
+   3. Video Only: copy audio stream and only process video stream to h264 YUV420 8bit, will convert container if it's not mp4.
+   4. Container Only: copy both video and audio streams into an mp4 container without re-encoding.
+   5. Image Subtitle (`image_subtitle`): burn an embedded image-based subtitle stream (e.g. `hdmv_pgs_subtitle`, `dvd_subtitle`, `dvb_subtitle`, `xsub`) directly from the input video container into H.264 (`yuv420p`) video using FFmpeg's `overlay` filter—no separate `Subtitle` extract action is needed. Copies the mapped audio stream if it is already AAC (`-c:a copy`), or encodes it to AAC (`-c:a aac`) otherwise (using upstream extracted audio if connected, or the default/first audio stream from the video container). `profileExtraData` accepts `{ propertyName, propertyValueRegex, selectDefault }` matching `ffprobe` subtitle stream fields (for example `{ "propertyName": "tags.title", "propertyValueRegex": "简体" }`), defaulting to `tags.language` matching `(chinese|zh|chi|zho|chs|cht)` (or the single image subtitle track when only one exists).
+   6. Custom: accept user defined **ffmpeg** command line arguments
 2. Merge Action: Can merge last output or video file with any other file (usually subtitle file) in the otherFiles of the torrent.
 **WIP**
 

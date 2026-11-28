@@ -65,9 +65,9 @@ export class LocalConvertProcessor implements VideoProcessor {
 
     public async process(vertex: Vertex): Promise<string> {
         const currentAction = vertex.action as ConvertAction;
-        let videoFilePath = null;
-        let subtitleFilePath = null;
-        let audioFilePath = null;
+        let videoFilePath,
+            subtitleFilePath,
+            audioFilePath;
         let ext: string;
         for (const upstreamVertex of this.upstreamVertices) {
             const vertexOutputPath = upstreamVertex.outputPath;

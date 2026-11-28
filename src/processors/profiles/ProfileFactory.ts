@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 IROHA LAB
+ * Copyright 2026 IROHA LAB
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import { DefaultProfile } from "./DefaultProfile";
 import { interfaces } from "inversify";
 import { BaseProfile } from "./BaseProfile";
 import { ContainerOnlyProfile } from './ContainerOnlyProfile';
+import { ImageSubtitleProfile } from './ImageSubtitleProfile';
 import { ConvertAction } from '../../domains/ConvertAction';
 import { ConfigManager } from '../../utils/ConfigManager';
 import { TYPES } from '@irohalab/mira-shared';
@@ -30,11 +31,13 @@ export function ProfileFactory(context: interfaces.Context): ProfileFactoryIniti
     return (profileName: string, action: ConvertAction, profileExtraData?: any) => {
         switch (profileName) {
             case SoundOnlyProfile.profileName:
-                return new SoundOnlyProfile(action, profileExtraData.data, fontsDir);
+                return new SoundOnlyProfile(action, profileExtraData?.data, fontsDir);
             case VideoOnlyProfile.profileName:
                 return new VideoOnlyProfile(action, fontsDir);
             case ContainerOnlyProfile.profileName:
                 return new ContainerOnlyProfile(action, fontsDir);
+            case ImageSubtitleProfile.profileName:
+                return new ImageSubtitleProfile(action, profileExtraData?.data, fontsDir);
             case DefaultProfile.profileName:
             default:
                 return new DefaultProfile(action, fontsDir);
